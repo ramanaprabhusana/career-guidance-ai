@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+db/*.db
+data/*.zip
+data/*.csv
+*.faiss
+*.pkl
+.DS_Store

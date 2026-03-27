@@ -1,0 +1,186 @@
+{
+  "version": "1.0",
+  "phases": {
+    "orientation": {
+      "job_title": {
+        "type": "string",
+        "required": true,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Current/Most Recent Job Title",
+        "description": "The user's current or most recent professional role."
+      },
+      "industry": {
+        "type": "string",
+        "required": true,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Primary Industry",
+        "description": "The industry or sector the user has primarily worked in."
+      },
+      "years_experience": {
+        "type": "integer",
+        "required": true,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Years of Professional Experience",
+        "description": "Approximate total years of professional work experience."
+      },
+      "education_level": {
+        "type": "enum: high_school | associate | bachelor | master | doctoral | other",
+        "required": true,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Highest Education Level",
+        "description": "The highest level of formal education completed."
+      },
+      "session_goal": {
+        "type": "enum: explore_options | pursue_specific_role",
+        "required": true,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Session Goal",
+        "description": "Whether the user wants to explore career options broadly or pursue a specific target role."
+      }
+    },
+    "exploration_career": {
+      "track": {
+        "type": "enum: career_exploration | role_targeting",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": "career_exploration",
+        "display_name": "Active Track",
+        "description": "System-tracked field indicating which exploration track is active."
+      },
+      "interests": {
+        "type": "string[]",
+        "required": false,
+        "update_policy": "append",
+        "default": [],
+        "display_name": "Career Interests",
+        "description": "Topics, fields, or activities the user finds engaging or wants to explore."
+      },
+      "constraints": {
+        "type": "string[]",
+        "required": false,
+        "update_policy": "append",
+        "default": [],
+        "display_name": "Constraints and Preferences",
+        "description": "Location, schedule, compensation, or other practical constraints on career choices."
+      },
+      "candidate_directions": {
+        "type": "object[]",
+        "required": false,
+        "update_policy": "append",
+        "default": [],
+        "display_name": "Candidate Career Directions",
+        "description": "2-4 potential career directions surfaced during exploration, each with title and rationale.",
+        "entity_bearing": true,
+        "per_entity_fields": {
+          "direction_title": {
+            "type": "string",
+            "description": "Name of the candidate career direction."
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Brief explanation of why this direction fits the user's profile."
+          }
+        }
+      }
+    },
+    "exploration_role_targeting": {
+      "target_role": {
+        "type": "string",
+        "required": true,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Target Role",
+        "description": "The specific job role the user wants to pursue."
+      },
+      "skills": {
+        "type": "object[]",
+        "required": true,
+        "update_policy": "append",
+        "default": [],
+        "display_name": "Skill Assessments",
+        "description": "Skills required for the target role with self-assessment ratings.",
+        "entity_bearing": true,
+        "per_entity_fields": {
+          "skill_name": {
+            "type": "string",
+            "description": "Name of the skill from O*NET."
+          },
+          "onet_source": {
+            "type": "string",
+            "description": "O*NET element ID or reference for this skill."
+          },
+          "required_proficiency": {
+            "type": "string",
+            "description": "Level of proficiency typically required for the target role."
+          },
+          "user_rating": {
+            "type": "enum: not_yet_familiar | working_knowledge | strong_proficiency",
+            "description": "User's self-assessed proficiency level.",
+            "default": null
+          },
+          "gap_category": {
+            "type": "enum: absent | underdeveloped | strong",
+            "description": "Derived gap category based on comparing user_rating to required_proficiency.",
+            "default": null
+          }
+        }
+      }
+    },
+    "planning": {
+      "recommended_path": {
+        "type": "string",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Recommended Career Path",
+        "description": "The synthesized recommended career path based on gap analysis."
+      },
+      "timeline": {
+        "type": "string",
+        "required": true,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Development Timeline",
+        "description": "Estimated timeline for skill development and career transition."
+      },
+      "skill_development_agenda": {
+        "type": "string[]",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": [],
+        "display_name": "Skill Development Agenda",
+        "description": "Ordered list of skill development priorities and resources."
+      },
+      "immediate_next_steps": {
+        "type": "string[]",
+        "required": true,
+        "update_policy": "overwrite",
+        "default": [],
+        "display_name": "Immediate Next Steps",
+        "description": "2-3 concrete actions the user can take right away.",
+        "min_items": 2
+      },
+      "plan_rationale": {
+        "type": "string",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Plan Rationale",
+        "description": "Explanation of why this plan suits the user's profile and goals."
+      },
+      "report_generated": {
+        "type": "boolean",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": false,
+        "display_name": "Report Generated",
+        "description": "Whether a PDF/HTML career plan report has been exported."
+      }
+    }
+  }
+}

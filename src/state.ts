@@ -1,0 +1,122 @@
+import { Annotation } from "@langchain/langgraph";
+
+// --- Domain Types ---
+
+export type EducationLevel = "high_school" | "associate" | "bachelor" | "master" | "doctoral" | "other";
+export type SessionGoal = "explore_options" | "pursue_specific_role";
+export type Track = "career_exploration" | "role_targeting";
+export type UserRating = "not_yet_familiar" | "working_knowledge" | "strong_proficiency";
+export type GapCategory = "absent" | "underdeveloped" | "strong";
+export type TurnType = "first_turn" | "standard" | "phase_transition" | "clarification" | "entity_transition" | "termination";
+
+export interface CandidateDirection {
+  direction_title: string;
+  rationale: string;
+}
+
+export interface SkillAssessment {
+  skill_name: string;
+  onet_source: string;
+  required_proficiency: string;
+  user_rating: UserRating | null;
+  gap_category: GapCategory | null;
+}
+
+export interface AnalyzerOutput {
+  extracted_fields: Record<string, unknown>;
+  required_complete: boolean;
+  phase_suggestion: string | null;
+  confidence: number;
+  notes: string;
+}
+
+export interface ConversationTurn {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+}
+
+// --- LangGraph State Annotation ---
+
+export const AgentState = Annotation.Root({
+  // Session metadata
+  sessionId: Annotation<string>,
+  userId: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  startedAt: Annotation<number>,
+
+  // Conversation history
+  conversationHistory: Annotation<ConversationTurn[]>({
+    reducer: (a, b) => [...a, ...b],
+    default: () => [],
+  }),
+  conversationSummary: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
+
+  // Current user message
+  userMessage: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
+
+  // Phase tracking
+  currentPhase: Annotation<string>({ reducer: (_, b) => b, default: () => "orientation" }),
+  previousPhase: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  newPhase: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  turnNumber: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+  phaseTurnNumber: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+
+  // Orientation fields
+  jobTitle: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  industry: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  yearsExperience: Annotation<number | null>({ reducer: (_, b) => b, default: () => null }),
+  educationLevel: Annotation<EducationLevel | null>({ reducer: (_, b) => b, default: () => null }),
+  sessionGoal: Annotation<SessionGoal | null>({ reducer: (_, b) => b, default: () => null }),
+
+  // Exploration fields
+  track: Annotation<Track | null>({ reducer: (_, b) => b, default: () => null }),
+  interests: Annotation<string[]>({
+    reducer: (a, b) => [...new Set([...a, ...b])],
+    default: () => [],
+  }),
+  constraints: Annotation<string[]>({
+    reducer: (a, b) => [...new Set([...a, ...b])],
+    default: () => [],
+  }),
+  candidateDirections: Annotation<CandidateDirection[]>({
+    reducer: (a, b) => [...a, ...b],
+    default: () => [],
+  }),
+
+  // Role targeting fields
+  targetRole: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  skills: Annotation<SkillAssessment[]>({
+    reducer: (_, b) => b,
+    default: () => [],
+  }),
+
+  // Planning fields
+  recommendedPath: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  timeline: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  skillDevelopmentAgenda: Annotation<string[]>({
+    reducer: (_, b) => b,
+    default: () => [],
+  }),
+  immediateNextSteps: Annotation<string[]>({
+    reducer: (_, b) => b,
+    default: () => [],
+  }),
+  planRationale: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  reportGenerated: Annotation<boolean>({ reducer: (_, b) => b, default: () => false }),
+
+  // Runtime control
+  turnType: Annotation<TurnType>({ reducer: (_, b) => b, default: () => "first_turn" }),
+  analyzerPrompt: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
+  analyzerOutput: Annotation<AnalyzerOutput | null>({ reducer: (_, b) => b, default: () => null }),
+  speakerPrompt: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
+  speakerOutput: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
+  userChangedPhase: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+  maxPhaseRedirects: Annotation<number>({ reducer: (_, b) => b, default: () => 2 }),
+  transitionDecision: Annotation<string>({ reducer: (_, b) => b, default: () => "continue" }),
+  error: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  consecutiveErrors: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+  clarificationCount: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+  clarificationTopic: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+});
+
+export type AgentStateType = typeof AgentState.State;
