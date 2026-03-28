@@ -2,6 +2,16 @@ import type { AgentStateType } from "../state.js";
 import { config, createChatModel } from "../config.js";
 import { HumanMessage } from "@langchain/core/messages";
 
+function sanitizeOutput(text: string): string {
+  return text
+    .replace(/\u2014/g, "-")   // em dash
+    .replace(/\u2013/g, "-")   // en dash
+    .replace(/\u2018/g, "'")   // left single quote
+    .replace(/\u2019/g, "'")   // right single quote
+    .replace(/\u201C/g, '"')   // left double quote
+    .replace(/\u201D/g, '"');  // right double quote
+}
+
 function validateSpeakerOutput(text: string): { valid: boolean; reason?: string } {
   // Check 1: Not empty
   if (!text.trim()) return { valid: false, reason: "empty output" };
@@ -60,9 +70,10 @@ export async function speaker(state: AgentStateType): Promise<Partial<AgentState
 
   try {
     const response = await model.invoke([new HumanMessage(state.speakerPrompt)]);
-    const text = typeof response.content === "string"
+    const raw = typeof response.content === "string"
       ? response.content
       : JSON.stringify(response.content);
+    const text = sanitizeOutput(raw);
 
     const validation = validateSpeakerOutput(text);
 
