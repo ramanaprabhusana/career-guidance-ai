@@ -6,4 +6,5 @@ data/*.zip
 data/*.csv
 *.faiss
 *.pkl
+exports/
 .DS_Store
