@@ -880,16 +880,35 @@
       setWaiting(true);
       showTyping();
 
-      try {
-        const res = await fetch(`${API}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, message: msg }),
-        });
-        const data = await res.json();
-        removeTyping();
-        if (data.error) throw new Error(data.error);
+      // Retry logic for timeouts
+      let data = null;
+      let lastError = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 55000);
+          const res = await fetch(`${API}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, message: msg }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          data = await res.json();
+          if (data.error) throw new Error(data.error);
+          lastError = null;
+          break;
+        } catch (e) {
+          lastError = e;
+          if (attempt === 0) {
+            showToast('Taking a moment... retrying.');
+          }
+        }
+      }
 
+      removeTyping();
+
+      if (data && !lastError) {
         addMessage('bot', data.message);
         updatePhase(data.phase);
 
@@ -910,10 +929,9 @@
         if (data.isComplete) {
           showToast('Session complete! Export your career plan.');
         }
-      } catch (e) {
-        removeTyping();
-        addMessage('bot', 'Something went wrong. Could you try that again?');
-        showToast('Error: ' + e.message);
+      } else {
+        addMessage('bot', 'The response took too long. Please try again.');
+        showToast('Timeout - please retry');
       }
 
       setWaiting(false);

@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { v4 as uuidv4 } from "uuid";
 import { buildGraph } from "./graph.js";
 import { config } from "./config.js";
@@ -14,7 +15,6 @@ const ROOT = join(__dirname, "..");
 
 // Load .env
 try {
-  const { readFileSync } = await import("fs");
   const envPath = join(ROOT, ".env");
   const envContent = readFileSync(envPath, "utf-8");
   for (const line of envContent.split("\n")) {
@@ -35,13 +35,45 @@ if (!process.env.GOOGLE_API_KEY) {
   process.exit(1);
 }
 
+// --- Session Persistence ---
+const SESSION_DIR = join(ROOT, "sessions");
+mkdirSync(SESSION_DIR, { recursive: true });
+
+const sessions = new Map<string, AgentStateType>();
+
+function saveSession(id: string, state: AgentStateType): void {
+  sessions.set(id, state);
+  try {
+    writeFileSync(join(SESSION_DIR, `${id}.json`), JSON.stringify(state));
+  } catch (e) {
+    console.warn("Failed to persist session:", (e as Error).message);
+  }
+}
+
+function loadSession(id: string): AgentStateType | null {
+  // Check memory first
+  const mem = sessions.get(id);
+  if (mem) return mem;
+
+  // Try disk
+  const path = join(SESSION_DIR, `${id}.json`);
+  if (existsSync(path)) {
+    try {
+      const data = JSON.parse(readFileSync(path, "utf-8"));
+      sessions.set(id, data);
+      return data;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(join(ROOT, "public")));
 
-// Session store (in-memory for MVP)
-const sessions = new Map<string, AgentStateType>();
 const graph = buildGraph();
 
 // --- API Routes ---
@@ -58,7 +90,7 @@ app.post("/api/session", async (_req, res) => {
       turnType: "first_turn",
     });
 
-    sessions.set(sessionId, state);
+    saveSession(sessionId, state);
 
     res.json({
       sessionId,
@@ -79,9 +111,9 @@ app.post("/api/chat", async (req, res) => {
     return;
   }
 
-  const state = sessions.get(sessionId);
+  const state = loadSession(sessionId);
   if (!state) {
-    res.status(404).json({ error: "Session not found. Create a new session first." });
+    res.status(404).json({ error: "Session not found. Please start a new session." });
     return;
   }
 
@@ -102,7 +134,7 @@ app.post("/api/chat", async (req, res) => {
       error: null,
     });
 
-    sessions.set(sessionId, newState);
+    saveSession(sessionId, newState);
 
     res.json({
       message: newState.speakerOutput,
@@ -118,6 +150,7 @@ app.post("/api/chat", async (req, res) => {
       },
     });
   } catch (e) {
+    console.error("Chat error:", (e as Error).message);
     res.status(500).json({ error: (e as Error).message });
   }
 });
@@ -126,7 +159,7 @@ app.post("/api/chat", async (req, res) => {
 app.post("/api/export", async (req, res) => {
   const { sessionId } = req.body;
 
-  const state = sessions.get(sessionId);
+  const state = loadSession(sessionId);
   if (!state) {
     res.status(404).json({ error: "Session not found" });
     return;
@@ -136,13 +169,14 @@ app.post("/api/export", async (req, res) => {
     const pdfPath = await generatePDFReport(state);
     const htmlPath = generateHTMLReport(state);
 
-    sessions.set(sessionId, { ...state, reportGenerated: true });
+    saveSession(sessionId, { ...state, reportGenerated: true });
 
     res.json({
       pdf: `/exports/career-plan-${sessionId}.pdf`,
       html: `/exports/career-plan-${sessionId}.html`,
     });
   } catch (e) {
+    console.error("Export error:", (e as Error).message);
     res.status(500).json({ error: (e as Error).message });
   }
 });
@@ -152,7 +186,7 @@ app.use("/exports", express.static(join(ROOT, "exports")));
 
 // Get session info
 app.get("/api/session/:sessionId", (req, res) => {
-  const state = sessions.get(req.params.sessionId);
+  const state = loadSession(req.params.sessionId);
   if (!state) {
     res.status(404).json({ error: "Session not found" });
     return;

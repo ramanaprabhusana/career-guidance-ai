@@ -7,4 +7,5 @@ data/*.csv
 *.faiss
 *.pkl
 exports/
+sessions/
 .DS_Store
