@@ -115,8 +115,8 @@ export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAs
         return result.skills.map((skill) => ({
           skill_name: skill.name,
           onet_source: `${result.socCode} - ${result.title} (O*NET Live)`,
-          required_proficiency: parseFloat(skill.score.value) >= 4 ? "Advanced"
-            : parseFloat(skill.score.value) >= 3 ? "Intermediate" : "Basic",
+          required_proficiency: skill.score && parseFloat(skill.score.value) >= 4 ? "Advanced"
+            : skill.score && parseFloat(skill.score.value) >= 3 ? "Intermediate" : "Basic",
           user_rating: null,
           gap_category: null,
         }));

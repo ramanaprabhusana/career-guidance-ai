@@ -23,7 +23,8 @@ async function blsFetch(seriesIds: string[], startYear?: string, endYear?: strin
   const currentYear = new Date().getFullYear();
   const body: Record<string, unknown> = {
     seriesid: seriesIds,
-    startyear: startYear ?? String(currentYear - 2),
+    // OES data publishes annually; widen window to find latest available data
+    startyear: startYear ?? String(currentYear - 3),
     endyear: endYear ?? String(currentYear),
     registrationkey: apiKey,
   };
@@ -45,14 +46,16 @@ async function blsFetch(seriesIds: string[], startYear?: string, endYear?: strin
 }
 
 /**
- * OEWS series ID format: OEUM{area}{area_type}{industry}{occupation}{datatype}
- * National level: area=0000000, area_type=00
- * All industries: industry=000000
+ * OEWS series ID format (25 chars total):
+ *   OEU + survey_type(1) + state_fips(2) + area(5) + industry(6) + occupation(6) + datatype(2)
+ * State-level, all areas, all industries:
+ *   OEUS + state(2) + 00000 + 000000 + occupation(6) + datatype(2)
+ * We use Texas (48) as default; national data uses different survey.
  * Data types: 01=Employment, 04=Mean wage, 13=Median wage
  */
-function buildOEWSSeriesId(socCode: string, dataType: "01" | "04" | "13"): string {
+function buildOEWSSeriesId(socCode: string, dataType: "01" | "04" | "13", stateFips: string = "48"): string {
   const occ = socCode.replace("-", "").replace(".", "");
-  return `OEUM000000000000000${occ}${dataType}`;
+  return `OEUS${stateFips}00000000000${occ}${dataType}`;
 }
 
 export interface LaborMarketData {
