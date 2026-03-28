@@ -1,5 +1,6 @@
 import type { AgentStateType, TurnType, SkillAssessment, GapCategory, UserRating } from "../state.js";
 import { config } from "../config.js";
+import { retrieveSkillsForRole } from "../utils/rag.js";
 
 function deriveGapCategory(userRating: UserRating | null, requiredProficiency: string): GapCategory | null {
   if (!userRating) return null;
@@ -181,7 +182,7 @@ function determineTurnType(
   return "standard";
 }
 
-export function stateUpdater(state: AgentStateType): Partial<AgentStateType> {
+export async function stateUpdater(state: AgentStateType): Promise<Partial<AgentStateType>> {
   const updates: Partial<AgentStateType> = {
     turnNumber: state.turnNumber + 1,
     phaseTurnNumber: state.phaseTurnNumber + 1,
@@ -233,6 +234,20 @@ export function stateUpdater(state: AgentStateType): Partial<AgentStateType> {
       updates.track = "career_exploration";
     } else if (nextPhase === "exploration_role_targeting") {
       updates.track = "role_targeting";
+
+      // Auto-fetch skills from O*NET when entering role targeting with a target role
+      const role = fieldUpdates.targetRole ?? state.targetRole;
+      if (role && state.skills.length === 0) {
+        try {
+          const skills = await retrieveSkillsForRole(role);
+          if (skills.length > 0) {
+            updates.skills = skills;
+            console.log(`[StateUpdater] Pre-populated ${skills.length} skills for "${role}"`);
+          }
+        } catch (e) {
+          console.warn("[StateUpdater] Skill retrieval failed:", (e as Error).message);
+        }
+      }
     }
   }
 

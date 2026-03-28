@@ -2,6 +2,9 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { config } from "../config.js";
 import type { SkillAssessment } from "../state.js";
+import { getSkillsForRole as liveOnetSkills } from "../services/onet.js";
+import { getWageData } from "../services/bls.js";
+import { searchJobs } from "../services/usajobs.js";
 
 interface OccupationProfile {
   soc_code: string;
@@ -99,31 +102,53 @@ export async function retrieveChunks(query: string, topK: number = 5): Promise<R
 }
 
 /**
- * Retrieve skills for a target role from O*NET occupation data.
- * Returns pre-populated SkillAssessment array with user_rating = null.
+ * Retrieve skills for a target role.
+ * Strategy: try live O*NET API first, fall back to local cached data.
  */
 export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAssessment[]> {
+  // Try live O*NET API first
+  if (process.env.ONET_USERNAME && process.env.ONET_PASSWORD) {
+    try {
+      const result = await liveOnetSkills(targetRole);
+      if (result && result.skills.length > 0) {
+        console.log(`[RAG] Live O*NET hit: ${result.title} (${result.socCode})`);
+        return result.skills.map((skill) => ({
+          skill_name: skill.name,
+          onet_source: `${result.socCode} - ${result.title} (O*NET Live)`,
+          required_proficiency: parseFloat(skill.score.value) >= 4 ? "Advanced"
+            : parseFloat(skill.score.value) >= 3 ? "Intermediate" : "Basic",
+          user_rating: null,
+          gap_category: null,
+        }));
+      }
+    } catch (e) {
+      console.warn("[RAG] Live O*NET failed, falling back to local data:", (e as Error).message);
+    }
+  }
+
+  // Fall back to local cached data
+  return retrieveSkillsFromLocal(targetRole);
+}
+
+function retrieveSkillsFromLocal(targetRole: string): SkillAssessment[] {
   loadData();
 
   if (!cachedOccupations || cachedOccupations.length === 0) {
     return [];
   }
 
-  // Find best matching occupation
   const normalizedTarget = targetRole.toLowerCase();
   let bestMatch: OccupationProfile | null = null;
   let bestScore = 0;
 
   for (const occ of cachedOccupations) {
     const title = occ.title.toLowerCase();
-    // Simple matching: exact substring, word overlap
     if (title.includes(normalizedTarget) || normalizedTarget.includes(title)) {
       bestMatch = occ;
       bestScore = 1;
       break;
     }
 
-    // Word overlap score
     const targetWords = normalizedTarget.split(/\s+/);
     const titleWords = title.split(/\s+/);
     const overlap = targetWords.filter((w) => titleWords.some((tw) => tw.includes(w) || w.includes(tw))).length;
@@ -134,27 +159,8 @@ export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAs
     }
   }
 
-  if (!bestMatch || bestScore < 0.2) {
-    // Fallback: use embeddings to find closest occupation
-    try {
-      const results = await retrieveChunks(`skills for ${targetRole}`, 1);
-      if (results.length > 0) {
-        // Try to find occupation from chunk content
-        for (const occ of cachedOccupations) {
-          if (results[0].content.includes(occ.title)) {
-            bestMatch = occ;
-            break;
-          }
-        }
-      }
-    } catch {
-      // Embedding service unavailable
-    }
-  }
+  if (!bestMatch || bestScore < 0.2) return [];
 
-  if (!bestMatch) return [];
-
-  // Convert to SkillAssessment array
   return bestMatch.skills.map((skill) => ({
     skill_name: skill.name,
     onet_source: `${bestMatch!.soc_code} - ${bestMatch!.title}`,
@@ -166,8 +172,66 @@ export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAs
 
 /**
  * Get labor market data for a role.
+ * Strategy: try live BLS API first, fall back to local cached data.
  */
-export function getLaborMarketData(targetRole: string): {
+export async function getLaborMarketData(targetRole: string): Promise<{
+  median_wage: string;
+  employment: string;
+  growth_rate: string;
+  usajobs_count?: number;
+} | null> {
+  // Try live APIs
+  const liveData = await getLiveMarketData(targetRole);
+  if (liveData) return liveData;
+
+  // Fall back to local data
+  return getLocalMarketData(targetRole);
+}
+
+async function getLiveMarketData(targetRole: string): Promise<{
+  median_wage: string;
+  employment: string;
+  growth_rate: string;
+  usajobs_count?: number;
+} | null> {
+  // Need O*NET to get SOC code first
+  if (!process.env.ONET_USERNAME) return null;
+
+  try {
+    const onetResult = await liveOnetSkills(targetRole);
+    if (!onetResult) return null;
+
+    const result: { median_wage: string; employment: string; growth_rate: string; usajobs_count?: number } = {
+      median_wage: "N/A",
+      employment: "N/A",
+      growth_rate: "N/A",
+    };
+
+    // Try BLS wage data
+    if (process.env.BLS_API_KEY) {
+      try {
+        const wageData = await getWageData(onetResult.socCode);
+        if (wageData.medianWage) result.median_wage = `$${Number(wageData.medianWage).toLocaleString()}/yr`;
+        if (wageData.employment) result.employment = `${Number(wageData.employment).toLocaleString()} employed`;
+      } catch { /* BLS unavailable */ }
+    }
+
+    // Try USAJOBS count
+    if (process.env.USAJOBS_API_KEY) {
+      try {
+        const jobs = await searchJobs(targetRole, 1);
+        result.usajobs_count = jobs.length > 0 ? jobs.length : 0;
+      } catch { /* USAJOBS unavailable */ }
+    }
+
+    console.log(`[RAG] Live market data for ${onetResult.title}: wage=${result.median_wage}`);
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+function getLocalMarketData(targetRole: string): {
   median_wage: string;
   employment: string;
   growth_rate: string;

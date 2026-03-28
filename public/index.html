@@ -4,219 +4,499 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Career Guidance Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --primary: #4a90d9;
-      --primary-dark: #357abd;
-      --bg: #f5f7fa;
-      --card: #ffffff;
-      --text: #333333;
-      --text-light: #777777;
-      --border: #e1e5eb;
-      --user-bubble: #4a90d9;
-      --bot-bubble: #ffffff;
-      --accent: #27ae60;
+      --primary: #0A66C2;
+      --primary-light: #378FE9;
+      --primary-dark: #004182;
+      --primary-bg: rgba(10, 102, 194, 0.08);
+      --accent: #E16745;
+      --accent-light: #FF8A65;
+      --success: #2E7D32;
+      --success-light: #4CAF50;
+      --success-bg: rgba(76, 175, 80, 0.1);
+      --warning: #ED6C02;
+      --warning-bg: rgba(237, 108, 2, 0.1);
+      --gap-red: #D32F2F;
+      --gap-red-bg: rgba(211, 47, 47, 0.08);
+      --bg: #F3F2EF;
+      --bg-white: #FFFFFF;
+      --bg-warm: #FFF8F0;
+      --text: #191919;
+      --text-secondary: #666666;
+      --text-muted: #999999;
+      --border: #E0E0E0;
+      --border-light: #EBEBEB;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+      --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+      --radius: 12px;
+      --radius-lg: 16px;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
       height: 100vh;
       display: flex;
+      overflow: hidden;
+    }
+
+    /* ========== SIDEBAR ========== */
+    .sidebar {
+      width: 260px;
+      background: var(--bg-white);
+      border-right: 1px solid var(--border);
+      display: flex;
       flex-direction: column;
+      flex-shrink: 0;
     }
 
-    /* Header */
-    .header {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-      color: white;
-      padding: 16px 24px;
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .sidebar-logo {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      gap: 10px;
+      margin-bottom: 4px;
     }
 
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .header-icon {
-      width: 40px;
-      height: 40px;
-      background: var(--primary);
+    .sidebar-logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
       border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
-    }
-
-    .header h1 {
+      color: white;
       font-size: 18px;
+    }
+
+    .sidebar-logo h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+
+    .sidebar-logo-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: 46px;
+      margin-top: -2px;
+    }
+
+    /* Nav Items */
+    .sidebar-nav {
+      padding: 12px 8px;
+      flex: 1;
+    }
+
+    .nav-section-label {
+      font-size: 10px;
       font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      padding: 12px 12px 6px;
     }
 
-    .header .subtitle {
-      font-size: 12px;
-      opacity: 0.7;
-      margin-top: 2px;
-    }
-
-    .phase-badge {
-      background: rgba(255,255,255,0.15);
-      padding: 6px 14px;
-      border-radius: 20px;
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
       font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .nav-item:hover { background: var(--bg); color: var(--text); }
+    .nav-item.active { background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+
+    .nav-item-icon {
+      width: 20px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      background: var(--primary);
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    /* Progress Card */
+    .sidebar-progress {
+      padding: 16px;
+      margin: 0 12px 12px;
+      background: linear-gradient(135deg, var(--primary), #1B4F9B);
+      border-radius: var(--radius);
+      color: white;
+    }
+
+    .progress-title {
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0.85;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar-container {
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+      height: 6px;
+      margin-bottom: 6px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: white;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .progress-label {
+      font-size: 11px;
+      opacity: 0.75;
+    }
+
+    /* Data Sources */
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .data-sources-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .data-source {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .data-source-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--success-light);
+    }
+
+    /* ========== MAIN AREA ========== */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    /* Top bar */
+    .topbar {
+      background: var(--bg-white);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .topbar-phase {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .phase-step {
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    .phase-dot {
-      width: 8px;
-      height: 8px;
+    .phase-step-num {
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
-      background: var(--accent);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.35s;
     }
 
-    /* Chat Area */
-    .chat-container {
+    .phase-step-num.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+
+    .phase-step-num.completed {
+      border-color: var(--success-light);
+      background: var(--success-light);
+      color: white;
+    }
+
+    .phase-step-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      transition: color 0.3s;
+    }
+
+    .phase-step.active .phase-step-text { color: var(--primary); font-weight: 600; }
+    .phase-step.completed .phase-step-text { color: var(--success); }
+
+    .phase-line {
+      width: 32px;
+      height: 2px;
+      background: var(--border);
+      transition: background 0.4s;
+    }
+
+    .phase-line.completed { background: var(--success-light); }
+
+    .topbar-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+    .btn-outline:hover { background: var(--primary-bg); }
+    .btn-success { background: var(--success-light); color: white; }
+    .btn-success:hover { background: var(--success); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn svg { width: 16px; height: 16px; }
+
+    /* ========== CHAT AREA ========== */
+    .chat-area {
       flex: 1;
       overflow-y: auto;
       padding: 24px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      scroll-behavior: smooth;
+      gap: 20px;
     }
 
-    .message {
+    .chat-area::-webkit-scrollbar { width: 5px; }
+    .chat-area::-webkit-scrollbar-track { background: transparent; }
+    .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Messages */
+    .msg {
       display: flex;
       gap: 12px;
-      max-width: 80%;
-      animation: fadeIn 0.3s ease;
+      max-width: 680px;
+      animation: msgSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
+    @keyframes msgSlide {
+      from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
-    .message.user {
-      align-self: flex-end;
-      flex-direction: row-reverse;
-    }
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg.bot { align-self: flex-start; }
 
-    .message-avatar {
+    .msg-avatar {
       width: 36px;
       height: 36px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
+      font-size: 14px;
       flex-shrink: 0;
+      font-weight: 600;
     }
 
-    .message.bot .message-avatar {
-      background: linear-gradient(135deg, #4a90d9, #357abd);
+    .msg.bot .msg-avatar {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
       color: white;
     }
 
-    .message.user .message-avatar {
-      background: #e8eef6;
-      color: var(--primary);
+    .msg.user .msg-avatar {
+      background: var(--accent);
+      color: white;
     }
 
-    .message-bubble {
-      padding: 12px 16px;
-      border-radius: 16px;
-      line-height: 1.5;
+    .msg-body { display: flex; flex-direction: column; gap: 3px; }
+
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 2px;
+    }
+
+    .msg-sender { font-size: 12px; font-weight: 600; color: var(--text); }
+    .msg-time { font-size: 11px; color: var(--text-muted); }
+    .msg.user .msg-meta { flex-direction: row-reverse; }
+
+    .msg-bubble {
+      padding: 14px 18px;
+      border-radius: var(--radius-lg);
+      line-height: 1.65;
       font-size: 14px;
       white-space: pre-wrap;
+      word-break: break-word;
     }
 
-    .message.bot .message-bubble {
-      background: var(--card);
+    .msg.bot .msg-bubble {
+      background: var(--bg-white);
       border: 1px solid var(--border);
-      border-bottom-left-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      border-top-left-radius: 4px;
+      box-shadow: var(--shadow-sm);
     }
 
-    .message.user .message-bubble {
-      background: var(--user-bubble);
+    .msg.user .msg-bubble {
+      background: var(--primary);
       color: white;
-      border-bottom-right-radius: 4px;
+      border-top-right-radius: 4px;
     }
 
-    .typing-indicator {
+    /* Suggested Replies */
+    .suggestions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 4px 0 4px 48px;
+      animation: msgSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .suggestion-chip {
+      padding: 8px 14px;
+      background: var(--bg-white);
+      border: 1.5px solid var(--primary);
+      color: var(--primary);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .suggestion-chip:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Typing */
+    .typing-dots {
       display: flex;
       gap: 4px;
-      padding: 8px 0;
+      padding: 6px 0;
+      align-items: center;
     }
 
-    .typing-indicator span {
-      width: 8px;
-      height: 8px;
-      background: #aaa;
+    .typing-dots span {
+      width: 7px;
+      height: 7px;
+      background: var(--text-muted);
       border-radius: 50%;
-      animation: bounce 1.4s infinite ease-in-out;
+      animation: dotPulse 1.4s infinite ease-in-out;
     }
 
-    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-    .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+    .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
 
-    @keyframes bounce {
-      0%, 80%, 100% { transform: scale(0); }
-      40% { transform: scale(1); }
+    @keyframes dotPulse {
+      0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
+      40% { transform: scale(1); opacity: 1; }
     }
 
-    /* Input Area */
-    .input-area {
+    /* ========== INPUT AREA ========== */
+    .input-bar {
       padding: 16px 24px;
-      background: var(--card);
+      background: var(--bg-white);
       border-top: 1px solid var(--border);
       display: flex;
-      gap: 12px;
+      gap: 10px;
       align-items: flex-end;
     }
 
-    .input-wrapper {
+    .input-wrap {
       flex: 1;
-      position: relative;
+      background: var(--bg);
+      border-radius: 24px;
+      border: 1.5px solid var(--border);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      display: flex;
+      align-items: flex-end;
+      padding: 4px 6px;
     }
 
-    #messageInput {
-      width: 100%;
-      padding: 12px 16px;
-      border: 2px solid var(--border);
-      border-radius: 24px;
+    .input-wrap:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-bg);
+    }
+
+    #msgInput {
+      flex: 1;
+      padding: 10px 12px;
+      background: transparent;
+      border: none;
+      color: var(--text);
       font-size: 14px;
       font-family: inherit;
       outline: none;
-      transition: border-color 0.2s;
       resize: none;
-      max-height: 120px;
-      line-height: 1.4;
+      max-height: 100px;
+      line-height: 1.5;
     }
 
-    #messageInput:focus {
-      border-color: var(--primary);
-    }
-
-    #messageInput::placeholder {
-      color: #aaa;
-    }
+    #msgInput::placeholder { color: var(--text-muted); }
 
     .send-btn {
-      width: 44px;
-      height: 44px;
+      width: 42px;
+      height: 42px;
       background: var(--primary);
       color: white;
       border: none;
@@ -225,129 +505,319 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s, transform 0.1s;
+      transition: all 0.15s;
       flex-shrink: 0;
     }
 
     .send-btn:hover { background: var(--primary-dark); }
-    .send-btn:active { transform: scale(0.95); }
-    .send-btn:disabled { background: #ccc; cursor: not-allowed; }
+    .send-btn:active { transform: scale(0.93); }
+    .send-btn:disabled { background: var(--border); cursor: not-allowed; }
+    .send-btn svg { width: 18px; height: 18px; }
 
-    .send-btn svg {
-      width: 20px;
-      height: 20px;
-    }
-
-    .export-btn {
-      padding: 10px 16px;
-      background: var(--accent);
-      color: white;
-      border: none;
-      border-radius: 24px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      transition: background 0.2s;
-      white-space: nowrap;
-    }
-
-    .export-btn:hover { background: #219a52; }
-    .export-btn:disabled { background: #ccc; cursor: not-allowed; }
-
-    /* Welcome Screen */
-    .welcome {
+    .input-hint {
+      font-size: 11px;
+      color: var(--text-muted);
       text-align: center;
+      padding-top: 6px;
+    }
+
+    /* ========== WELCOME ========== */
+    .welcome {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       padding: 40px;
-      color: var(--text-light);
+      text-align: center;
+      animation: fadeUp 0.5s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .welcome-hero {
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(10, 102, 194, 0.2);
     }
 
     .welcome h2 {
-      font-size: 22px;
-      color: var(--text);
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
       margin-bottom: 8px;
+      color: var(--text);
     }
 
-    .welcome p {
-      margin-bottom: 20px;
+    .welcome > p {
+      color: var(--text-secondary);
+      font-size: 15px;
       line-height: 1.6;
+      max-width: 460px;
+      margin-bottom: 32px;
     }
 
-    .start-btn {
-      padding: 14px 32px;
+    .features-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .feat-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      width: 200px;
+      text-align: left;
+      transition: all 0.2s;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .feat-card:hover { border-color: var(--primary); transform: translateY(-3px); box-shadow: var(--shadow-md); }
+
+    .feat-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+
+    .feat-card:nth-child(1) .feat-card-icon { background: var(--primary-bg); }
+    .feat-card:nth-child(2) .feat-card-icon { background: var(--warning-bg); }
+    .feat-card:nth-child(3) .feat-card-icon { background: var(--success-bg); }
+    .feat-card:nth-child(4) .feat-card-icon { background: var(--gap-red-bg); }
+
+    .feat-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .feat-card p { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+    .start-cta {
+      padding: 14px 36px;
       background: var(--primary);
       color: white;
       border: none;
-      border-radius: 28px;
-      font-size: 16px;
-      font-weight: 500;
+      border-radius: 24px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
       cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(10, 102, 194, 0.3);
     }
 
-    .start-btn:hover { background: var(--primary-dark); }
-    .start-btn:active { transform: scale(0.97); }
+    .start-cta:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(10, 102, 194, 0.35); }
 
-    /* Toast notification */
+    .welcome-note {
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .welcome-note a { color: var(--primary); text-decoration: none; }
+
+    /* ========== PRIVACY BANNER ========== */
+    .privacy-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--success-bg);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--success);
+      margin-bottom: 12px;
+      align-self: center;
+      animation: msgSlide 0.3s ease;
+    }
+
+    .privacy-banner svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* ========== TOAST ========== */
     .toast {
       position: fixed;
       bottom: 80px;
       left: 50%;
-      transform: translateX(-50%);
-      background: #333;
+      transform: translateX(-50%) translateY(16px);
+      background: var(--text);
       color: white;
-      padding: 10px 20px;
-      border-radius: 8px;
+      padding: 10px 22px;
+      border-radius: var(--radius);
       font-size: 13px;
       opacity: 0;
-      transition: opacity 0.3s;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 100;
+      box-shadow: var(--shadow-lg);
     }
 
-    .toast.show { opacity: 1; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    /* Responsive */
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .features-row { flex-direction: column; align-items: center; }
+      .feat-card { width: 260px; }
+    }
+
     @media (max-width: 600px) {
-      .message { max-width: 90%; }
-      .header h1 { font-size: 16px; }
-      .phase-badge { font-size: 11px; padding: 4px 10px; }
+      .msg { max-width: 95%; }
+      .topbar { padding: 10px 16px; }
+      .phase-step-text { display: none; }
+      .phase-line { width: 16px; }
+      .chat-area { padding: 16px; }
+      .input-bar { padding: 12px 16px; }
+      .welcome h2 { font-size: 22px; }
     }
   </style>
 </head>
 <body>
 
-  <div class="header">
-    <div class="header-left">
-      <div class="header-icon">&#x1F3AF;</div>
-      <div>
-        <h1>Career Guidance Assistant</h1>
-        <div class="subtitle">AI-powered career planning</div>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">&#x1F3AF;</div>
+        <h1>CareerGuide AI</h1>
+      </div>
+      <div class="sidebar-logo-sub">Intelligent Career Planning</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Navigation</div>
+      <div class="nav-item active" data-view="chat">
+        <span class="nav-item-icon">&#x1F4AC;</span> Career Coach
+      </div>
+      <div class="nav-item" data-view="dashboard" onclick="showToast('Dashboard coming in v2')">
+        <span class="nav-item-icon">&#x1F4CA;</span> Skills Dashboard
+      </div>
+      <div class="nav-item" data-view="explore" onclick="showToast('Explore coming in v2')">
+        <span class="nav-item-icon">&#x1F50D;</span> Explore Careers
+      </div>
+      <div class="nav-item" data-view="resources" onclick="showToast('Resources coming in v2')">
+        <span class="nav-item-icon">&#x1F4DA;</span> Resources
+      </div>
+
+      <div class="nav-section-label" style="margin-top: 16px;">Tools</div>
+      <div class="nav-item" onclick="exportReport()">
+        <span class="nav-item-icon">&#x1F4C4;</span> Export Report
+      </div>
+    </nav>
+
+    <div class="sidebar-progress" id="sidebarProgress">
+      <div class="progress-title">Journey Progress</div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <div class="progress-label" id="progressLabel">Getting started...</div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="data-sources-label">Data Sources</div>
+      <div class="data-source"><span class="data-source-dot"></span> O*NET — Skills & Occupations</div>
+      <div class="data-source"><span class="data-source-dot"></span> BLS — Wage & Employment Data</div>
+      <div class="data-source"><span class="data-source-dot"></span> USAJOBS — Federal Positions</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- Top Bar -->
+    <div class="topbar">
+      <div class="topbar-phase" id="topbarPhase">
+        <div class="phase-step active" data-phase="orientation">
+          <div class="phase-step-num active" id="step1">1</div>
+          <span class="phase-step-text">Profile</span>
+        </div>
+        <div class="phase-line" id="line1"></div>
+        <div class="phase-step" data-phase="exploration">
+          <div class="phase-step-num" id="step2">2</div>
+          <span class="phase-step-text">Explore</span>
+        </div>
+        <div class="phase-line" id="line2"></div>
+        <div class="phase-step" data-phase="skills">
+          <div class="phase-step-num" id="step3">3</div>
+          <span class="phase-step-text">Skills</span>
+        </div>
+        <div class="phase-line" id="line3"></div>
+        <div class="phase-step" data-phase="planning">
+          <div class="phase-step-num" id="step4">4</div>
+          <span class="phase-step-text">Action Plan</span>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn btn-outline" id="exportBtnTop" onclick="exportReport()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
       </div>
     </div>
-    <div class="phase-badge" id="phaseBadge">
-      <span class="phase-dot"></span>
-      <span id="phaseText">Ready</span>
-    </div>
-  </div>
 
-  <div class="chat-container" id="chatContainer">
-    <div class="welcome" id="welcomeScreen">
-      <h2>Welcome to Career Guidance Assistant</h2>
-      <p>I'll help you explore career paths, identify skill gaps,<br>and build a personalized action plan.</p>
-      <button class="start-btn" onclick="startSession()">Start Conversation</button>
-    </div>
-  </div>
+    <!-- Chat / Welcome -->
+    <div class="chat-area" id="chatArea">
+      <div class="welcome" id="welcomeScreen">
+        <div class="welcome-hero">&#x1F3AF;</div>
+        <h2>Your AI Career Coach</h2>
+        <p>I'll guide you through a structured career exploration, assess your skills against real O*NET data, and build a personalized action plan.</p>
 
-  <div class="input-area" id="inputArea" style="display: none;">
-    <div class="input-wrapper">
-      <textarea id="messageInput" placeholder="Type your message..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+        <div class="features-row">
+          <div class="feat-card">
+            <div class="feat-card-icon">&#x1F464;</div>
+            <h3>Profile Building</h3>
+            <p>Share your background through a natural conversation</p>
+          </div>
+          <div class="feat-card">
+            <div class="feat-card-icon">&#x1F50D;</div>
+            <h3>Career Discovery</h3>
+            <p>Explore paths matched to your interests and experience</p>
+          </div>
+          <div class="feat-card">
+            <div class="feat-card-icon">&#x1F4CA;</div>
+            <h3>Gap Analysis</h3>
+            <p>Compare your skills against real occupation data</p>
+          </div>
+          <div class="feat-card">
+            <div class="feat-card-icon">&#x1F4CB;</div>
+            <h3>Action Plan</h3>
+            <p>Get a timeline, next steps, and exportable report</p>
+          </div>
+        </div>
+
+        <button class="start-cta" onclick="startSession()">Start Your Career Journey</button>
+
+        <div class="welcome-note">
+          Your conversation is private. Powered by <a href="#">LangGraph</a> + <a href="#">Gemini</a>
+        </div>
+      </div>
     </div>
-    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="22" y1="2" x2="11" y2="13"></line>
-        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-      </svg>
-    </button>
-    <button class="export-btn" id="exportBtn" onclick="exportReport()">Export Report</button>
+
+    <!-- Input Bar -->
+    <div class="input-bar" id="inputBar" style="display: none;">
+      <div class="input-wrap">
+        <textarea id="msgInput" placeholder="Tell me about your professional background..." rows="1" onkeydown="handleKey(event)"></textarea>
+      </div>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -356,39 +826,56 @@
     const API = window.location.origin;
     let sessionId = null;
     let isWaiting = false;
+    let currentPhase = 'orientation';
+
+    const phaseMap = { orientation: 0, exploration_career: 1, exploration_role_targeting: 2, planning: 3 };
+    const placeholders = {
+      orientation: 'Tell me about your professional background...',
+      exploration_career: 'What kind of work excites you?',
+      exploration_role_targeting: 'How would you rate your experience with this skill?',
+      planning: 'Any preferences for your career timeline?',
+    };
 
     async function startSession() {
-      document.getElementById('welcomeScreen').remove();
-      document.getElementById('inputArea').style.display = 'flex';
+      document.getElementById('welcomeScreen').style.display = 'none';
+      document.getElementById('inputBar').style.display = 'flex';
+
+      // Privacy banner
+      const area = document.getElementById('chatArea');
+      const banner = document.createElement('div');
+      banner.className = 'privacy-banner';
+      banner.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Your conversation is private and not stored permanently.';
+      area.appendChild(banner);
 
       showTyping();
 
       try {
         const res = await fetch(`${API}/api/session`, { method: 'POST' });
         const data = await res.json();
-
         if (data.error) throw new Error(data.error);
 
         sessionId = data.sessionId;
         removeTyping();
         addMessage('bot', data.message);
+        showSuggestions(['I\'m a software engineer', 'I recently graduated', 'I\'m returning to work', 'I\'m exploring options']);
         updatePhase(data.phase);
-        document.getElementById('messageInput').focus();
+        document.getElementById('msgInput').focus();
       } catch (e) {
         removeTyping();
-        addMessage('bot', 'Sorry, I had trouble starting. Please refresh and try again.');
+        addMessage('bot', 'I had trouble connecting. Please refresh and try again.');
         showToast('Connection error: ' + e.message);
       }
     }
 
-    async function sendMessage() {
-      const input = document.getElementById('messageInput');
-      const text = input.value.trim();
-      if (!text || isWaiting || !sessionId) return;
+    async function sendMessage(text) {
+      const input = document.getElementById('msgInput');
+      const msg = text || input.value.trim();
+      if (!msg || isWaiting || !sessionId) return;
 
       input.value = '';
       input.style.height = 'auto';
-      addMessage('user', text);
+      removeSuggestions();
+      addMessage('user', msg);
       setWaiting(true);
       showTyping();
 
@@ -396,23 +883,30 @@
         const res = await fetch(`${API}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, message: text }),
+          body: JSON.stringify({ sessionId, message: msg }),
         });
         const data = await res.json();
-
         removeTyping();
-
         if (data.error) throw new Error(data.error);
 
         addMessage('bot', data.message);
         updatePhase(data.phase);
 
+        // Show contextual suggestions
+        if (data.phase === 'orientation') {
+          // Don't show suggestions after first — let conversation flow
+        } else if (data.phase === 'exploration_career') {
+          showSuggestions(['Technology & AI', 'Healthcare', 'Business & Finance', 'Creative fields']);
+        } else if (data.phase === 'exploration_role_targeting') {
+          showSuggestions(['Very comfortable', 'Some experience', 'Fairly new to me']);
+        }
+
         if (data.isComplete) {
-          showToast('Session complete! Click "Export Report" to download your career plan.');
+          showToast('Session complete! Export your career plan.');
         }
       } catch (e) {
         removeTyping();
-        addMessage('bot', 'I encountered an error. Please try again.');
+        addMessage('bot', 'Something went wrong. Could you try that again?');
         showToast('Error: ' + e.message);
       }
 
@@ -421,11 +915,9 @@
     }
 
     async function exportReport() {
-      if (!sessionId) return;
-
-      const btn = document.getElementById('exportBtn');
+      if (!sessionId) { showToast('Start a conversation first'); return; }
+      const btn = document.getElementById('exportBtnTop');
       btn.disabled = true;
-      btn.textContent = 'Generating...';
 
       try {
         const res = await fetch(`${API}/api/export`, {
@@ -434,59 +926,98 @@
           body: JSON.stringify({ sessionId }),
         });
         const data = await res.json();
-
         if (data.error) throw new Error(data.error);
-
-        // Open HTML report in new tab
         window.open(`${API}${data.html}`, '_blank');
-        showToast('Report generated! Opening in new tab...');
-
-        addMessage('bot', 'Your career plan report has been generated! It should have opened in a new tab. You can also download the PDF version.');
+        showToast('Report opened in a new tab!');
       } catch (e) {
         showToast('Export error: ' + e.message);
       }
 
       btn.disabled = false;
-      btn.textContent = 'Export Report';
     }
 
     function addMessage(role, text) {
-      const container = document.getElementById('chatContainer');
+      const area = document.getElementById('chatArea');
       const msg = document.createElement('div');
-      msg.className = `message ${role}`;
+      msg.className = `msg ${role}`;
 
       const avatar = document.createElement('div');
-      avatar.className = 'message-avatar';
+      avatar.className = 'msg-avatar';
       avatar.textContent = role === 'bot' ? '\u{1F3AF}' : '\u{1F464}';
 
+      const body = document.createElement('div');
+      body.className = 'msg-body';
+
+      const meta = document.createElement('div');
+      meta.className = 'msg-meta';
+      const sender = document.createElement('span');
+      sender.className = 'msg-sender';
+      sender.textContent = role === 'bot' ? 'Career Coach' : 'You';
+      const time = document.createElement('span');
+      time.className = 'msg-time';
+      time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      meta.appendChild(sender);
+      meta.appendChild(time);
+
       const bubble = document.createElement('div');
-      bubble.className = 'message-bubble';
+      bubble.className = 'msg-bubble';
       bubble.textContent = text;
 
+      body.appendChild(meta);
+      body.appendChild(bubble);
       msg.appendChild(avatar);
-      msg.appendChild(bubble);
-      container.appendChild(msg);
-      container.scrollTop = container.scrollHeight;
+      msg.appendChild(body);
+      area.appendChild(msg);
+      area.scrollTop = area.scrollHeight;
+    }
+
+    function showSuggestions(options) {
+      removeSuggestions();
+      const area = document.getElementById('chatArea');
+      const wrap = document.createElement('div');
+      wrap.className = 'suggestions';
+      wrap.id = 'suggestionsWrap';
+      for (const opt of options) {
+        const chip = document.createElement('button');
+        chip.className = 'suggestion-chip';
+        chip.textContent = opt;
+        chip.onclick = () => sendMessage(opt);
+        wrap.appendChild(chip);
+      }
+      area.appendChild(wrap);
+      area.scrollTop = area.scrollHeight;
+    }
+
+    function removeSuggestions() {
+      const el = document.getElementById('suggestionsWrap');
+      if (el) el.remove();
     }
 
     function showTyping() {
-      const container = document.getElementById('chatContainer');
+      const area = document.getElementById('chatArea');
       const msg = document.createElement('div');
-      msg.className = 'message bot';
+      msg.className = 'msg bot';
       msg.id = 'typingMsg';
-
       const avatar = document.createElement('div');
-      avatar.className = 'message-avatar';
+      avatar.className = 'msg-avatar';
       avatar.textContent = '\u{1F3AF}';
-
+      const body = document.createElement('div');
+      body.className = 'msg-body';
+      const meta = document.createElement('div');
+      meta.className = 'msg-meta';
+      const sender = document.createElement('span');
+      sender.className = 'msg-sender';
+      sender.textContent = 'Career Coach';
+      meta.appendChild(sender);
       const bubble = document.createElement('div');
-      bubble.className = 'message-bubble';
-      bubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-
+      bubble.className = 'msg-bubble';
+      bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+      body.appendChild(meta);
+      body.appendChild(bubble);
       msg.appendChild(avatar);
-      msg.appendChild(bubble);
-      container.appendChild(msg);
-      container.scrollTop = container.scrollHeight;
+      msg.appendChild(body);
+      area.appendChild(msg);
+      area.scrollTop = area.scrollHeight;
     }
 
     function removeTyping() {
@@ -495,38 +1026,69 @@
     }
 
     function updatePhase(phase) {
-      const phaseNames = {
-        orientation: 'Getting to Know You',
-        exploration_career: 'Exploring Careers',
-        exploration_role_targeting: 'Assessing Skills',
-        planning: 'Building Your Plan',
-      };
-      document.getElementById('phaseText').textContent = phaseNames[phase] || phase;
+      currentPhase = phase;
+      const idx = phaseMap[phase] ?? 0;
+
+      // Update stepper
+      const steps = [
+        { num: document.getElementById('step1'), step: document.querySelector('[data-phase="orientation"]') },
+        { num: document.getElementById('step2'), step: document.querySelector('[data-phase="exploration"]') },
+        { num: document.getElementById('step3'), step: document.querySelector('[data-phase="skills"]') },
+        { num: document.getElementById('step4'), step: document.querySelector('[data-phase="planning"]') },
+      ];
+
+      const lines = [document.getElementById('line1'), document.getElementById('line2'), document.getElementById('line3')];
+
+      steps.forEach(({ num, step }, i) => {
+        num.classList.remove('active', 'completed');
+        step.classList.remove('active', 'completed');
+        if (i < idx) {
+          num.classList.add('completed');
+          step.classList.add('completed');
+          num.innerHTML = '\u2713';
+        } else if (i === idx) {
+          num.classList.add('active');
+          step.classList.add('active');
+          num.textContent = i + 1;
+        } else {
+          num.textContent = i + 1;
+        }
+      });
+
+      lines.forEach((line, i) => {
+        line.classList.toggle('completed', i < idx);
+      });
+
+      // Update progress bar
+      const pct = Math.round(((idx + 1) / 4) * 100);
+      document.getElementById('progressFill').style.width = pct + '%';
+      const labels = ['Building your profile...', 'Exploring career directions...', 'Assessing your skills...', 'Creating your action plan...'];
+      document.getElementById('progressLabel').textContent = labels[idx] || labels[0];
+
+      // Update placeholder
+      const input = document.getElementById('msgInput');
+      if (input) input.placeholder = placeholders[phase] || placeholders.orientation;
     }
 
-    function setWaiting(val) {
-      isWaiting = val;
-      document.getElementById('sendBtn').disabled = val;
+    function setWaiting(v) {
+      isWaiting = v;
+      document.getElementById('sendBtn').disabled = v;
     }
 
-    function handleKeyDown(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     }
 
     function showToast(msg) {
-      const toast = document.getElementById('toast');
-      toast.textContent = msg;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3500);
     }
 
-    // Auto-resize textarea
-    document.getElementById('messageInput')?.addEventListener('input', function() {
+    document.getElementById('msgInput')?.addEventListener('input', function () {
       this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+      this.style.height = Math.min(this.scrollHeight, 100) + 'px';
     });
   </script>
 </body>

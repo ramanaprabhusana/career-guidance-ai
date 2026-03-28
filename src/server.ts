@@ -172,6 +172,16 @@ app.get("/api/session/:sessionId", (req, res) => {
   });
 });
 
+// Data source status
+app.get("/api/data-sources", (_req, res) => {
+  res.json({
+    onet: { connected: !!(process.env.ONET_USERNAME && process.env.ONET_PASSWORD), label: "O*NET" },
+    bls: { connected: !!process.env.BLS_API_KEY, label: "BLS" },
+    usajobs: { connected: !!(process.env.USAJOBS_API_KEY && process.env.USAJOBS_EMAIL), label: "USAJOBS" },
+    localData: { connected: true, label: "Local O*NET Cache" },
+  });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`\n  Career Guidance Assistant`);
