@@ -88,6 +88,10 @@ app.post("/api/session", async (_req, res) => {
       startedAt: Date.now(),
       userMessage: "",
       turnType: "first_turn",
+    }, {
+      runName: "career-guidance-session-start",
+      tags: ["first_turn", "session_init"],
+      metadata: { sessionId },
     });
 
     saveSession(sessionId, state);
@@ -132,6 +136,15 @@ app.post("/api/chat", async (req, res) => {
       speakerOutput: "",
       newPhase: null,
       error: null,
+    }, {
+      runName: "career-guidance-chat-turn",
+      tags: ["chat_turn", state.currentPhase],
+      metadata: {
+        sessionId,
+        phase: state.currentPhase,
+        turnNumber: state.turnNumber,
+        targetRole: state.targetRole ?? undefined,
+      },
     });
 
     saveSession(sessionId, newState);
@@ -218,9 +231,16 @@ app.get("/api/data-sources", (_req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
+  const tracingEnabled = process.env.LANGCHAIN_TRACING_V2 === "true" && !!process.env.LANGCHAIN_API_KEY;
+  const tracingProject = process.env.LANGCHAIN_PROJECT || "career-guidance-ai";
+
   console.log(`\n  Career Guidance Assistant`);
   console.log(`  ========================`);
   console.log(`  Open in browser: http://localhost:${PORT}`);
   console.log(`  API: http://localhost:${PORT}/api`);
+  console.log(`  LangSmith: ${tracingEnabled ? `ENABLED (project: ${tracingProject})` : "disabled"}`);
+  console.log(`  O*NET API: ${process.env.ONET_USERNAME ? "configured" : "local fallback"}`);
+  console.log(`  BLS API: ${process.env.BLS_API_KEY ? "configured" : "not set"}`);
+  console.log(`  USAJOBS API: ${process.env.USAJOBS_API_KEY ? "configured" : "not set"}`);
   console.log(`  Press Ctrl+C to stop\n`);
 });
