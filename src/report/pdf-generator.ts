@@ -65,7 +65,7 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
         if (y > 700) { doc.addPage(); }
         doc.text(skill.skill_name, 50, doc.y, { width: 150 });
         const rowY = doc.y - doc.currentLineHeight();
-        doc.text(skill.required_proficiency || "—", 200, rowY, { width: 120 });
+        doc.text(skill.required_proficiency || "-", 200, rowY, { width: 120 });
         doc.text(formatRating(skill.user_rating), 320, rowY, { width: 100 });
         doc.text(formatGap(skill.gap_category), 420, rowY, { width: 120 });
         doc.moveDown(0.2);
@@ -105,9 +105,9 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     sectionHeader(doc, "6. Evidence & Sources");
     doc.fontSize(10).font("Helvetica").fillColor("#444444");
     doc.text("Data sources used in this analysis:", { lineGap: 2 });
-    doc.text("  •  O*NET OnLine — Occupational skill and task requirements (U.S. Department of Labor)");
-    doc.text("  •  Bureau of Labor Statistics (BLS) — Occupational Employment and Wage Statistics");
-    doc.text("  •  USAJOBS — Federal government job postings");
+    doc.text("  •  O*NET OnLine - Occupational skill and task requirements (U.S. Department of Labor)");
+    doc.text("  •  Bureau of Labor Statistics (BLS) - Occupational Employment and Wage Statistics");
+    doc.text("  •  USAJOBS - Federal government job postings");
     doc.moveDown(0.5);
     if (state.planRationale) {
       doc.fontSize(10).font("Helvetica-Oblique").text(`Rationale: ${state.planRationale}`, { lineGap: 4 });
@@ -156,14 +156,14 @@ function formatRating(rating: string | null): string {
     working_knowledge: "Intermediate",
     strong_proficiency: "Strong",
   };
-  return rating ? map[rating] ?? rating : "—";
+  return rating ? map[rating] ?? rating : "-";
 }
 
 function formatGap(gap: string | null): string {
   const map: Record<string, string> = {
-    absent: "Gap — Needs Development",
-    underdeveloped: "Partial — Needs Growth",
-    strong: "Strong — On Track",
+    absent: "Gap - Needs Development",
+    underdeveloped: "Partial - Needs Growth",
+    strong: "Strong - On Track",
   };
-  return gap ? map[gap] ?? gap : "—";
+  return gap ? map[gap] ?? gap : "-";
 }

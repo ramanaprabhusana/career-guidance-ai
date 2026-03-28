@@ -69,7 +69,7 @@ export function generateHTMLReport(state: AgentStateType): string {
         ${state.skills.map((s) => `
         <tr>
           <td>${esc(s.skill_name)}</td>
-          <td>${esc(s.required_proficiency || "—")}</td>
+          <td>${esc(s.required_proficiency || "-")}</td>
           <td>${fmtRating(s.user_rating)}</td>
           <td class="gap-${s.gap_category ?? "unknown"}">${fmtGap(s.gap_category)}</td>
         </tr>`).join("")}
@@ -99,9 +99,9 @@ export function generateHTMLReport(state: AgentStateType): string {
     <h2>6. Evidence & Sources</h2>
     <p>Data sources used in this analysis:</p>
     <ul>
-      <li>O*NET OnLine — Occupational skill and task requirements (U.S. Department of Labor)</li>
-      <li>Bureau of Labor Statistics (BLS) — Occupational Employment and Wage Statistics</li>
-      <li>USAJOBS — Federal government job postings</li>
+      <li>O*NET OnLine - Occupational skill and task requirements (U.S. Department of Labor)</li>
+      <li>Bureau of Labor Statistics (BLS) - Occupational Employment and Wage Statistics</li>
+      <li>USAJOBS - Federal government job postings</li>
     </ul>
     ${state.planRationale ? `<p style="margin-top: 12px; font-style: italic;">${esc(state.planRationale)}</p>` : ""}
   </div>
@@ -128,10 +128,10 @@ function fmtEdu(level: string | null): string {
 
 function fmtRating(r: string | null): string {
   const m: Record<string, string> = { not_yet_familiar: "New", working_knowledge: "Intermediate", strong_proficiency: "Strong" };
-  return r ? m[r] ?? r : "—";
+  return r ? m[r] ?? r : "-";
 }
 
 function fmtGap(g: string | null): string {
   const m: Record<string, string> = { absent: "Needs Development", underdeveloped: "Needs Growth", strong: "On Track" };
-  return g ? m[g] ?? g : "—";
+  return g ? m[g] ?? g : "-";
 }
