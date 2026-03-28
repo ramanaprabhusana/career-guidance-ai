@@ -25,6 +25,8 @@ function mergeOrientationFields(
   if (fields.years_experience !== undefined) updates.yearsExperience = fields.years_experience as number;
   if (fields.education_level !== undefined) updates.educationLevel = fields.education_level as AgentStateType["educationLevel"];
   if (fields.session_goal !== undefined) updates.sessionGoal = fields.session_goal as AgentStateType["sessionGoal"];
+  // Also capture target_role if mentioned during orientation
+  if (fields.target_role !== undefined) updates.targetRole = fields.target_role as string;
   return updates;
 }
 
@@ -234,24 +236,30 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
       updates.track = "career_exploration";
     } else if (nextPhase === "exploration_role_targeting") {
       updates.track = "role_targeting";
-
-      // Auto-fetch skills from O*NET when entering role targeting with a target role
-      const role = fieldUpdates.targetRole ?? state.targetRole;
-      if (role && state.skills.length === 0) {
-        try {
-          const skills = await retrieveSkillsForRole(role);
-          if (skills.length > 0) {
-            updates.skills = skills;
-            console.log(`[StateUpdater] Pre-populated ${skills.length} skills for "${role}"`);
-          }
-        } catch (e) {
-          console.warn("[StateUpdater] Skill retrieval failed:", (e as Error).message);
-        }
-      }
     }
   }
 
   updates.transitionDecision = transitionDecision;
+
+  // Auto-fetch skills when in role targeting and targetRole is set but skills are empty
+  const effectivePhase = updates.currentPhase ?? state.currentPhase;
+  const effectiveRole = updates.targetRole ?? fieldUpdates.targetRole ?? state.targetRole;
+  const effectiveSkills = updates.skills ?? state.skills;
+  if (
+    effectivePhase === "exploration_role_targeting" &&
+    effectiveRole &&
+    effectiveSkills.length === 0
+  ) {
+    try {
+      const skills = await retrieveSkillsForRole(effectiveRole);
+      if (skills.length > 0) {
+        updates.skills = skills;
+        console.log(`[StateUpdater] Pre-populated ${skills.length} skills for "${effectiveRole}"`);
+      }
+    } catch (e) {
+      console.warn("[StateUpdater] Skill retrieval failed:", (e as Error).message);
+    }
+  }
 
   // Planning phase is terminal
   if (state.currentPhase === "planning" && state.reportGenerated) {

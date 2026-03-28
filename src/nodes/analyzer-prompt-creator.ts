@@ -26,6 +26,7 @@ function getPhaseStateJSON(state: AgentStateType): string {
       years_experience: state.yearsExperience,
       education_level: state.educationLevel,
       session_goal: state.sessionGoal,
+      target_role: state.targetRole,
     },
     exploration_career: {
       track: state.track,

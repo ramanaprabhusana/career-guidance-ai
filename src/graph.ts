@@ -19,13 +19,6 @@ function routeAfterAnalyzer(state: AgentStateType): string {
   return "stateUpdater";
 }
 
-function routeAfterStateUpdater(state: AgentStateType): string {
-  if (state.transitionDecision === "complete") {
-    return "__end__";
-  }
-  return "speakerPromptCreator";
-}
-
 export function buildGraph() {
   const graph = new StateGraph(AgentState)
     .addNode("analyzerPromptCreator", analyzerPromptCreator)
@@ -46,11 +39,8 @@ export function buildGraph() {
       stateUpdater: "stateUpdater",
     })
 
-    // State updater → conditional: end or proceed to speaker
-    .addConditionalEdges("stateUpdater", routeAfterStateUpdater, {
-      speakerPromptCreator: "speakerPromptCreator",
-      __end__: END,
-    })
+    // State updater → always proceed to speaker (speaker handles termination messages)
+    .addEdge("stateUpdater", "speakerPromptCreator")
 
     // Speaker prompt creator → speaker
     .addEdge("speakerPromptCreator", "speaker")

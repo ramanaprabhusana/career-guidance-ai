@@ -61,9 +61,20 @@ Collect the user's professional background: job title, industry, experience leve
   - User says: "I'm thinking about switching careers" → Extract: "explore_options", confidence: 0.7
 - **Do NOT extract if:** Truly ambiguous — ask a clarifying question
 
+### target_role (optional)
+- **What to look for:** A specific role the user wants to transition to or pursue
+- **Type:** string
+- **Interpretation:** Extract the specific target job title if user clearly names one alongside "pursue_specific_role" intent
+- **Examples:**
+  - User says: "I want to become a data scientist" -> Extract: "Data Scientist"
+  - User says: "I'm aiming for a product manager role" -> Extract: "Product Manager"
+  - User says: "I want to switch to UX design" -> Extract: "UX Designer"
+- **Do NOT extract if:** User only says they want to explore options without naming a specific role
+
 ## Cross-Phase Detection
 If user mentions a specific target role with conviction:
 - Extract session_goal as "pursue_specific_role"
+- Extract target_role with the specific role name
 - Set phase_suggestion to "exploration_role_targeting" if all 5 required fields are complete
 
 ## Edge Cases
