@@ -825,6 +825,7 @@
   <script>
     const API = window.location.origin;
     let sessionId = null;
+    let currentPhaseForChips = null;
     let isWaiting = false;
     let currentPhase = 'orientation';
 
@@ -892,13 +893,18 @@
         addMessage('bot', data.message);
         updatePhase(data.phase);
 
-        // Show contextual suggestions
-        if (data.phase === 'orientation') {
-          // Don't show suggestions after first - let conversation flow
-        } else if (data.phase === 'exploration_career') {
-          showSuggestions(['Technology & AI', 'Healthcare', 'Business & Finance', 'Creative fields']);
-        } else if (data.phase === 'exploration_role_targeting') {
-          showSuggestions(['Very comfortable', 'Some experience', 'Fairly new to me']);
+        // Show contextual suggestions only on phase transitions
+        if (data.phase !== currentPhaseForChips) {
+          currentPhaseForChips = data.phase;
+          if (data.phase === 'exploration_career') {
+            showSuggestions(['Technology & AI', 'Healthcare', 'Business & Finance', 'Creative fields']);
+          } else if (data.phase === 'exploration_role_targeting') {
+            showSuggestions(['Very comfortable', 'Some experience', 'Fairly new to me']);
+          } else if (data.phase === 'planning') {
+            showSuggestions(['Generate my action plan', 'I have more to add']);
+          }
+        } else {
+          removeSuggestions();
         }
 
         if (data.isComplete) {
