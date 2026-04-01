@@ -219,6 +219,31 @@ app.get("/api/session/:sessionId", (req, res) => {
   });
 });
 
+// Get session history (for returning users)
+app.get("/api/session/:sessionId/history", (req, res) => {
+  const state = loadSession(req.params.sessionId);
+  if (!state) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  res.json({
+    sessionId: req.params.sessionId,
+    phase: state.currentPhase,
+    phaseDisplay: config.phaseRegistry.phases[state.currentPhase]?.display_name ?? state.currentPhase,
+    turnNumber: state.turnNumber,
+    conversationHistory: state.conversationHistory ?? [],
+    profile: {
+      jobTitle: state.jobTitle,
+      industry: state.industry,
+      yearsExperience: state.yearsExperience,
+      educationLevel: state.educationLevel,
+      targetRole: state.targetRole,
+    },
+    isComplete: state.transitionDecision === "complete",
+  });
+});
+
 // Data source status
 app.get("/api/data-sources", (_req, res) => {
   res.json({

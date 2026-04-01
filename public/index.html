@@ -837,6 +837,84 @@
       planning: 'Any preferences for your career timeline?',
     };
 
+    // --- Returning User Detection ---
+    function checkReturningUser() {
+      const savedId = localStorage.getItem('careerbot_session_id');
+      if (savedId) {
+        showResumeDialog(savedId);
+      }
+    }
+
+    function showResumeDialog(savedId) {
+      const overlay = document.createElement('div');
+      overlay.id = 'resumeOverlay';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;';
+      const dialog = document.createElement('div');
+      dialog.style.cssText = 'background:white;border-radius:16px;padding:32px;max-width:420px;width:90%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
+      dialog.innerHTML = `
+        <div style="font-size:40px;margin-bottom:12px;">&#128075;</div>
+        <h2 style="font-size:20px;margin-bottom:8px;color:#191919;">Welcome Back!</h2>
+        <p style="color:#666;margin-bottom:24px;font-size:14px;line-height:1.5;">You have a previous career guidance session. Would you like to continue where you left off?</p>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button onclick="resumeSession('${savedId}')" style="padding:10px 24px;background:#0A66C2;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Resume Session</button>
+          <button onclick="startFreshSession()" style="padding:10px 24px;background:white;color:#191919;border:1px solid #E0E0E0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Start Fresh</button>
+        </div>
+      `;
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+    }
+
+    function removeResumeDialog() {
+      const overlay = document.getElementById('resumeOverlay');
+      if (overlay) overlay.remove();
+    }
+
+    async function resumeSession(savedId) {
+      removeResumeDialog();
+      document.getElementById('welcomeScreen').style.display = 'none';
+      document.getElementById('inputBar').style.display = 'flex';
+
+      const area = document.getElementById('chatArea');
+      showTyping();
+
+      try {
+        const res = await fetch(`${API}/api/session/${savedId}/history`);
+        if (!res.ok) throw new Error('Session expired');
+        const data = await res.json();
+
+        sessionId = savedId;
+        removeTyping();
+
+        // Restore conversation history
+        if (data.conversationHistory && data.conversationHistory.length > 0) {
+          for (const msg of data.conversationHistory) {
+            if (msg.role === 'user') {
+              addMessage('user', msg.content);
+            } else if (msg.role === 'assistant' || msg.role === 'bot') {
+              addMessage('bot', msg.content);
+            }
+          }
+          addMessage('bot', 'Welcome back! I remember our conversation. Let\'s continue where we left off. What would you like to discuss next?');
+        } else {
+          addMessage('bot', 'Welcome back! It looks like we were just getting started. How can I help with your career guidance today?');
+        }
+
+        updatePhase(data.phase);
+        document.getElementById('msgInput').focus();
+      } catch (e) {
+        removeTyping();
+        localStorage.removeItem('careerbot_session_id');
+        addMessage('bot', 'Your previous session has expired. Let\'s start a new conversation.');
+        startNewSession();
+      }
+    }
+
+    function startFreshSession() {
+      removeResumeDialog();
+      localStorage.removeItem('careerbot_session_id');
+      startSession();
+    }
+
     async function startSession() {
       document.getElementById('welcomeScreen').style.display = 'none';
       document.getElementById('inputBar').style.display = 'flex';
@@ -849,13 +927,17 @@
       area.appendChild(banner);
 
       showTyping();
+      await startNewSession();
+    }
 
+    async function startNewSession() {
       try {
         const res = await fetch(`${API}/api/session`, { method: 'POST' });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
         sessionId = data.sessionId;
+        localStorage.setItem('careerbot_session_id', sessionId);
         removeTyping();
         addMessage('bot', data.message);
         showSuggestions(['I\'m a software engineer', 'I recently graduated', 'I\'m returning to work', 'I\'m exploring options']);
@@ -867,6 +949,9 @@
         showToast('Connection error: ' + e.message);
       }
     }
+
+    // Check for returning user on page load
+    window.addEventListener('DOMContentLoaded', checkReturningUser);
 
     async function sendMessage(text) {
       const input = document.getElementById('msgInput');
