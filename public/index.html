@@ -27,7 +27,7 @@
       --bg-warm: #FFF8F0;
       --text: #191919;
       --text-secondary: #666666;
-      --text-muted: #999999;
+      --text-muted: #767676;
       --border: #E0E0E0;
       --border-light: #EBEBEB;
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
@@ -667,11 +667,265 @@
 
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+    /* ========== SKIP LINK ========== */
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      background: var(--primary);
+      color: white;
+      padding: 8px 16px;
+      z-index: 200;
+      font-size: 13px;
+      border-radius: 0 0 8px 0;
+    }
+    .skip-link:focus { left: 0; }
+
+    /* ========== SESSION STATS BAR ========== */
+    .stats-bar {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border-light);
+      padding: 6px 24px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: none;
+      align-items: center;
+      gap: 16px;
+    }
+    .stats-bar.visible { display: flex; }
+    .stats-bar .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .stats-bar .stat-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    /* ========== BOT MESSAGE LEFT BORDER ========== */
+    .msg.bot .msg-bubble {
+      border-left: 3px solid var(--primary-light);
+    }
+
+    /* ========== SCROLL TO BOTTOM ========== */
+    .scroll-bottom-btn {
+      position: sticky;
+      bottom: 16px;
+      align-self: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+      z-index: 10;
+      transition: all 0.2s;
+    }
+    .scroll-bottom-btn:hover { background: var(--primary-dark); transform: scale(1.1); }
+    .scroll-bottom-btn svg { width: 20px; height: 20px; }
+
+    /* ========== KEYBOARD HINT ========== */
+    .kb-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      padding-top: 4px;
+      transition: opacity 1s ease;
+    }
+    .kb-hint.hidden { opacity: 0; pointer-events: none; }
+
+    /* ========== HOW IT WORKS ========== */
+    .how-it-works {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 32px;
+      max-width: 700px;
+    }
+    .how-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      flex: 1;
+      padding: 12px 8px;
+    }
+    .how-step-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .how-step h4 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .how-step p { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+    .how-arrow {
+      color: var(--primary);
+      font-size: 18px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: -20px;
+    }
+
+    /* ========== DATA SOURCES SECTION ========== */
+    .data-sources-section {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .ds-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      width: 200px;
+      text-align: left;
+      box-shadow: var(--shadow-sm);
+    }
+    .ds-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .ds-card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+    .ds-card-dot.green { background: var(--success-light); }
+    .ds-card-dot.yellow { background: var(--warning); }
+    .ds-card-dot.red { background: var(--gap-red); }
+    .ds-card h4 { font-size: 13px; font-weight: 600; }
+    .ds-card p { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+
+    /* ========== TECH STACK BADGES ========== */
+    .tech-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .tech-badge {
+      padding: 4px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* ========== PROJECT FOOTER ========== */
+    .project-footer {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    /* ========== FEATURE CARD BADGES ========== */
+    .feat-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+    .feat-badge.blue { background: var(--primary-bg); color: var(--primary); }
+    .feat-badge.orange { background: var(--warning-bg); color: var(--warning); }
+    .feat-badge.green { background: var(--success-bg); color: var(--success); }
+    .feat-badge.red { background: var(--gap-red-bg); color: var(--gap-red); }
+
+    /* ========== EXPORT COMPLETION CARD ========== */
+    .completion-card {
+      background: var(--bg-white);
+      border: 2px solid var(--success-light);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      text-align: center;
+      max-width: 480px;
+      align-self: center;
+      animation: msgSlide 0.4s ease;
+      box-shadow: var(--shadow-md);
+    }
+    .completion-card h3 { font-size: 18px; font-weight: 700; color: var(--success); margin-bottom: 8px; }
+    .completion-card .summary { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+    .completion-card .card-btns { display: flex; gap: 10px; justify-content: center; margin-bottom: 12px; }
+    .completion-card .privacy-note { font-size: 11px; color: var(--text-muted); }
+
+    /* ========== SIDEBAR COMING SOON ========== */
+    .nav-item.coming-soon {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .nav-item.coming-soon:hover { background: transparent; color: var(--text-secondary); }
+    .nav-soon-badge {
+      margin-left: auto;
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ========== PHASE STEP PULSE ========== */
+    @keyframes stepPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(10, 102, 194, 0.3); }
+      50% { box-shadow: 0 0 0 6px rgba(10, 102, 194, 0); }
+    }
+    .phase-step-num.active { animation: stepPulse 2s infinite; }
+
+    /* ========== EXPORT SPINNER ========== */
+    .btn-exporting::after {
+      content: '';
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-left: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ========== MARKDOWN IN BOT MESSAGES ========== */
+    .msg-bubble ul, .msg-bubble ol { margin: 6px 0 6px 18px; }
+    .msg-bubble li { margin-bottom: 2px; }
+    .msg-bubble strong { font-weight: 600; }
+
     /* ========== RESPONSIVE ========== */
     @media (max-width: 900px) {
       .sidebar { display: none; }
       .features-row { flex-direction: column; align-items: center; }
       .feat-card { width: 260px; }
+      .how-it-works { flex-direction: column; gap: 4px; }
+      .how-arrow { transform: rotate(90deg); margin-top: 0; }
+      .data-sources-section { flex-direction: column; align-items: center; }
+      .ds-card { width: 260px; }
     }
 
     @media (max-width: 600px) {
@@ -682,10 +936,12 @@
       .chat-area { padding: 16px; }
       .input-bar { padding: 12px 16px; }
       .welcome h2 { font-size: 22px; }
+      .stats-bar { padding: 6px 16px; font-size: 11px; }
     }
   </style>
 </head>
 <body>
+  <a href="#msgInput" class="skip-link">Skip to chat input</a>
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
@@ -702,14 +958,17 @@
       <div class="nav-item active" data-view="chat">
         <span class="nav-item-icon">&#x1F4AC;</span> Career Coach
       </div>
-      <div class="nav-item" data-view="dashboard" onclick="showToast('Dashboard coming in v2')">
+      <div class="nav-item coming-soon" data-view="dashboard">
         <span class="nav-item-icon">&#x1F4CA;</span> Skills Dashboard
+        <span class="nav-soon-badge">Soon</span>
       </div>
-      <div class="nav-item" data-view="explore" onclick="showToast('Explore coming in v2')">
+      <div class="nav-item coming-soon" data-view="explore">
         <span class="nav-item-icon">&#x1F50D;</span> Explore Careers
+        <span class="nav-soon-badge">Soon</span>
       </div>
-      <div class="nav-item" data-view="resources" onclick="showToast('Resources coming in v2')">
+      <div class="nav-item coming-soon" data-view="resources">
         <span class="nav-item-icon">&#x1F4DA;</span> Resources
+        <span class="nav-soon-badge">Soon</span>
       </div>
 
       <div class="nav-section-label" style="margin-top: 16px;">Tools</div>
@@ -721,16 +980,16 @@
     <div class="sidebar-progress" id="sidebarProgress">
       <div class="progress-title">Journey Progress</div>
       <div class="progress-bar-container">
-        <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+        <div class="progress-bar-fill" id="progressFill" style="width: 0%" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Session progress"></div>
       </div>
       <div class="progress-label" id="progressLabel">Getting started...</div>
     </div>
 
     <div class="sidebar-footer">
       <div class="data-sources-label">Data Sources</div>
-      <div class="data-source"><span class="data-source-dot"></span> O*NET - Skills & Occupations</div>
-      <div class="data-source"><span class="data-source-dot"></span> BLS - Wage & Employment Data</div>
-      <div class="data-source"><span class="data-source-dot"></span> USAJOBS - Federal Positions</div>
+      <div class="data-source"><span class="data-source-dot" id="dotOnet"></span> O*NET - Skills & Occupations</div>
+      <div class="data-source"><span class="data-source-dot" id="dotBls"></span> BLS - Wage & Employment Data</div>
+      <div class="data-source"><span class="data-source-dot" id="dotUsajobs"></span> USAJOBS - Federal Positions</div>
     </div>
   </aside>
 
@@ -738,7 +997,7 @@
   <div class="main">
     <!-- Top Bar -->
     <div class="topbar">
-      <div class="topbar-phase" id="topbarPhase">
+      <div class="topbar-phase" id="topbarPhase" role="group" aria-label="Session progress">
         <div class="phase-step active" data-phase="orientation">
           <div class="phase-step-num active" id="step1">1</div>
           <span class="phase-step-text">Profile</span>
@@ -761,47 +1020,124 @@
       </div>
 
       <div class="topbar-actions">
-        <button class="btn btn-outline" id="exportBtnTop" onclick="exportReport()">
+        <button class="btn btn-outline" id="exportBtnTop" onclick="exportReport()" aria-label="Export career plan report" title="Complete your session to export">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export
+          <span id="exportBtnText">Export</span>
         </button>
       </div>
     </div>
 
+    <!-- Session Stats Bar -->
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-item"><span class="stat-dot"></span> <span id="statTurn">Turn 0</span></div>
+      <div class="stat-item"><span id="statPhase">Phase: Profile</span></div>
+      <div class="stat-item" id="statSkillsWrap" style="display:none"><span id="statSkills">Skills: 0/0</span></div>
+    </div>
+
     <!-- Chat / Welcome -->
-    <div class="chat-area" id="chatArea">
+    <div class="chat-area" id="chatArea" aria-live="polite" aria-relevant="additions">
       <div class="welcome" id="welcomeScreen">
         <div class="welcome-hero">&#x1F3AF;</div>
         <h2>Your AI Career Coach</h2>
-        <p>I'll guide you through a structured career exploration, assess your skills against real O*NET data, and build a personalized action plan.</p>
+        <p>Evidence-based career guidance powered by real labor market data. Explore careers, assess your skills, and build a personalized action plan.</p>
 
+        <!-- How It Works -->
+        <div class="how-it-works">
+          <div class="how-step">
+            <div class="how-step-num">1</div>
+            <h4>Build Profile</h4>
+            <p>Share your background and goals</p>
+          </div>
+          <div class="how-arrow">&#x2192;</div>
+          <div class="how-step">
+            <div class="how-step-num">2</div>
+            <h4>Explore Careers</h4>
+            <p>Discover paths that fit you</p>
+          </div>
+          <div class="how-arrow">&#x2192;</div>
+          <div class="how-step">
+            <div class="how-step-num">3</div>
+            <h4>Assess Skills</h4>
+            <p>Compare against O*NET data</p>
+          </div>
+          <div class="how-arrow">&#x2192;</div>
+          <div class="how-step">
+            <div class="how-step-num">4</div>
+            <h4>Get Your Plan</h4>
+            <p>Timeline, steps, and PDF report</p>
+          </div>
+        </div>
+
+        <!-- Feature Cards -->
         <div class="features-row">
           <div class="feat-card">
             <div class="feat-card-icon">&#x1F464;</div>
             <h3>Profile Building</h3>
             <p>Share your background through a natural conversation</p>
+            <span class="feat-badge blue">AI-Driven</span>
           </div>
           <div class="feat-card">
             <div class="feat-card-icon">&#x1F50D;</div>
             <h3>Career Discovery</h3>
             <p>Explore paths matched to your interests and experience</p>
+            <span class="feat-badge orange">10+ Occupations</span>
           </div>
           <div class="feat-card">
             <div class="feat-card-icon">&#x1F4CA;</div>
             <h3>Gap Analysis</h3>
             <p>Compare your skills against real occupation data</p>
+            <span class="feat-badge green">O*NET Powered</span>
           </div>
           <div class="feat-card">
             <div class="feat-card-icon">&#x1F4CB;</div>
             <h3>Action Plan</h3>
             <p>Get a timeline, next steps, and exportable report</p>
+            <span class="feat-badge red">PDF Export</span>
+          </div>
+        </div>
+
+        <!-- Data Sources -->
+        <div class="data-sources-section" id="dsSection">
+          <div class="ds-card">
+            <div class="ds-card-header">
+              <span class="ds-card-dot" id="dsDotOnet"></span>
+              <h4>O*NET</h4>
+            </div>
+            <p>Skills, knowledge, and task data for 1,000+ occupations from the U.S. Department of Labor</p>
+          </div>
+          <div class="ds-card">
+            <div class="ds-card-header">
+              <span class="ds-card-dot" id="dsDotBls"></span>
+              <h4>BLS</h4>
+            </div>
+            <p>Salary ranges, employment counts, and growth projections from the Bureau of Labor Statistics</p>
+          </div>
+          <div class="ds-card">
+            <div class="ds-card-header">
+              <span class="ds-card-dot" id="dsDotUsajobs"></span>
+              <h4>USAJOBS</h4>
+            </div>
+            <p>Federal job listings, requirements, and salary grades from the U.S. government jobs portal</p>
           </div>
         </div>
 
         <button class="start-cta" onclick="startSession()">Start Your Career Journey</button>
 
+        <!-- Tech Stack -->
+        <div class="tech-badges" style="margin-top: 24px;">
+          <span class="tech-badge">LangGraph</span>
+          <span class="tech-badge">Gemini</span>
+          <span class="tech-badge">FAISS</span>
+          <span class="tech-badge">LangSmith</span>
+          <span class="tech-badge">TypeScript</span>
+        </div>
+
         <div class="welcome-note">
-          Your conversation is private. Powered by <a href="#">LangGraph</a> + <a href="#">Gemini</a>
+          Your conversation is private and not stored permanently.
+        </div>
+
+        <div class="project-footer">
+          MGMT 59000 Final Project -- Purdue University, Spring 2026
         </div>
       </div>
     </div>
@@ -809,18 +1145,19 @@
     <!-- Input Bar -->
     <div class="input-bar" id="inputBar" style="display: none;">
       <div class="input-wrap">
-        <textarea id="msgInput" placeholder="Tell me about your professional background..." rows="1" onkeydown="handleKey(event)"></textarea>
+        <textarea id="msgInput" placeholder="Tell me about your professional background..." rows="1" onkeydown="handleKey(event)" aria-label="Type your message"></textarea>
       </div>
-      <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send">
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send" aria-label="Send message">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"></line>
           <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
         </svg>
       </button>
     </div>
+    <div class="kb-hint" id="kbHint">Press Enter to send, Shift+Enter for new line</div>
   </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
     const API = window.location.origin;
@@ -828,14 +1165,48 @@
     let currentPhaseForChips = null;
     let isWaiting = false;
     let currentPhase = 'orientation';
+    let turnNumber = 0;
+    let firstMessageSent = false;
 
     const phaseMap = { orientation: 0, exploration_career: 1, exploration_role_targeting: 2, planning: 3 };
+    const phaseDisplayNames = { orientation: 'Profile', exploration_career: 'Explore', exploration_role_targeting: 'Skills', planning: 'Action Plan' };
     const placeholders = {
       orientation: 'Tell me about your professional background...',
       exploration_career: 'What kind of work excites you?',
       exploration_role_targeting: 'How would you rate your experience with this skill?',
       planning: 'Any preferences for your career timeline?',
     };
+    const typingMessages = {
+      orientation: 'Learning about your background',
+      exploration_career: 'Exploring career possibilities',
+      exploration_role_targeting: 'Analyzing your skills',
+      planning: 'Building your action plan',
+    };
+
+    // Fetch live API status on page load
+    async function fetchDataSourceStatus() {
+      try {
+        const res = await fetch(`${API}/api/data-sources`);
+        if (!res.ok) return;
+        const data = await res.json();
+        // Welcome page dots
+        setDotStatus('dsDotOnet', data.onet?.connected, data.localData?.connected);
+        setDotStatus('dsDotBls', data.bls?.connected);
+        setDotStatus('dsDotUsajobs', data.usajobs?.connected);
+        // Sidebar dots
+        setDotStatus('dotOnet', data.onet?.connected, data.localData?.connected);
+        setDotStatus('dotBls', data.bls?.connected);
+        setDotStatus('dotUsajobs', data.usajobs?.connected);
+      } catch { /* silent */ }
+    }
+
+    function setDotStatus(id, connected, hasCache) {
+      const dot = document.getElementById(id);
+      if (!dot) return;
+      dot.style.background = connected ? 'var(--success-light)' : (hasCache ? 'var(--warning)' : 'var(--gap-red)');
+    }
+
+    fetchDataSourceStatus();
 
     // --- Returning User Detection ---
     function checkReturningUser() {
@@ -850,18 +1221,32 @@
       overlay.id = 'resumeOverlay';
       overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;';
       const dialog = document.createElement('div');
+      dialog.setAttribute('role', 'dialog');
+      dialog.setAttribute('aria-modal', 'true');
+      dialog.setAttribute('aria-labelledby', 'resumeHeading');
       dialog.style.cssText = 'background:white;border-radius:16px;padding:32px;max-width:420px;width:90%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
       dialog.innerHTML = `
         <div style="font-size:40px;margin-bottom:12px;">&#128075;</div>
-        <h2 style="font-size:20px;margin-bottom:8px;color:#191919;">Welcome Back!</h2>
+        <h2 id="resumeHeading" style="font-size:20px;margin-bottom:8px;color:#191919;">Welcome Back!</h2>
         <p style="color:#666;margin-bottom:24px;font-size:14px;line-height:1.5;">You have a previous career guidance session. Would you like to continue where you left off?</p>
         <div style="display:flex;gap:12px;justify-content:center;">
-          <button onclick="resumeSession('${savedId}')" style="padding:10px 24px;background:#0A66C2;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Resume Session</button>
-          <button onclick="startFreshSession()" style="padding:10px 24px;background:white;color:#191919;border:1px solid #E0E0E0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Start Fresh</button>
+          <button id="resumeBtn" onclick="resumeSession('${savedId}')" style="padding:10px 24px;background:#0A66C2;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Resume Session</button>
+          <button id="freshBtn" onclick="startFreshSession()" style="padding:10px 24px;background:white;color:#191919;border:1px solid #E0E0E0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Start Fresh</button>
         </div>
       `;
       overlay.appendChild(dialog);
       document.body.appendChild(overlay);
+      // Focus trap + Escape
+      document.getElementById('resumeBtn').focus();
+      overlay.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { startFreshSession(); return; }
+        if (e.key === 'Tab') {
+          const btns = [document.getElementById('resumeBtn'), document.getElementById('freshBtn')];
+          const idx = btns.indexOf(document.activeElement);
+          if (e.shiftKey) { e.preventDefault(); btns[idx <= 0 ? 1 : 0].focus(); }
+          else { e.preventDefault(); btns[idx >= 1 ? 0 : 1].focus(); }
+        }
+      });
     }
 
     function removeResumeDialog() {
@@ -883,7 +1268,9 @@
         const data = await res.json();
 
         sessionId = savedId;
+        turnNumber = data.turnNumber || 0;
         removeTyping();
+        document.getElementById('statsBar').classList.add('visible');
 
         // Restore conversation history
         if (data.conversationHistory && data.conversationHistory.length > 0) {
@@ -932,21 +1319,24 @@
 
     async function startNewSession() {
       try {
+        if (!navigator.onLine) { removeTyping(); showToast('You appear to be offline. Please check your internet connection.'); return; }
         const res = await fetch(`${API}/api/session`, { method: 'POST' });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
         sessionId = data.sessionId;
+        turnNumber = 0;
         localStorage.setItem('careerbot_session_id', sessionId);
         removeTyping();
         addMessage('bot', data.message);
         showSuggestions(['I\'m a software engineer', 'I recently graduated', 'I\'m returning to work', 'I\'m exploring options']);
         updatePhase(data.phase);
+        document.getElementById('statsBar').classList.add('visible');
         document.getElementById('msgInput').focus();
       } catch (e) {
         removeTyping();
-        addMessage('bot', 'I had trouble connecting. Please refresh and try again.');
-        showToast('Connection error: ' + e.message);
+        addMessage('bot', 'We\'re having trouble reaching the server. Please check your connection and refresh the page.');
+        showToast('Connection error', true);
       }
     }
 
@@ -958,6 +1348,13 @@
       const msg = text || input.value.trim();
       if (!msg || isWaiting || !sessionId) return;
 
+      // Hide keyboard hint after first message
+      if (!firstMessageSent) {
+        firstMessageSent = true;
+        const hint = document.getElementById('kbHint');
+        if (hint) hint.classList.add('hidden');
+      }
+
       input.value = '';
       input.style.height = 'auto';
       removeSuggestions();
@@ -965,9 +1362,17 @@
       setWaiting(true);
       showTyping();
 
+      if (!navigator.onLine) {
+        removeTyping();
+        showToast('You appear to be offline. Please check your internet connection.', true);
+        setWaiting(false);
+        return;
+      }
+
       // Retry logic for timeouts
       let data = null;
       let lastError = null;
+      let is404 = false;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const controller = new AbortController();
@@ -979,23 +1384,39 @@
             signal: controller.signal,
           });
           clearTimeout(timeout);
+          if (res.status === 404) { is404 = true; throw new Error('Session not found'); }
           data = await res.json();
           if (data.error) throw new Error(data.error);
           lastError = null;
           break;
         } catch (e) {
           lastError = e;
+          if (is404) break;
           if (attempt === 0) {
-            showToast('Taking a moment... retrying.');
+            showToast('This is taking longer than usual. Retrying automatically...');
           }
         }
       }
 
       removeTyping();
 
-      if (data && !lastError) {
-        addMessage('bot', data.message);
+      if (is404) {
+        addMessage('bot', 'Your session may have expired. Let\'s start a new conversation.');
+        localStorage.removeItem('careerbot_session_id');
+        sessionId = null;
+        setTimeout(() => { location.reload(); }, 3000);
+      } else if (data && !lastError) {
+        // Guard against empty bot reply
+        const botMsg = (data.message || '').trim();
+        if (!botMsg) {
+          addMessage('bot', 'I need a moment to organize my thoughts. Could you rephrase your last message?');
+        } else {
+          addMessage('bot', botMsg);
+        }
+
+        turnNumber = data.turnNumber || (turnNumber + 1);
         updatePhase(data.phase);
+        updateStatsBar(data);
 
         // Show contextual suggestions only on phase transitions
         if (data.phase !== currentPhaseForChips) {
@@ -1012,11 +1433,16 @@
         }
 
         if (data.isComplete) {
-          showToast('Session complete! Export your career plan.');
+          showCompletionCard(data.profile);
+          // Upgrade export button
+          const exportBtn = document.getElementById('exportBtnTop');
+          exportBtn.className = 'btn btn-success';
+          document.getElementById('exportBtnText').textContent = 'Export Plan';
+          exportBtn.title = '';
         }
       } else {
-        addMessage('bot', 'The response took too long. Please try again.');
-        showToast('Timeout - please retry');
+        addMessage('bot', 'The response took longer than expected. This can happen with complex questions. Please try sending your message again.');
+        showToast('Please try again', true);
       }
 
       setWaiting(false);
@@ -1024,9 +1450,14 @@
     }
 
     async function exportReport() {
-      if (!sessionId) { showToast('Start a conversation first'); return; }
+      if (!sessionId) { showToast('Complete a career guidance conversation first to generate your report.'); return; }
       const btn = document.getElementById('exportBtnTop');
+      const btnText = document.getElementById('exportBtnText');
+      const origText = btnText.textContent;
       btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btnText.textContent = 'Exporting...';
+      btn.classList.add('btn-exporting');
 
       try {
         const res = await fetch(`${API}/api/export`, {
@@ -1037,12 +1468,15 @@
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         window.open(`${API}${data.html}`, '_blank');
-        showToast('Report opened in a new tab!');
+        showToast('Report opened in a new tab. You can also print it as a PDF.');
       } catch (e) {
-        showToast('Export error: ' + e.message);
+        showToast('We could not generate your report right now. Please try again in a moment.', true);
       }
 
       btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      btnText.textContent = origText;
+      btn.classList.remove('btn-exporting');
     }
 
     function addMessage(role, text) {
@@ -1070,7 +1504,11 @@
 
       const bubble = document.createElement('div');
       bubble.className = 'msg-bubble';
-      bubble.textContent = text;
+      if (role === 'bot') {
+        bubble.innerHTML = renderMarkdown(text);
+      } else {
+        bubble.textContent = text;
+      }
 
       body.appendChild(meta);
       body.appendChild(bubble);
@@ -1078,6 +1516,28 @@
       msg.appendChild(body);
       area.appendChild(msg);
       area.scrollTop = area.scrollHeight;
+    }
+
+    function renderMarkdown(text) {
+      // Escape HTML first
+      let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      // Bold: **text**
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      // Numbered lists: lines starting with "1. ", "2. " etc
+      html = html.replace(/(?:^|\n)(\d+\.\s.+(?:\n\d+\.\s.+)*)/g, function(match) {
+        const items = match.trim().split('\n').map(l => '<li>' + l.replace(/^\d+\.\s/, '') + '</li>').join('');
+        return '\n<ol>' + items + '</ol>';
+      });
+      // Bullet lists: lines starting with "- " or "* "
+      html = html.replace(/(?:^|\n)([-*]\s.+(?:\n[-*]\s.+)*)/g, function(match) {
+        const items = match.trim().split('\n').map(l => '<li>' + l.replace(/^[-*]\s/, '') + '</li>').join('');
+        return '\n<ul>' + items + '</ul>';
+      });
+      // Line breaks
+      html = html.replace(/\n/g, '<br>');
+      // Clean up <br> before/after lists
+      html = html.replace(/<br><(ul|ol)/g, '<$1').replace(/<\/(ul|ol)><br>/g, '</$1>');
+      return html;
     }
 
     function showSuggestions(options) {
@@ -1120,7 +1580,8 @@
       meta.appendChild(sender);
       const bubble = document.createElement('div');
       bubble.className = 'msg-bubble';
-      bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+      const typingText = typingMessages[currentPhase] || 'Thinking';
+      bubble.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-muted);">' + typingText + '</span><div class="typing-dots"><span></span><span></span><span></span></div></div>';
       body.appendChild(meta);
       body.appendChild(bubble);
       msg.appendChild(avatar);
@@ -1148,19 +1609,25 @@
 
       const lines = [document.getElementById('line1'), document.getElementById('line2'), document.getElementById('line3')];
 
+      const stepNames = ['Profile', 'Explore', 'Skills', 'Action Plan'];
       steps.forEach(({ num, step }, i) => {
         num.classList.remove('active', 'completed');
         step.classList.remove('active', 'completed');
+        num.removeAttribute('aria-current');
         if (i < idx) {
           num.classList.add('completed');
           step.classList.add('completed');
           num.innerHTML = '\u2713';
+          num.setAttribute('aria-label', `Step ${i+1}: ${stepNames[i]}, completed`);
         } else if (i === idx) {
           num.classList.add('active');
           step.classList.add('active');
           num.textContent = i + 1;
+          num.setAttribute('aria-current', 'step');
+          num.setAttribute('aria-label', `Step ${i+1}: ${stepNames[i]}, current step`);
         } else {
           num.textContent = i + 1;
+          num.setAttribute('aria-label', `Step ${i+1}: ${stepNames[i]}, upcoming`);
         }
       });
 
@@ -1170,7 +1637,9 @@
 
       // Update progress bar
       const pct = Math.round(((idx + 1) / 4) * 100);
-      document.getElementById('progressFill').style.width = pct + '%';
+      const progressEl = document.getElementById('progressFill');
+      progressEl.style.width = pct + '%';
+      progressEl.setAttribute('aria-valuenow', pct);
       const labels = ['Building your profile...', 'Exploring career directions...', 'Assessing your skills...', 'Creating your action plan...'];
       document.getElementById('progressLabel').textContent = labels[idx] || labels[0];
 
@@ -1188,12 +1657,65 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     }
 
-    function showToast(msg) {
+    function showToast(msg, isError) {
       const t = document.getElementById('toast');
       t.textContent = msg;
       t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 3500);
+      const duration = isError ? 5000 : 3500;
+      setTimeout(() => t.classList.remove('show'), duration);
     }
+
+    function updateStatsBar(data) {
+      document.getElementById('statTurn').textContent = 'Turn ' + (data.turnNumber || turnNumber);
+      document.getElementById('statPhase').textContent = 'Phase: ' + (phaseDisplayNames[data.phase] || data.phaseDisplay || data.phase);
+      const skillsWrap = document.getElementById('statSkillsWrap');
+      if (data.phase === 'exploration_role_targeting' && data.profile) {
+        skillsWrap.style.display = 'flex';
+        // Show skills count if available
+        document.getElementById('statSkills').textContent = 'Skills assessment';
+      } else {
+        skillsWrap.style.display = 'none';
+      }
+    }
+
+    function showCompletionCard(profile) {
+      const area = document.getElementById('chatArea');
+      const card = document.createElement('div');
+      card.className = 'completion-card';
+      const summary = profile?.targetRole
+        ? (profile.jobTitle || 'Professional') + ' exploring ' + profile.targetRole
+        : 'Exploring career directions';
+      card.innerHTML = `
+        <div style="font-size:32px;margin-bottom:8px;">&#127942;</div>
+        <h3>Your Career Plan is Ready</h3>
+        <div class="summary">${summary}</div>
+        <div class="card-btns">
+          <button class="btn btn-success" onclick="exportReport()">View Full Report</button>
+          <button class="btn btn-outline" onclick="this.closest('.completion-card').remove()">Continue Conversation</button>
+        </div>
+        <div class="privacy-note">Your report contains personal career information. Save it to a secure location.</div>
+      `;
+      area.appendChild(card);
+      area.scrollTop = area.scrollHeight;
+    }
+
+    // Scroll-to-bottom button
+    function setupScrollButton() {
+      const area = document.getElementById('chatArea');
+      const btn = document.createElement('button');
+      btn.className = 'scroll-bottom-btn';
+      btn.id = 'scrollBtn';
+      btn.setAttribute('aria-label', 'Scroll to latest message');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+      btn.onclick = () => { area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' }); };
+      area.parentElement.appendChild(btn);
+
+      area.addEventListener('scroll', () => {
+        const distFromBottom = area.scrollHeight - area.scrollTop - area.clientHeight;
+        btn.style.display = distFromBottom > 200 ? 'flex' : 'none';
+      });
+    }
+    setupScrollButton();
 
     document.getElementById('msgInput')?.addEventListener('input', function () {
       this.style.height = 'auto';
