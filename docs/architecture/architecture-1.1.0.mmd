@@ -1,0 +1,41 @@
+%% Career Guidance Assistant architecture v1.1.0 — 2026-03-27 23:03 UTC
+%% Added Express HTTP server + browser SPA
+
+graph TD
+    subgraph "Browser"
+        UI[public/index.html<br>Single-page app]
+    end
+
+    subgraph "Express Server"
+        R1[POST /api/session]
+        R2[POST /api/chat]
+        R3[POST /api/export]
+    end
+
+    subgraph "LangGraph Pipeline"
+        APC[AnalyzerPromptCreator]
+        A[Analyzer]
+        SU[StateUpdater]
+        SPC[SpeakerPromptCreator]
+        S[Speaker]
+    end
+
+    subgraph "State"
+        MEM[In-Memory Map]
+    end
+
+    subgraph "RAG + Data"
+        EMB[Ollama Embeddings]
+        OCC[occupations.json]
+    end
+
+    subgraph "Export"
+        PDF[PDF Generator]
+        HTML[HTML Generator]
+    end
+
+    UI -->|fetch| R1 & R2 & R3
+    R1 & R2 --> APC --> A --> SU --> SPC --> S
+    SU --> MEM
+    SU --> EMB & OCC
+    R3 --> PDF & HTML

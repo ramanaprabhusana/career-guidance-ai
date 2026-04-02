@@ -1,0 +1,52 @@
+%% Career Guidance Assistant architecture v2.0.0 — 2026-04-02 14:54 UTC
+%% UI Redesign: 9-section landing page, accessibility layer, 2-column footer
+
+graph TD
+    subgraph "Browser — Landing Page (9 sections)"
+        HERO[Hero<br>32px headline + dual CTA]
+        TRUST[Trust Bar<br>3 verified stats]
+        HIW[How It Works<br>4-step stepper]
+        FEAT[Feature Cards<br>4 cards + badges]
+        DS[Data Sources<br>3 cards + live dots]
+        FAQ[FAQ / Limitations<br>4-item grid]
+        DISC[AI Disclaimer]
+        BCTA[Bottom CTA]
+        FOOT[2-Column Footer]
+    end
+
+    subgraph "Browser — Chat View"
+        SB[Sidebar<br>7 nav items]
+        TOP[Topbar Stepper<br>ARIA + pulse animation]
+        STATS[Stats Bar]
+        CHAT[Chat Area<br>aria-live + markdown]
+        INPUT[Input Bar<br>+ keyboard hint]
+    end
+
+    subgraph "Accessibility"
+        SKIP[Dual skip links]
+        FOCUS[Focus-visible outlines]
+        DIALOG[Resume dialog<br>Focus trap]
+    end
+
+    subgraph "Express Server (unchanged from v1.3)"
+        R1[POST /api/session]
+        R2[POST /api/chat]
+        R3[POST /api/export]
+        R4[GET /api/data-sources]
+        R5[GET /api/session/:id/history]
+    end
+
+    subgraph "LangGraph Pipeline (unchanged)"
+        GRAPH[5-node StateGraph]
+    end
+
+    subgraph "External APIs (unchanged)"
+        ONET[O*NET v2]
+        BLS[BLS OEWS]
+        USJ[USAJOBS]
+    end
+
+    HERO --> TRUST --> HIW --> FEAT --> DS --> FAQ --> DISC --> BCTA --> FOOT
+    INPUT -->|fetch| R2 --> GRAPH
+    GRAPH --> ONET & BLS & USJ
+    R4 --> DS

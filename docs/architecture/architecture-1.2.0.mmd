@@ -1,0 +1,43 @@
+%% Career Guidance Assistant architecture v1.2.0 — 2026-03-28 03:46 UTC
+%% Live API integration + Docker + Render deployment
+
+graph TD
+    subgraph "Browser"
+        UI[public/index.html<br>Data source panel]
+    end
+
+    subgraph "Express Server"
+        R1[POST /api/session]
+        R2[POST /api/chat]
+        R3[POST /api/export]
+        R4[GET /api/data-sources]
+    end
+
+    subgraph "LangGraph Pipeline"
+        APC[AnalyzerPromptCreator]
+        A[Analyzer]
+        SU[StateUpdater]
+        SPC[SpeakerPromptCreator]
+        S[Speaker]
+    end
+
+    subgraph "External APIs"
+        ONET[O*NET v2<br>api-v2.onetcenter.org]
+        BLS[BLS OEWS<br>api.bls.gov]
+        USJ[USAJOBS<br>data.usajobs.gov]
+    end
+
+    subgraph "State"
+        MEM[In-Memory Map]
+    end
+
+    subgraph "Deployment"
+        DOC[Dockerfile] --> REN[Render.com]
+    end
+
+    UI -->|fetch| R1 & R2 & R3 & R4
+    R2 --> APC --> A --> SU --> SPC --> S
+    SU --> ONET & BLS & USJ
+    SU --> MEM
+    R3 --> PDF[PDF] & HTML[HTML]
+    R4 --> ONET & BLS & USJ

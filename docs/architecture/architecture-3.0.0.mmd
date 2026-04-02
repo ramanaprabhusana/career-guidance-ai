@@ -1,0 +1,102 @@
+%% Career Guidance Assistant architecture v3.0.0 — 2026-04-02 15:30 UTC (planned)
+%% Feature Expansion: Resume + Interview + Resources pipelines
+
+graph TD
+    subgraph "Browser — Multi-View SPA"
+        V1[Career Coach<br>Chat view]
+        V2[Resume<br>Upload + review]
+        V3[Interview Practice<br>Mode select + Q&A + rubric]
+        V4[Resources<br>Curated + citations]
+        V5[Export<br>PDF/HTML + new sections]
+    end
+
+    subgraph "Express Server"
+        subgraph "Core Routes"
+            CR1[POST /api/session]
+            CR2[POST /api/chat]
+            CR3[GET /api/session/:id/history]
+            CR4[GET /api/data-sources]
+        end
+        subgraph "Resume Routes"
+            RR1[POST /api/resume/upload]
+            RR2[POST /api/resume/confirm]
+            RR3[GET /api/resume/:sessionId]
+        end
+        subgraph "Interview Routes"
+            IR1[POST /api/interview/start]
+            IR2[POST /api/interview/answer]
+            IR3[GET /api/interview/:sessionId]
+        end
+        subgraph "Resource Routes"
+            RSR[GET /api/resources]
+        end
+        subgraph "Export"
+            ER[POST /api/export]
+        end
+    end
+
+    subgraph "LangGraph Pipeline (unchanged)"
+        APC[AnalyzerPromptCreator]
+        AN[Analyzer]
+        SU[StateUpdater]
+        SPC[SpeakerPromptCreator]
+        SP[Speaker]
+    end
+
+    subgraph "Resume Pipeline"
+        MUL[Multer<br>Memory storage<br>Max 5MB]
+        TXT[pdf-parse / mammoth<br>Text extraction]
+        REX[LLM Extractor<br>Gemini temp=0<br>JSON schema]
+        CONF[User confirm/edit]
+    end
+
+    subgraph "Interview Pipeline"
+        QG[Question Generator<br>Gemini temp=0.6]
+        GR[Grader<br>Gemini temp=0.1<br>5-dim rubric]
+        PER[Personas<br>Coach / Peer]
+    end
+
+    subgraph "Resources Pipeline"
+        CUR[data/curated-resources.json]
+        REC[Recommender<br>Filter by role + skills]
+        WS[Web Search API<br>Phase 2]
+    end
+
+    subgraph "External APIs"
+        ONET[O*NET v2]
+        BLS[BLS OEWS]
+        USJ[USAJOBS]
+    end
+
+    subgraph "State"
+        SS[AgentState<br>+ resumeProfile<br>+ interviewSessions<br>+ recommendedResources]
+        DISK[sessions/*.json]
+    end
+
+    subgraph "Safety"
+        SAN[Input sanitization]
+        INJ[Doc injection defense]
+        PII[Protected char. guard]
+    end
+
+    V1 --> CR1 & CR2
+    V2 --> RR1 & RR2
+    V3 --> IR1 & IR2
+    V4 --> RSR
+    V5 --> ER
+
+    CR2 --> APC --> AN --> SU --> SPC --> SP
+    RR1 --> MUL --> TXT --> REX --> CONF
+    CONF --> SS
+    IR1 --> QG --> PER
+    QG --> ONET
+    IR2 --> GR
+    RSR --> REC --> CUR
+    REC -.->|Phase 2| WS
+
+    SU --> ONET & BLS & USJ
+    SS --> DISK
+    ER --> PDF[PDF + resume + interview + resources]
+
+    REX --> SAN & INJ
+    GR --> PII

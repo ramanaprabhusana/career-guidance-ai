@@ -1,0 +1,36 @@
+%% Career Guidance Assistant architecture v1.0.0 — 2026-03-27 22:55 UTC
+%% Initial build: LangGraph pipeline + CLI + RAG + export
+
+graph TD
+    subgraph "CLI Interface"
+        CLI[src/index.ts<br>Interactive CLI]
+    end
+
+    subgraph "LangGraph Pipeline"
+        APC[AnalyzerPromptCreator]
+        A[Analyzer<br>Gemini 2.0 Flash<br>temp=0]
+        SU[StateUpdater]
+        SPC[SpeakerPromptCreator]
+        S[Speaker<br>Gemini 2.0 Flash<br>temp=0.7]
+    end
+
+    subgraph "State"
+        SS[AgentState<br>20+ typed fields<br>4-phase flow]
+    end
+
+    subgraph "RAG"
+        EMB[Ollama nomic-embed-text]
+        VS[Cosine similarity search]
+        OCC[data/occupations.json]
+    end
+
+    subgraph "Export"
+        PDF[PDFKit PDF Generator]
+        HTML[HTML Report Generator]
+    end
+
+    CLI --> APC --> A --> SU --> SPC --> S --> CLI
+    SU --> SS
+    SU --> VS --> EMB
+    VS --> OCC
+    SS --> PDF & HTML

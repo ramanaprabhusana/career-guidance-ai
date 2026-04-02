@@ -1,0 +1,53 @@
+%% Career Guidance Assistant architecture v1.3.0 — 2026-03-31 03:14 UTC
+%% Session persistence + returning user + LangSmith + data sync
+
+graph TD
+    subgraph "Browser"
+        UI[public/index.html<br>Returning user dialog]
+        LS[localStorage<br>careerbot_session_id]
+    end
+
+    subgraph "Express Server"
+        R1[POST /api/session]
+        R2[POST /api/chat]
+        R3[POST /api/export]
+        R4[GET /api/data-sources]
+        R5[GET /api/session/:id/history]
+    end
+
+    subgraph "LangGraph Pipeline"
+        APC[AnalyzerPromptCreator]
+        A[Analyzer]
+        SU[StateUpdater]
+        SPC[SpeakerPromptCreator]
+        S[Speaker]
+    end
+
+    subgraph "Observability"
+        LSM[LangSmith<br>Tracing + metadata]
+    end
+
+    subgraph "External APIs"
+        ONET[O*NET v2]
+        BLS[BLS OEWS]
+        USJ[USAJOBS]
+    end
+
+    subgraph "Persistence"
+        MEM[In-Memory Map]
+        DISK[sessions/*.json]
+    end
+
+    subgraph "Data Pipeline"
+        SYNC[scripts/sync-data.ts] --> ENR[enriched-occupations.json]
+        SYNC --> ONET & BLS & USJ
+    end
+
+    UI --> LS
+    LS -->|resume| R5 --> DISK
+    UI -->|fetch| R1 & R2 & R3 & R4
+    R2 --> APC --> A --> SU --> SPC --> S
+    S --> LSM
+    SU --> ONET & BLS & USJ
+    SU --> MEM --> DISK
+    R3 --> PDF[PDF] & HTML[HTML]
