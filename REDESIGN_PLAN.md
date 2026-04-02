@@ -7,6 +7,39 @@
 
 ---
 
+## 0. Competitive UX Notes
+
+### What PrepStack does better (structurally)
+- **Dual CTA in hero** — primary "Get Started" + secondary "See Features →" gives two entry points
+- **Numbered how-it-works** — 01/02/03 prefix with generous spacing feels polished
+- **Trust row in hero** — metric badges immediately below headline build confidence
+- **Multi-column footer** — organized product/company links feel professional
+- **Section rhythm** — generous whitespace between sections, alternating visual weight
+- **Typography contrast** — serif headlines (Instrument Serif) vs sans-serif body creates hierarchy
+
+### What our site does better (substantively)
+- **Real federal data** — O*NET, BLS, USAJOBS are verifiable government APIs, not mock data
+- **Working AI chat** — actual LangGraph pipeline with 4-phase coaching, not a demo
+- **Live data source indicators** — green/yellow/red dots showing real API connectivity
+- **Privacy-first** — no accounts, no permanent storage, no tracking
+- **PDF export** — tangible deliverable (career action plan) users take away
+- **Transparent limitations** — FAQ section and AI disclaimer set honest expectations
+
+### What we adopted from PrepStack's layout
+- Dual CTA (primary + ghost "See How It Works")
+- Trust metrics row (using only real, verifiable stats)
+- Improved section spacing (56px between sections)
+- 2-column footer with data source links
+
+### What we deliberately skipped
+- Testimonials (no real users yet — would be dishonest)
+- Pricing tiers (not applicable to a class project)
+- Top nav bar (redundant — our sidebar serves this purpose)
+- Dark theme (inappropriate for a data-trust career product)
+- Serif headline font (Inter works well for our professional tone)
+
+---
+
 ## 1. Information Architecture (IA Map)
 
 ### Above the Fold (Hero Section)
@@ -242,8 +275,33 @@
 ### Privacy Line
 > Your conversation stays private. No account required. No data stored permanently.
 
+### CTA Labels
+- Primary: **"Start Your Career Journey"**
+- Secondary (ghost): **"See How It Works ↓"**
+- Bottom repeat: **"Start Your Career Journey"** (same as primary)
+
+### Section Titles
+- "How It Works"
+- "What You Get"
+- "Powered By Real Data"
+- "Good to Know" (FAQ)
+- "Important Note" (Disclaimer)
+- "Ready to Explore Your Career Path?" (Bottom CTA)
+
+### FAQ Copy (4 items)
+1. **Is this real career counseling?** — No. Data-driven suggestions from federal databases. Does not replace professional counseling.
+2. **Where does the data come from?** — O*NET (occupations), BLS (salaries), USAJOBS (federal listings).
+3. **Is my conversation saved?** — Temporarily during session. No permanent account. No data retained.
+4. **What are the limitations?** — Data may lag. AI can make mistakes. O*NET taxonomies may not cover every niche role.
+
+### AI Disclaimer
+> AI-generated career advice is informational only and does not constitute professional counseling. Always consult qualified career professionals for major career decisions. Data sourced from O*NET, BLS, and USAJOBS may not reflect the very latest labor market changes.
+
+### Bottom CTA
+> Ready to Explore Your Career Path? Start a guided conversation backed by real labor market data.
+
 ### Footer
-> MGMT 59000 Final Project | Purdue University | Spring 2026
+> MGMT 59000 Final Project · Purdue University · Spring 2026
 
 ---
 

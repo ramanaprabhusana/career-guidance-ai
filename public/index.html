@@ -941,6 +941,131 @@
       text-align: center;
     }
 
+    /* ========== HERO DUAL CTA ========== */
+    .hero-cta-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .secondary-cta {
+      display: inline-block;
+      padding: 12px 24px;
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .secondary-cta:hover {
+      border-color: var(--primary-light);
+      color: var(--primary);
+      background: var(--primary-bg);
+    }
+
+    /* ========== FAQ / LIMITATIONS ========== */
+    .faq-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-card-gap);
+      max-width: 680px;
+      margin: 0 auto;
+      text-align: left;
+    }
+    .faq-item {
+      padding: var(--space-inner);
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+    .faq-item h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .faq-item p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    /* ========== AI DISCLAIMER ========== */
+    .disclaimer-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      background: var(--warning-bg);
+      border: 1px solid rgba(237, 108, 2, 0.2);
+      border-radius: var(--radius);
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      text-align: left;
+    }
+    .disclaimer-icon {
+      font-size: 22px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .disclaimer-text { margin: 0; }
+
+    /* ========== 2-COL FOOTER ========== */
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 32px;
+      text-align: left;
+    }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .footer-logo-icon { font-size: 20px; }
+    .footer-col p { margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .footer-col h4 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .footer-links {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px 0;
+    }
+    .footer-links li { margin-bottom: 4px; }
+    .footer-links a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 12px;
+    }
+    .footer-links a:hover { text-decoration: underline; }
+    .footer-legal { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+    .footer-bottom {
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-light);
+      font-size: 11px;
+    }
+
     /* ========== FEATURE CARD BADGES ========== */
     .feat-badge {
       display: inline-block;
@@ -1025,6 +1150,8 @@
       .how-arrow { transform: rotate(90deg); margin-top: 0; }
       .data-sources-section { flex-direction: column; align-items: center; }
       .ds-card { width: 100%; max-width: 340px; }
+      .faq-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
       .trust-bar { gap: 16px; padding: 16px 20px; }
       .trust-stat-number { font-size: 18px; }
       .landing-section--alt { margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; }
@@ -1042,6 +1169,7 @@
       .stats-bar { padding: 6px 16px; font-size: 11px; }
       .trust-bar { flex-direction: row; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 12px; padding: 14px 16px; }
       .trust-stat { min-width: 90px; }
+      .hero-cta-group { flex-direction: column; gap: 8px; }
       .section-title { font-size: 18px; }
       .landing-section { padding-top: 36px; }
       .landing-section--alt { padding-top: 36px; padding-bottom: 28px; }
@@ -1153,7 +1281,10 @@
           <h2 id="heroHeading">Navigate Your Career With Real Data</h2>
           <p>Explore 1,000+ occupations, assess your skills against O*NET benchmarks, and get a personalized action plan -- all through a guided conversation.</p>
 
-          <button class="start-cta" onclick="startSession()">Start Your Career Journey</button>
+          <div class="hero-cta-group">
+            <button class="start-cta" onclick="startSession()">Start Your Career Journey</button>
+            <a href="#howItWorksHeading" class="secondary-cta" aria-label="See how it works">See How It Works &#x2193;</a>
+          </div>
           <div class="welcome-note" style="margin-top: 16px; margin-bottom: 32px;">No account needed. Your conversation stays private.</div>
         </section>
 
@@ -1265,17 +1396,79 @@
           </div>
         </section>
 
-        <!-- CONSOLIDATED FOOTER -->
-        <footer class="project-footer">
-          <div class="tech-badges" style="margin-bottom: 16px;">
-            <span class="tech-badge">LangGraph</span>
-            <span class="tech-badge">Gemini</span>
-            <span class="tech-badge">FAISS</span>
-            <span class="tech-badge">LangSmith</span>
-            <span class="tech-badge">TypeScript</span>
+        <!-- FAQ / LIMITATIONS -->
+        <section class="landing-section landing-section--alt" aria-labelledby="faqHeading">
+          <h3 class="section-title" id="faqHeading">Good to Know</h3>
+          <div class="faq-grid">
+            <div class="faq-item" role="article">
+              <h4>Is this real career counseling?</h4>
+              <p>No. This tool provides data-driven suggestions based on federal labor databases. It does not replace professional career counseling.</p>
+            </div>
+            <div class="faq-item" role="article">
+              <h4>Where does the data come from?</h4>
+              <p>All occupation data comes from O*NET, salary data from the Bureau of Labor Statistics, and federal job listings from USAJOBS.</p>
+            </div>
+            <div class="faq-item" role="article">
+              <h4>Is my conversation saved?</h4>
+              <p>Conversations are stored temporarily during your session. No permanent account is created and no data is retained after you leave.</p>
+            </div>
+            <div class="faq-item" role="article">
+              <h4>What are the limitations?</h4>
+              <p>Data may lag behind real-time market changes. The AI can make mistakes. Skills matching uses standardized O*NET taxonomies which may not cover every niche role.</p>
+            </div>
           </div>
-          <div>Your conversation stays private. No account required. No data stored permanently.</div>
-          <div style="margin-top: 4px;">MGMT 59000 Final Project | Purdue University | Spring 2026</div>
+        </section>
+
+        <!-- AI DISCLAIMER -->
+        <section class="landing-section" aria-labelledby="disclaimerHeading">
+          <div class="disclaimer-box">
+            <span class="disclaimer-icon">&#x2139;&#xFE0F;</span>
+            <div>
+              <h3 id="disclaimerHeading" style="font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text);">Important Note</h3>
+              <p class="disclaimer-text">AI-generated career advice is informational only and does not constitute professional counseling. Always consult qualified career professionals for major career decisions. Data sourced from O*NET, BLS, and USAJOBS may not reflect the very latest labor market changes.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- BOTTOM CTA -->
+        <section class="landing-section" aria-labelledby="bottomCtaHeading" style="text-align: center;">
+          <h3 class="section-title" id="bottomCtaHeading">Ready to Explore Your Career Path?</h3>
+          <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Start a guided conversation backed by real labor market data.</p>
+          <button class="start-cta" onclick="startSession()">Start Your Career Journey</button>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="project-footer">
+          <div class="footer-grid">
+            <div class="footer-col">
+              <div class="footer-brand">
+                <span class="footer-logo-icon">&#x1F3AF;</span>
+                <strong>CareerGuide AI</strong>
+              </div>
+              <p>AI-powered career coaching backed by federal labor market data. Built for MGMT 59000 at Purdue University, Spring 2026.</p>
+              <div class="tech-badges">
+                <span class="tech-badge">LangGraph</span>
+                <span class="tech-badge">Gemini</span>
+                <span class="tech-badge">FAISS</span>
+                <span class="tech-badge">LangSmith</span>
+                <span class="tech-badge">TypeScript</span>
+              </div>
+            </div>
+            <div class="footer-col">
+              <h4>Data Sources</h4>
+              <ul class="footer-links">
+                <li><a href="https://www.onetonline.org/" target="_blank" rel="noopener">O*NET Online</a></li>
+                <li><a href="https://www.bls.gov/" target="_blank" rel="noopener">Bureau of Labor Statistics</a></li>
+                <li><a href="https://www.usajobs.gov/" target="_blank" rel="noopener">USAJOBS</a></li>
+              </ul>
+              <div class="footer-legal">
+                Your conversation stays private. No account required. No data stored permanently.
+              </div>
+            </div>
+          </div>
+          <div class="footer-bottom">
+            MGMT 59000 Final Project &middot; Purdue University &middot; Spring 2026
+          </div>
         </footer>
 
       </div>
