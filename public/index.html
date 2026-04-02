@@ -1099,20 +1099,71 @@
 
     /* ========== SIDEBAR COMING SOON ========== */
     .nav-item.coming-soon {
-      opacity: 0.5;
+      opacity: 0.65;
       cursor: default;
+      position: relative;
     }
-    .nav-item.coming-soon:hover { background: transparent; color: var(--text-secondary); }
+    .nav-item.coming-soon .nav-item-icon { filter: grayscale(0.6); }
+    .nav-item.coming-soon:hover {
+      background: var(--bg);
+      color: var(--text-secondary);
+    }
     .nav-soon-badge {
       margin-left: auto;
       font-size: 9px;
       font-weight: 600;
-      padding: 2px 6px;
+      padding: 2px 8px;
       border-radius: 8px;
-      background: var(--bg);
-      color: var(--text-muted);
+      background: var(--primary-bg);
+      color: var(--primary);
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    /* Coming Soon Tooltip */
+    .nav-soon-tooltip {
+      display: none;
+      position: absolute;
+      left: calc(100% + 8px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--text);
+      color: white;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      line-height: 1.5;
+      width: 220px;
+      box-shadow: var(--shadow-lg);
+      z-index: 50;
+      pointer-events: none;
+    }
+    .nav-soon-tooltip::before {
+      content: '';
+      position: absolute;
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 6px solid transparent;
+      border-right-color: var(--text);
+    }
+    .nav-item.coming-soon:hover .nav-soon-tooltip,
+    .nav-item.coming-soon:focus-within .nav-soon-tooltip {
+      display: block;
+    }
+    .nav-soon-tooltip strong {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 3px;
+      font-size: 12px;
+    }
+    .nav-soon-tooltip .tooltip-cta {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary-light);
     }
 
     /* ========== PHASE STEP PULSE ========== */
@@ -1195,17 +1246,32 @@
       <div class="nav-item active" data-view="chat">
         <span class="nav-item-icon">&#x1F4AC;</span> Career Coach
       </div>
-      <div class="nav-item coming-soon" data-view="dashboard">
+      <div class="nav-item coming-soon" role="link" aria-disabled="true" aria-label="Skills Dashboard — coming next" tabindex="0" onclick="showComingSoonToast('Skills Dashboard')" data-view="dashboard">
         <span class="nav-item-icon">&#x1F4CA;</span> Skills Dashboard
-        <span class="nav-soon-badge">Soon</span>
+        <span class="nav-soon-badge">Next</span>
+        <div class="nav-soon-tooltip" role="tooltip">
+          <strong>Skills Dashboard</strong>
+          Visualize your skill gaps and strengths against O*NET benchmarks. Available in a future update.
+          <span class="tooltip-cta">Use Career Coach now &#x2192;</span>
+        </div>
       </div>
-      <div class="nav-item coming-soon" data-view="explore">
+      <div class="nav-item coming-soon" role="link" aria-disabled="true" aria-label="Explore Careers — coming next" tabindex="0" onclick="showComingSoonToast('Explore Careers')" data-view="explore">
         <span class="nav-item-icon">&#x1F50D;</span> Explore Careers
-        <span class="nav-soon-badge">Soon</span>
+        <span class="nav-soon-badge">Next</span>
+        <div class="nav-soon-tooltip" role="tooltip">
+          <strong>Explore Careers</strong>
+          Browse occupations by interest, salary, and growth outlook. Available in a future update.
+          <span class="tooltip-cta">Use Career Coach now &#x2192;</span>
+        </div>
       </div>
-      <div class="nav-item coming-soon" data-view="resources">
+      <div class="nav-item coming-soon" role="link" aria-disabled="true" aria-label="Resources — coming next" tabindex="0" onclick="showComingSoonToast('Resources')" data-view="resources">
         <span class="nav-item-icon">&#x1F4DA;</span> Resources
-        <span class="nav-soon-badge">Soon</span>
+        <span class="nav-soon-badge">Next</span>
+        <div class="nav-soon-tooltip" role="tooltip">
+          <strong>Learning Resources</strong>
+          Curated courses and materials matched to your skill gaps. Available in a future update.
+          <span class="tooltip-cta">Use Career Coach now &#x2192;</span>
+        </div>
       </div>
 
       <div class="nav-section-label" style="margin-top: 16px;">Tools</div>
@@ -1995,6 +2061,10 @@
       t.classList.add('show');
       const duration = isError ? 5000 : 3500;
       setTimeout(() => t.classList.remove('show'), duration);
+    }
+
+    function showComingSoonToast(featureName) {
+      showToast(featureName + ' is coming in a future update. Use Career Coach to get started now.');
     }
 
     function updateStatsBar(data) {
