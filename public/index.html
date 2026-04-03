@@ -1192,6 +1192,345 @@
     .msg-bubble li { margin-bottom: 2px; }
     .msg-bubble strong { font-weight: 600; }
 
+    /* ========== VIEW PANELS (Dashboard, Explore, Resources) ========== */
+    .view-panel {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 28px;
+      animation: fadeUp 0.3s ease;
+    }
+    .view-panel.active { display: block; }
+    .view-panel-header {
+      margin-bottom: 24px;
+    }
+    .view-panel-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .view-panel-header p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-secondary);
+    }
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.6;
+    }
+    .empty-state h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .empty-state p {
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 400px;
+      margin: 0 auto 20px;
+    }
+    .empty-state .btn { margin: 0 auto; }
+
+    /* ---- Skills Dashboard ---- */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .metric-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+    .metric-card .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: -0.5px;
+    }
+    .metric-card .metric-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    .metric-card.warning .metric-value { color: var(--warning); }
+    .metric-card.danger .metric-value { color: var(--gap-red); }
+
+    .skills-table-wrap {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .skills-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .skills-table thead { background: var(--bg); }
+    .skills-table th {
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .skills-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-light);
+      color: var(--text);
+    }
+    .skills-table tr:last-child td { border-bottom: none; }
+    .skills-table tr:hover { background: var(--bg); }
+    .gap-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .gap-badge.absent { background: var(--gap-red-bg); color: var(--gap-red); }
+    .gap-badge.underdeveloped { background: var(--warning-bg); color: var(--warning); }
+    .gap-badge.adequate { background: var(--success-bg); color: var(--success); }
+    .gap-badge.strong { background: var(--primary-bg); color: var(--primary); }
+
+    .top-gaps-section {
+      margin-top: 24px;
+    }
+    .top-gaps-section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .gap-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--gap-red);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .gap-card .gap-skill { font-weight: 600; }
+    .gap-card .gap-detail { color: var(--text-secondary); font-size: 12px; }
+
+    /* ---- Explore Careers ---- */
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .search-bar input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--bg-white);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-bar input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-bg); }
+    .search-bar input::placeholder { color: var(--text-muted); }
+
+    .career-results {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .career-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.15s;
+    }
+    .career-card:hover { border-color: var(--card-hover-border); box-shadow: var(--shadow-md); }
+    .career-card-info h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .career-card-info .career-code {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: monospace;
+      margin-bottom: 4px;
+    }
+    .career-card-info p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .career-card-actions {
+      flex-shrink: 0;
+    }
+    .source-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-top: 6px;
+    }
+    .source-tag.live { background: var(--success-bg); color: var(--success); }
+    .source-tag.cache { background: var(--warning-bg); color: var(--warning); }
+    .results-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* ---- Resources ---- */
+    .resource-filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .filter-chip {
+      padding: 6px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      background: var(--bg-white);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-chip:hover { border-color: var(--primary-light); color: var(--primary); }
+    .filter-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .resource-group-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 24px 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .resource-group-title:first-of-type { margin-top: 0; }
+    .resource-group-count {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+    .resource-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .resource-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+    }
+    .resource-card:hover { border-color: var(--card-hover-border); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .resource-card h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .resource-card .resource-source {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .resource-card p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      flex: 1;
+      margin-bottom: 12px;
+    }
+    .resource-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .resource-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .resource-tag {
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 500;
+      background: var(--bg);
+      color: var(--text-secondary);
+    }
+    .resource-type-badge {
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .resource-type-badge.free { background: var(--success-bg); color: var(--success); }
+    .resource-type-badge.paid { background: var(--warning-bg); color: var(--warning); }
+    .cert-badge {
+      font-size: 10px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .resource-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .resource-link:hover { text-decoration: underline; }
+
     /* ========== RESPONSIVE ========== */
     @media (max-width: 900px) {
       .sidebar { display: none; }
@@ -1203,6 +1542,9 @@
       .ds-card { width: 100%; max-width: 340px; }
       .faq-grid { grid-template-columns: 1fr; }
       .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .metrics-row { grid-template-columns: 1fr; }
+      .resource-grid { grid-template-columns: 1fr; }
+      .view-panel { padding: 24px 16px; }
       .trust-bar { gap: 16px; padding: 16px 20px; }
       .trust-stat-number { font-size: 18px; }
       .landing-section--alt { margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; }
@@ -1243,35 +1585,17 @@
 
     <nav class="sidebar-nav">
       <div class="nav-section-label">Navigation</div>
-      <div class="nav-item active" data-view="chat">
+      <div class="nav-item active" data-view="chat" onclick="switchView('chat')" tabindex="0" role="link" aria-label="Career Coach">
         <span class="nav-item-icon">&#x1F4AC;</span> Career Coach
       </div>
-      <div class="nav-item coming-soon" role="link" aria-disabled="true" aria-label="Skills Dashboard — coming next" tabindex="0" onclick="showComingSoonToast('Skills Dashboard')" data-view="dashboard">
+      <div class="nav-item" data-view="dashboard" onclick="switchView('dashboard')" tabindex="0" role="link" aria-label="Skills Dashboard">
         <span class="nav-item-icon">&#x1F4CA;</span> Skills Dashboard
-        <span class="nav-soon-badge">Next</span>
-        <div class="nav-soon-tooltip" role="tooltip">
-          <strong>Skills Dashboard</strong>
-          Visualize your skill gaps and strengths against O*NET benchmarks. Available in a future update.
-          <span class="tooltip-cta">Use Career Coach now &#x2192;</span>
-        </div>
       </div>
-      <div class="nav-item coming-soon" role="link" aria-disabled="true" aria-label="Explore Careers — coming next" tabindex="0" onclick="showComingSoonToast('Explore Careers')" data-view="explore">
+      <div class="nav-item" data-view="explore" onclick="switchView('explore')" tabindex="0" role="link" aria-label="Explore Careers">
         <span class="nav-item-icon">&#x1F50D;</span> Explore Careers
-        <span class="nav-soon-badge">Next</span>
-        <div class="nav-soon-tooltip" role="tooltip">
-          <strong>Explore Careers</strong>
-          Browse occupations by interest, salary, and growth outlook. Available in a future update.
-          <span class="tooltip-cta">Use Career Coach now &#x2192;</span>
-        </div>
       </div>
-      <div class="nav-item coming-soon" role="link" aria-disabled="true" aria-label="Resources — coming next" tabindex="0" onclick="showComingSoonToast('Resources')" data-view="resources">
+      <div class="nav-item" data-view="resources" onclick="switchView('resources')" tabindex="0" role="link" aria-label="Learning Resources">
         <span class="nav-item-icon">&#x1F4DA;</span> Resources
-        <span class="nav-soon-badge">Next</span>
-        <div class="nav-soon-tooltip" role="tooltip">
-          <strong>Learning Resources</strong>
-          Curated courses and materials matched to your skill gaps. Available in a future update.
-          <span class="tooltip-cta">Use Career Coach now &#x2192;</span>
-        </div>
       </div>
 
       <div class="nav-section-label" style="margin-top: 16px;">Tools</div>
@@ -1540,6 +1864,61 @@
       </div>
     </div>
 
+    <!-- ========== SKILLS DASHBOARD VIEW ========== -->
+    <div class="view-panel" id="viewDashboard" role="region" aria-label="Skills Dashboard">
+      <div class="view-panel-header">
+        <h2>Skills Dashboard</h2>
+        <p id="dashboardSubtitle">See how your skills compare to occupation requirements.</p>
+      </div>
+      <div id="dashboardContent">
+        <div class="empty-state" id="dashboardEmpty">
+          <div class="empty-state-icon">&#x1F4CA;</div>
+          <h3>No Skills Data Yet</h3>
+          <p>Start a career coaching session and progress to the skills assessment phase to see your dashboard.</p>
+          <button class="btn btn-primary" onclick="switchView('chat')">Go to Career Coach</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== EXPLORE CAREERS VIEW ========== -->
+    <div class="view-panel" id="viewExplore" role="region" aria-label="Explore Careers">
+      <div class="view-panel-header">
+        <h2>Explore Careers</h2>
+        <p>Search 1,000+ occupations from O*NET. Find roles that match your interests.</p>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="careerSearchInput" placeholder="Search occupations (e.g. software developer, nurse, accountant...)" aria-label="Search occupations" onkeydown="if(event.key==='Enter')searchCareers()">
+        <button class="btn btn-primary" onclick="searchCareers()">Search</button>
+      </div>
+      <div id="careerResultsMeta" class="results-meta" style="display:none;"></div>
+      <div class="career-results" id="careerResults">
+        <div class="empty-state" id="exploreEmpty">
+          <div class="empty-state-icon">&#x1F50D;</div>
+          <h3>Search for Occupations</h3>
+          <p>Type a job title, keyword, or SOC code above to browse careers from the O*NET database.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== RESOURCES VIEW ========== -->
+    <div class="view-panel" id="viewResources" role="region" aria-label="Learning Resources">
+      <div class="view-panel-header">
+        <h2>Learning Resources</h2>
+        <p id="resourcesSubtitle">Curated courses and materials to help you build the skills you need.</p>
+      </div>
+      <div class="resource-filters" id="resourceFilters">
+        <button class="filter-chip active" data-filter="all" onclick="filterResources('all')">All</button>
+        <button class="filter-chip" data-filter="free" onclick="filterResources('free')">Free</button>
+        <button class="filter-chip" data-filter="paid" onclick="filterResources('paid')">Paid</button>
+      </div>
+      <div id="resourcesContent">
+        <div class="empty-state" id="resourcesLoading">
+          <div class="empty-state-icon">&#x1F4DA;</div>
+          <h3>Loading Resources...</h3>
+        </div>
+      </div>
+    </div>
+
     <!-- Input Bar -->
     <div class="input-bar" id="inputBar" style="display: none;">
       <div class="input-wrap">
@@ -1568,6 +1947,7 @@
 
     const phaseMap = { orientation: 0, exploration_career: 1, exploration_role_targeting: 2, planning: 3 };
     const phaseDisplayNames = { orientation: 'Profile', exploration_career: 'Explore', exploration_role_targeting: 'Skills', planning: 'Action Plan' };
+    let lastSkillsMeta = { totalSkills: 0, ratedCount: 0, skillsAssessed: false, assessmentStatus: 'not_started' };
     const placeholders = {
       orientation: 'Tell me about your professional background...',
       exploration_career: 'What kind of work excites you?',
@@ -1684,7 +2064,7 @@
           addMessage('bot', 'Welcome back! It looks like we were just getting started. How can I help with your career guidance today?');
         }
 
-        updatePhase(data.phase);
+        updatePhase(data.phase, data.skillsMeta || null);
         document.getElementById('msgInput').focus();
       } catch (e) {
         removeTyping();
@@ -1728,7 +2108,7 @@
         removeTyping();
         addMessage('bot', data.message);
         showSuggestions(['I\'m a software engineer', 'I recently graduated', 'I\'m returning to work', 'I\'m exploring options']);
-        updatePhase(data.phase);
+        updatePhase(data.phase, data.skillsMeta || null);
         document.getElementById('statsBar').classList.add('visible');
         document.getElementById('msgInput').focus();
       } catch (e) {
@@ -1813,7 +2193,7 @@
         }
 
         turnNumber = data.turnNumber || (turnNumber + 1);
-        updatePhase(data.phase);
+        updatePhase(data.phase, data.skillsMeta || null);
         updateStatsBar(data);
 
         // Show contextual suggestions only on phase transitions
@@ -1993,8 +2373,9 @@
       if (el) el.remove();
     }
 
-    function updatePhase(phase) {
+    function updatePhase(phase, skillsMeta) {
       currentPhase = phase;
+      if (skillsMeta) lastSkillsMeta = skillsMeta;
       const idx = phaseMap[phase] ?? 0;
 
       // Update stepper
@@ -2013,10 +2394,18 @@
         step.classList.remove('active', 'completed');
         num.removeAttribute('aria-current');
         if (i < idx) {
-          num.classList.add('completed');
-          step.classList.add('completed');
-          num.innerHTML = '\u2713';
-          num.setAttribute('aria-label', `Step ${i+1}: ${stepNames[i]}, completed`);
+          // Skills step (index 2): only mark completed if skills were actually assessed
+          if (i === 2 && !lastSkillsMeta.skillsAssessed) {
+            num.textContent = '!';
+            num.classList.add('completed');
+            step.classList.add('completed');
+            num.setAttribute('aria-label', `Step ${i+1}: ${stepNames[i]}, incomplete`);
+          } else {
+            num.classList.add('completed');
+            step.classList.add('completed');
+            num.innerHTML = '\u2713';
+            num.setAttribute('aria-label', `Step ${i+1}: ${stepNames[i]}, completed`);
+          }
         } else if (i === idx) {
           num.classList.add('active');
           step.classList.add('active');
@@ -2123,6 +2512,348 @@
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 100) + 'px';
     });
+
+    // ========== VIEW ROUTING ==========
+    let currentView = 'chat';
+    let dashboardLoaded = false;
+    let resourcesLoaded = false;
+
+    function switchView(view) {
+      currentView = view;
+      // Update nav active state
+      document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+        item.classList.toggle('active', item.dataset.view === view);
+      });
+
+      // Hide all views
+      document.getElementById('chatArea').style.display = view === 'chat' ? 'flex' : 'none';
+      document.getElementById('viewDashboard').classList.toggle('active', view === 'dashboard');
+      document.getElementById('viewExplore').classList.toggle('active', view === 'explore');
+      document.getElementById('viewResources').classList.toggle('active', view === 'resources');
+
+      // Input bar only for chat
+      const inputBar = document.getElementById('inputBar');
+      const kbHint = document.getElementById('kbHint');
+      if (view === 'chat') {
+        if (sessionId) { inputBar.style.display = 'flex'; }
+        if (kbHint) kbHint.style.display = '';
+      } else {
+        inputBar.style.display = 'none';
+        if (kbHint) kbHint.style.display = 'none';
+      }
+
+      // Load data on first visit
+      if (view === 'dashboard' && !dashboardLoaded) loadDashboard();
+      if (view === 'explore') document.getElementById('careerSearchInput')?.focus();
+      if (view === 'resources' && !resourcesLoaded) loadResources();
+    }
+
+    // Keyboard nav for sidebar items
+    document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          switchView(item.dataset.view);
+        }
+      });
+    });
+
+    // ========== SKILLS DASHBOARD ==========
+    async function loadDashboard() {
+      if (!sessionId) {
+        document.getElementById('dashboardEmpty').style.display = '';
+        return;
+      }
+
+      const container = document.getElementById('dashboardContent');
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x23F3;</div><h3>Loading dashboard...</h3></div>';
+
+      try {
+        const res = await fetch(`${API}/api/session/${sessionId}/summary`);
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        dashboardLoaded = true;
+
+        if (!data.skills || data.skills.length === 0) {
+          let emptyMsg = '';
+          if (data.assessmentStatus === 'skipped') {
+            emptyMsg = 'The skills assessment was skipped in your session. Start a new session and complete the skills assessment to see your skill gaps and strengths.';
+          } else if (data.phase === 'planning') {
+            emptyMsg = 'Your session reached the planning phase without completing skills assessment. Start a new session to get a full skills analysis.';
+          } else {
+            emptyMsg = 'Continue your career coaching conversation to reach the skills assessment phase. Your skill gaps and strengths will appear here.';
+          }
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">&#x1F4CA;</div>
+              <h3>No Skills Assessed Yet</h3>
+              <p>${emptyMsg}</p>
+              <button class="btn btn-primary" onclick="switchView('chat')">Go to Career Coach</button>
+            </div>`;
+          return;
+        }
+
+        // Update subtitle with target role
+        if (data.profile?.targetRole) {
+          document.getElementById('dashboardSubtitle').textContent =
+            'Skills analysis for ' + data.profile.targetRole;
+        }
+
+        const metrics = data.metrics;
+        let html = `
+          <div class="metrics-row">
+            <div class="metric-card">
+              <div class="metric-value">${metrics.totalSkills}</div>
+              <div class="metric-label">Total Skills</div>
+            </div>
+            <div class="metric-card warning">
+              <div class="metric-value">${metrics.assessed}</div>
+              <div class="metric-label">Assessed</div>
+            </div>
+            <div class="metric-card danger">
+              <div class="metric-value">${metrics.gaps}</div>
+              <div class="metric-label">Gaps Found</div>
+            </div>
+          </div>`;
+
+        // Skills table
+        html += `<div class="skills-table-wrap"><table class="skills-table">
+          <thead><tr>
+            <th>Skill</th><th>Source</th><th>Required</th><th>Your Level</th><th>Gap</th>
+          </tr></thead><tbody>`;
+
+        for (const s of data.skills) {
+          const gapClass = s.gapCategory || 'adequate';
+          html += `<tr>
+            <td><strong>${escapeHtml(s.name)}</strong></td>
+            <td>${s.onetSource ? '<span class="source-tag live">O*NET</span>' : '-'}</td>
+            <td>${s.requiredProficiency ?? '-'}</td>
+            <td>${s.userRating ?? '-'}</td>
+            <td>${s.gapCategory ? '<span class="gap-badge ' + gapClass + '">' + s.gapCategory + '</span>' : '-'}</td>
+          </tr>`;
+        }
+        html += '</tbody></table></div>';
+
+        // Top gaps
+        if (metrics.topGaps && metrics.topGaps.length > 0) {
+          html += '<div class="top-gaps-section"><h3>Priority Gaps</h3>';
+          for (const g of metrics.topGaps) {
+            html += `<div class="gap-card">
+              <div><span class="gap-skill">${escapeHtml(g.skill)}</span></div>
+              <div class="gap-detail">Required: Level ${g.required ?? '?'} &middot; <span class="gap-badge ${g.gap}">${g.gap}</span></div>
+            </div>`;
+          }
+          html += '</div>';
+        }
+
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x26A0;&#xFE0F;</div>
+            <h3>Could Not Load Dashboard</h3>
+            <p>${sessionId ? 'There was an error loading your session data.' : 'Start a career coaching session first.'}</p>
+            <button class="btn btn-primary" onclick="switchView('chat')">Go to Career Coach</button>
+          </div>`;
+      }
+    }
+
+    // ========== EXPLORE CAREERS ==========
+    let searchTimeout = null;
+
+    async function searchCareers() {
+      const input = document.getElementById('careerSearchInput');
+      const q = input.value.trim();
+      const container = document.getElementById('careerResults');
+      const meta = document.getElementById('careerResultsMeta');
+
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x23F3;</div><h3>Searching...</h3></div>';
+      meta.style.display = 'none';
+
+      try {
+        const url = q ? `${API}/api/careers/search?q=${encodeURIComponent(q)}` : `${API}/api/careers/search`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
+
+        if (!data.results || data.results.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">&#x1F50D;</div>
+              <h3>No Results Found</h3>
+              <p>Try a different search term or browse all occupations by clearing the search.</p>
+            </div>`;
+          return;
+        }
+
+        meta.style.display = 'block';
+        meta.textContent = data.results.length + ' occupation' + (data.results.length !== 1 ? 's' : '') + ' found' +
+          (data.source === 'onet_live' ? ' (live O*NET data)' : ' (local cache)');
+
+        let html = '';
+        for (const occ of data.results) {
+          const sourceClass = occ.source === 'onet_live' ? 'live' : 'cache';
+          const sourceLabel = occ.source === 'onet_live' ? 'Live' : 'Cached';
+          html += `<div class="career-card">
+            <div class="career-card-info">
+              <h4>${escapeHtml(occ.title)}</h4>
+              <div class="career-code">${escapeHtml(occ.code)}</div>
+              <p>${escapeHtml(occ.description || 'No description available.')}</p>
+              <span class="source-tag ${sourceClass}">${sourceLabel}</span>
+              ${occ.skillCount ? '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">' + occ.skillCount + ' skills</span>' : ''}
+            </div>
+            <div class="career-card-actions">
+              <button class="btn btn-outline" onclick="setTargetRole('${escapeHtml(occ.title).replace(/'/g, "\\'")}', '${escapeHtml(occ.code)}')" title="Use this as your target career role">
+                Use as Target
+              </button>
+            </div>
+          </div>`;
+        }
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x26A0;&#xFE0F;</div>
+            <h3>Search Error</h3>
+            <p>Could not reach the career search API. Please try again.</p>
+          </div>`;
+      }
+    }
+
+    async function setTargetRole(title, code) {
+      if (!sessionId) {
+        showToast('Start a career coaching session first to set a target role.');
+        return;
+      }
+      try {
+        const res = await fetch(`${API}/api/session/${sessionId}/target-role`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, code }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Target role set to: ' + title);
+          dashboardLoaded = false; // force refresh on next dashboard visit
+        } else {
+          showToast('Could not set target role.', true);
+        }
+      } catch {
+        showToast('Could not set target role. Please try again.', true);
+      }
+    }
+
+    // ========== RESOURCES ==========
+    let allResources = [];
+    let activeResourceFilter = 'all';
+
+    async function loadResources() {
+      const container = document.getElementById('resourcesContent');
+
+      try {
+        // Build query params from session profile if available
+        let queryParams = '';
+        if (sessionId) {
+          try {
+            const sumRes = await fetch(`${API}/api/session/${sessionId}/summary`);
+            if (sumRes.ok) {
+              const sumData = await sumRes.json();
+              const parts = [];
+              if (sumData.profile?.targetRole) parts.push('role=' + encodeURIComponent(sumData.profile.targetRole));
+              const skillNames = (sumData.skills || []).map(s => s.name).filter(Boolean).slice(0, 5);
+              if (skillNames.length) parts.push('skills=' + encodeURIComponent(skillNames.join(',')));
+              if (parts.length) queryParams = '?' + parts.join('&');
+
+              if (sumData.profile?.targetRole) {
+                document.getElementById('resourcesSubtitle').textContent =
+                  'Resources matched to your target role: ' + sumData.profile.targetRole;
+              }
+            }
+          } catch { /* continue without personalization */ }
+        }
+
+        const res = await fetch(`${API}/api/resources${queryParams}`);
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        allResources = data.results || [];
+        resourcesLoaded = true;
+        renderResources(allResources);
+      } catch (e) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x26A0;&#xFE0F;</div>
+            <h3>Could Not Load Resources</h3>
+            <p>Please check your connection and try again.</p>
+          </div>`;
+      }
+    }
+
+    function filterResources(type) {
+      activeResourceFilter = type;
+      document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.filter === type);
+      });
+      const filtered = type === 'all' ? allResources : allResources.filter(r => r.type === type);
+      renderResources(filtered);
+    }
+
+    function renderResources(resources) {
+      const container = document.getElementById('resourcesContent');
+
+      if (!resources || resources.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F4DA;</div>
+            <h3>No Resources Found</h3>
+            <p>Try changing your filter or check back later for new resources.</p>
+          </div>`;
+        return;
+      }
+
+      const free = resources.filter(r => r.type === 'free');
+      const paid = resources.filter(r => r.type === 'paid');
+      let html = '';
+
+      if (free.length > 0) {
+        html += `<div class="resource-group-title">Free Resources <span class="resource-group-count">(${free.length})</span></div>`;
+        html += '<div class="resource-grid">';
+        for (const r of free) html += renderResourceCard(r);
+        html += '</div>';
+      }
+
+      if (paid.length > 0) {
+        html += `<div class="resource-group-title">Paid / Certificate Programs <span class="resource-group-count">(${paid.length})</span></div>`;
+        html += '<div class="resource-grid">';
+        for (const r of paid) html += renderResourceCard(r);
+        html += '</div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function renderResourceCard(r) {
+      const typeClass = r.type === 'free' ? 'free' : 'paid';
+      const skills = (r.skills || []).slice(0, 3);
+      return `<div class="resource-card">
+        <h4>${escapeHtml(r.title)}</h4>
+        <div class="resource-source">${escapeHtml(r.source)}${r.certification ? ' &middot; <span class="cert-badge">Certificate</span>' : ''}</div>
+        <p>${escapeHtml(r.description || '')}</p>
+        <div class="resource-card-footer">
+          <div class="resource-tags">
+            ${skills.map(s => '<span class="resource-tag">' + escapeHtml(s) + '</span>').join('')}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="resource-type-badge ${typeClass}">${r.type}</span>
+            <a href="${escapeHtml(r.url)}" target="_blank" rel="noopener" class="resource-link">Visit &rarr;</a>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
   </script>
 </body>
 </html>

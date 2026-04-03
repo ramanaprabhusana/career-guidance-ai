@@ -55,7 +55,7 @@ export function generateHTMLReport(state: AgentStateType): string {
 
   <div class="section" role="region" aria-label="Recommended Path">
     <h2>2. Recommended Career Path</h2>
-    <p>${esc(state.recommendedPath ?? "A personalized career path has been identified based on your profile and skill assessment.")}</p>
+    <p>${state.recommendedPath ? esc(state.recommendedPath) : state.targetRole ? esc(`Your target role is ${state.targetRole}. A detailed recommended path could not be generated because the skills assessment was not completed. Complete the skills assessment to receive a personalized career path recommendation.`) : esc("A recommended career path could not be generated for this session. Complete a full career coaching session including skills assessment to receive personalized recommendations.")}</p>
   </div>
 
   <div class="section" role="region" aria-label="Skill Gap Analysis">
@@ -74,7 +74,13 @@ export function generateHTMLReport(state: AgentStateType): string {
           <td class="gap-${s.gap_category ?? "unknown"}">${fmtGap(s.gap_category)}</td>
         </tr>`).join("")}
       </tbody>
-    </table>` : "<p>No skills were assessed in this session.</p>"}
+    </table>` : `<p>${esc(
+      (state as any).skillsAssessmentStatus === "skipped"
+        ? "Skills assessment was not completed during this session. The session reached its turn limit before skills could be evaluated. To get a full skill gap analysis, start a new session and complete the skills assessment phase."
+        : !state.targetRole
+        ? "No target role was specified during this session, so skills could not be assessed against role requirements. To get a skill gap analysis, start a new session and specify a target role."
+        : "Skills assessment was not completed during this session. To get a full skill gap analysis, continue your session or start a new one focused on your target role."
+    )}</p>`}
   </div>
 
   <div class="section" role="region" aria-label="Development Timeline">
@@ -92,7 +98,11 @@ export function generateHTMLReport(state: AgentStateType): string {
     ${state.immediateNextSteps.length > 0 ? `
     <ol class="steps-list">
       ${state.immediateNextSteps.map((step) => `<li>${esc(step)}</li>`).join("")}
-    </ol>` : "<p>Next steps will be generated as part of your career plan.</p>"}
+    </ol>` : state.targetRole ? `<ol class="steps-list">
+      <li>${esc(`Research job postings for ${state.targetRole} to understand current requirements`)}</li>
+      <li>Complete a full career coaching session including skills assessment</li>
+      <li>Connect with professionals in your target field for informational interviews</li>
+    </ol>` : "<p>Complete a full career coaching session to receive personalized next steps.</p>"}
   </div>
 
   <div class="section sources" role="region" aria-label="Evidence and Sources">

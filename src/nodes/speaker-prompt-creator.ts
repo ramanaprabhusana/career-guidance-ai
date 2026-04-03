@@ -100,13 +100,30 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
     ? state.analyzerOutput.notes
     : "(none)";
 
+  // Add urgency context when approaching max turns with incomplete skills
+  let additionalContext = "";
+  if (state.currentPhase === "exploration_role_targeting") {
+    const maxTurns = config.phaseRegistry.phases["exploration_role_targeting"]?.max_turns ?? 20;
+    if (state.phaseTurnNumber >= maxTurns - 2) {
+      const skills = state.skills;
+      const rated = skills.filter((s) => s.user_rating !== null).length;
+      if (skills.length === 0) {
+        additionalContext = "\nIMPORTANT: The skills assessment has not started because no target role has been set. Guide the user to name a specific role so skills can be loaded.";
+      } else if (rated === 0) {
+        additionalContext = "\nIMPORTANT: Skills have been loaded but none have been rated yet. Focus on getting the user to rate at least a few skills before we can build their career plan.";
+      } else if (rated / skills.length < 0.6) {
+        additionalContext = `\nIMPORTANT: Only ${rated} of ${skills.length} skills have been assessed (need 60%). Encourage the user to assess a few more so we can build an accurate plan.`;
+      }
+    }
+  }
+
   const prompt = populateTemplate(template, {
     active_phase_name: state.currentPhase,
     active_phase_speaker_md: speakerSkill,
     phase_collected_data: formatCollectedData(collectedData),
     phase_missing_required: missing_required,
     phase_missing_optional: missing_optional,
-    cross_phase_context: getCrossPhaseContext(state),
+    cross_phase_context: getCrossPhaseContext(state) + additionalContext,
     turn_type: state.turnType,
     turn_type_instructions: getTurnTypeInstructions(state.turnType),
     last_user_message: state.userMessage || "(no message)",

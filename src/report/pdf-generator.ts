@@ -39,10 +39,19 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
 
     // --- Section 2: Recommended Path ---
     sectionHeader(doc, "2. Recommended Career Path");
-    doc.fontSize(11).font("Helvetica")
-      .text(state.recommendedPath ?? "Based on your profile and skill assessment, a personalized career path has been identified. See the skill development agenda below for specific steps.", {
-        lineGap: 4,
-      });
+    if (state.recommendedPath) {
+      doc.fontSize(11).font("Helvetica").text(state.recommendedPath, { lineGap: 4 });
+    } else if (state.targetRole) {
+      doc.fontSize(11).font("Helvetica").text(
+        `Your target role is ${state.targetRole}. A detailed recommended path could not be generated because the skills assessment was not completed. Complete the skills assessment to receive a personalized career path recommendation.`,
+        { lineGap: 4 }
+      );
+    } else {
+      doc.fontSize(11).font("Helvetica").text(
+        "A recommended career path could not be generated for this session. Complete a full career coaching session including skills assessment to receive personalized recommendations.",
+        { lineGap: 4 }
+      );
+    }
     doc.moveDown(0.5);
 
     // --- Section 3: Skill Gap Analysis ---
@@ -71,7 +80,15 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
         doc.moveDown(0.2);
       }
     } else {
-      doc.fontSize(11).font("Helvetica").text("No skills assessed in this session.");
+      doc.fontSize(11).font("Helvetica");
+      const status = (state as any).skillsAssessmentStatus;
+      if (status === "skipped") {
+        doc.text("Skills assessment was not completed during this session. The session reached its turn limit before skills could be evaluated. To get a full skill gap analysis, start a new session and complete the skills assessment phase.", { lineGap: 4 });
+      } else if (!state.targetRole) {
+        doc.text("No target role was specified during this session, so skills could not be assessed against role requirements. To get a skill gap analysis, start a new session and specify a target role.", { lineGap: 4 });
+      } else {
+        doc.text("Skills assessment was not completed during this session. To get a full skill gap analysis, continue your session or start a new one focused on your target role.", { lineGap: 4 });
+      }
     }
     doc.moveDown(0.5);
 
@@ -97,7 +114,14 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
         doc.fontSize(11).font("Helvetica").text(`${i + 1}. ${state.immediateNextSteps[i]}`, { lineGap: 4 });
       }
     } else {
-      doc.fontSize(11).font("Helvetica").text("Next steps will be generated as part of your career plan.");
+      doc.fontSize(11).font("Helvetica");
+      if (state.targetRole) {
+        doc.text(`1. Research job postings for ${state.targetRole} to understand current requirements`, { lineGap: 4 });
+        doc.text("2. Complete a full career coaching session including skills assessment", { lineGap: 4 });
+        doc.text("3. Connect with professionals in your target field for informational interviews", { lineGap: 4 });
+      } else {
+        doc.text("Complete a full career coaching session to receive personalized next steps.", { lineGap: 4 });
+      }
     }
     doc.moveDown(0.5);
 

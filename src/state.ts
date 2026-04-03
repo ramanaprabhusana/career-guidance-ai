@@ -8,6 +8,7 @@ export type Track = "career_exploration" | "role_targeting";
 export type UserRating = "not_yet_familiar" | "working_knowledge" | "strong_proficiency";
 export type GapCategory = "absent" | "underdeveloped" | "strong";
 export type TurnType = "first_turn" | "standard" | "phase_transition" | "clarification" | "entity_transition" | "termination";
+export type SkillsAssessmentStatus = "not_started" | "in_progress" | "complete" | "skipped";
 
 export interface CandidateDirection {
   direction_title: string;
@@ -88,6 +89,10 @@ export const AgentState = Annotation.Root({
   skills: Annotation<SkillAssessment[]>({
     reducer: (_, b) => b,
     default: () => [],
+  }),
+  skillsAssessmentStatus: Annotation<SkillsAssessmentStatus>({
+    reducer: (_, b) => b,
+    default: () => "not_started",
   }),
 
   // Planning fields

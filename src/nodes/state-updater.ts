@@ -153,6 +153,14 @@ function determineTransition(
 
   // Check max turns for phase
   if (state.phaseTurnNumber >= registry.max_turns) {
+    // For exploration_role_targeting, block transition if no skills have been rated
+    if (phase === "exploration_role_targeting") {
+      const skills = fieldUpdates.skills ?? state.skills;
+      const ratedCount = skills.filter((s) => s.user_rating !== null).length;
+      if (skills.length === 0 || ratedCount === 0) {
+        return { nextPhase: null, transitionDecision: "continue" };
+      }
+    }
     const target = registry.allowed_targets[0];
     return { nextPhase: target ?? null, transitionDecision: target ? "transition" : "continue" };
   }
@@ -241,6 +249,51 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
 
   updates.transitionDecision = transitionDecision;
 
+  // Populate planning fields deterministically when transitioning to planning
+  if (nextPhase === "planning" && state.currentPhase !== "planning") {
+    const skills = updates.skills ?? state.skills;
+    const gaps = skills.filter((s) => s.gap_category === "absent" || s.gap_category === "underdeveloped");
+    const strengths = skills.filter((s) => s.gap_category === "strong");
+    const targetRole = updates.targetRole ?? state.targetRole ?? "your target role";
+
+    if (!state.recommendedPath) {
+      const currentRole = state.jobTitle ?? "your current role";
+      updates.recommendedPath = `Transition from ${currentRole} to ${targetRole}, leveraging your strengths in ${
+        strengths.length > 0
+          ? strengths.slice(0, 3).map((s) => s.skill_name).join(", ")
+          : "your existing professional experience"
+      } while developing ${
+        gaps.length > 0
+          ? gaps.slice(0, 3).map((s) => s.skill_name).join(", ")
+          : "additional role-specific skills"
+      }.`;
+    }
+
+    if (state.skillDevelopmentAgenda.length === 0) {
+      const absent = skills.filter((s) => s.gap_category === "absent");
+      const underdeveloped = skills.filter((s) => s.gap_category === "underdeveloped");
+      const agenda: string[] = [];
+      for (const s of [...absent, ...underdeveloped]) {
+        agenda.push(`Develop ${s.skill_name} (currently: ${s.user_rating === "not_yet_familiar" ? "new area" : "working knowledge"}, required: ${s.required_proficiency})`);
+      }
+      if (agenda.length > 0) updates.skillDevelopmentAgenda = agenda;
+    }
+
+    if (state.immediateNextSteps.length === 0) {
+      const nextSteps: string[] = [];
+      if (gaps.length > 0) {
+        nextSteps.push(`Research learning resources for ${gaps[0].skill_name}, the highest-priority skill gap for ${targetRole}`);
+      }
+      nextSteps.push(`Review job postings for ${targetRole} to understand current market requirements`);
+      nextSteps.push(`Connect with professionals currently working as ${targetRole} for informational interviews`);
+      updates.immediateNextSteps = nextSteps;
+    }
+
+    if (!state.planRationale) {
+      updates.planRationale = `This plan is based on comparing your self-assessed skills against O*NET requirements for ${targetRole}. ${gaps.length} skill gap${gaps.length !== 1 ? "s" : ""} ${gaps.length !== 1 ? "were" : "was"} identified and ${strengths.length} strength${strengths.length !== 1 ? "s" : ""} confirmed.`;
+    }
+  }
+
   // Auto-fetch skills when in role targeting and targetRole is set but skills are empty
   const effectivePhase = updates.currentPhase ?? state.currentPhase;
   const effectiveRole = updates.targetRole ?? fieldUpdates.targetRole ?? state.targetRole;
@@ -258,6 +311,20 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
       }
     } catch (e) {
       console.warn("[StateUpdater] Skill retrieval failed:", (e as Error).message);
+    }
+  }
+
+  // Update skillsAssessmentStatus
+  const currentSkills = updates.skills ?? state.skills;
+  const ratedSkills = currentSkills.filter((s) => s.user_rating !== null).length;
+  const effectivePhaseForStatus = updates.currentPhase ?? state.currentPhase;
+  if (effectivePhaseForStatus === "exploration_role_targeting" || effectivePhaseForStatus === "planning") {
+    if (currentSkills.length === 0 || ratedSkills === 0) {
+      updates.skillsAssessmentStatus = "not_started";
+    } else if (currentSkills.length > 0 && ratedSkills / currentSkills.length >= 0.6) {
+      updates.skillsAssessmentStatus = "complete";
+    } else {
+      updates.skillsAssessmentStatus = "in_progress";
     }
   }
 
