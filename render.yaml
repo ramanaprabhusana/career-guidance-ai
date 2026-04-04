@@ -18,3 +18,9 @@ services:
         sync: false
       - key: USAJOBS_EMAIL
         sync: false
+      - key: LANGCHAIN_TRACING_V2
+        value: "false"
+      - key: LANGCHAIN_API_KEY
+        sync: false
+      - key: LANGCHAIN_PROJECT
+        value: career-guidance-ai

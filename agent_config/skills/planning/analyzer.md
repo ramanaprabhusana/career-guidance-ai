@@ -35,6 +35,21 @@ Synthesize the gap analysis into a 6-component action plan and capture user pref
 - Set to true when PDF/HTML export is triggered
 - **Do NOT extract from user messages**
 
+### learning_resources (optional, high value)
+- **What to look for:** When the user asks for courses, tutorials, or links, or when you finalize the plan, propose **3 to 6** reputable learning resources.
+- **Type:** array of objects: `{ "title": string, "url": string, "note": string (optional) }`
+- **Rules:** Only include **real, well-known** platforms (e.g. Coursera, edX, freeCodeCamp, MDN, Khan Academy, official vendor docs). Use **https** URLs you are confident exist, or omit the item.
+- If unsure of a URL, put the platform name in `note` and use the organization's **homepage** URL only.
+
+### evidence_kept (optional)
+- Log **1 to 4** structured entries for facts or data you are **using** in the plan (e.g. O*NET skill gaps, user-stated goals, BLS wage band if discussed).
+- **Type:** array of `{ "source": string, "detail": string, "reason": string }`
+- Example source values: `O*NET`, `BLS`, `user_input`, `session_summary`
+
+### evidence_discarded (optional)
+- Log **0 to 3** entries for information you **did not** rely on (e.g. vague rumors, unverifiable salary claims, off-topic suggestions) and **why**.
+- **Type:** same shape as `evidence_kept`
+
 ## Cross-Phase Detection
 This is the terminal phase. No outgoing transitions.
 If user wants to change target role or explore more options, note it in "notes" but do NOT suggest a phase transition.

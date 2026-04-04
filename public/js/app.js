@@ -1,5 +1,6 @@
     const API = window.location.origin;
     let sessionId = null;
+    let cachedProgressItems = [];
     let currentPhaseForChips = null;
     let isWaiting = false;
     let currentPhase = 'orientation';
@@ -160,7 +161,12 @@
     async function startNewSession() {
       try {
         if (!navigator.onLine) { removeTyping(); showToast('You appear to be offline. Please check your internet connection.'); return; }
-        const res = await fetch(`${API}/api/session`, { method: 'POST' });
+        const uid = localStorage.getItem('careerbot_user_id');
+        const res = await fetch(`${API}/api/session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(uid ? { userId: uid } : {}),
+        });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
@@ -257,6 +263,9 @@
         turnNumber = data.turnNumber || (turnNumber + 1);
         updatePhase(data.phase, data.skillsMeta || null);
         updateStatsBar(data);
+        if (data.progressItems && data.progressItems.length) {
+          cachedProgressItems = data.progressItems;
+        }
 
         // Show contextual suggestions only on phase transitions
         if (data.phase !== currentPhaseForChips) {
@@ -592,6 +601,9 @@
       document.getElementById('viewDashboard').classList.toggle('active', view === 'dashboard');
       document.getElementById('viewExplore').classList.toggle('active', view === 'explore');
       document.getElementById('viewResources').classList.toggle('active', view === 'resources');
+      document.getElementById('viewEvidence').classList.toggle('active', view === 'evidence');
+      document.getElementById('viewProfile').classList.toggle('active', view === 'profile');
+      document.getElementById('viewHistory').classList.toggle('active', view === 'history');
 
       // Input bar only for chat
       const inputBar = document.getElementById('inputBar');
@@ -608,6 +620,9 @@
       if (view === 'dashboard' && !dashboardLoaded) loadDashboard();
       if (view === 'explore') document.getElementById('careerSearchInput')?.focus();
       if (view === 'resources' && !resourcesLoaded) loadResources();
+      if (view === 'evidence') loadEvidencePanel();
+      if (view === 'profile') loadProfilePanel();
+      if (view === 'history') loadHistoryPanel();
     }
 
     // Keyboard nav for sidebar items
@@ -619,6 +634,172 @@
         }
       });
     });
+
+    // ========== EVIDENCE / PROFILE / HISTORY ==========
+    async function loadEvidencePanel() {
+      const el = document.getElementById('evidenceContent');
+      if (!sessionId) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x1F4C1;</div><h3>No Session</h3><p>Start a coaching session first.</p><button class="btn btn-primary" onclick="switchView(\'chat\')">Go to Career Coach</button></div>';
+        return;
+      }
+      el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x23F3;</div><h3>Loading...</h3></div>';
+      try {
+        const res = await fetch(`${API}/api/session/${sessionId}/evidence`);
+        if (!res.ok) throw new Error('load failed');
+        const pack = await res.json();
+        let html = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">';
+        html += '<button type="button" class="btn btn-primary" onclick="exportJsonEvidence()">Download JSON evidence pack</button>';
+        html += '</div>';
+        html += '<div class="evidence-section"><h3>Summary</h3><p style="color:var(--text-secondary);font-size:14px;">Phase: ' + escapeHtml(pack.phase_display || pack.phase) + ' &middot; Target: ' + escapeHtml(pack.target_role || 'n/a') + '</p></div>';
+        if (pack.learning_resources && pack.learning_resources.length) {
+          html += '<div class="evidence-section"><h3>Learning resources</h3><ul class="history-list">';
+          for (const r of pack.learning_resources) {
+            html += '<li><a href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener">' + escapeHtml(r.title) + '</a>' + (r.note ? ' <span style="color:var(--text-muted);font-size:13px;">(' + escapeHtml(r.note) + ')</span>' : '') + '</li>';
+          }
+          html += '</ul></div>';
+        }
+        if (pack.retrieval_log && pack.retrieval_log.kept && pack.retrieval_log.kept.length) {
+          html += '<div class="evidence-section"><h3>Evidence retained</h3><ul class="history-list">';
+          for (const k of pack.retrieval_log.kept) {
+            html += '<li><strong>' + escapeHtml(k.source) + '</strong>: ' + escapeHtml(k.detail) + ' <em style="color:var(--text-muted);">(' + escapeHtml(k.reason) + ')</em></li>';
+          }
+          html += '</ul></div>';
+        }
+        if (pack.retrieval_log && pack.retrieval_log.discarded && pack.retrieval_log.discarded.length) {
+          html += '<div class="evidence-section"><h3>Evidence set aside</h3><ul class="history-list">';
+          for (const k of pack.retrieval_log.discarded) {
+            html += '<li><strong>' + escapeHtml(k.source) + '</strong>: ' + escapeHtml(k.detail) + ' <em style="color:var(--text-muted);">(' + escapeHtml(k.reason) + ')</em></li>';
+          }
+          html += '</ul></div>';
+        }
+        html += '<details style="margin-top:16px;"><summary style="cursor:pointer;font-weight:600;">Raw JSON</summary><pre style="overflow:auto;max-height:320px;font-size:11px;background:var(--bg);padding:12px;border-radius:8px;margin-top:8px;">' + escapeHtml(JSON.stringify(pack, null, 2)) + '</pre></details>';
+        el.innerHTML = html;
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><h3>Error</h3><p>Could not load evidence pack.</p></div>';
+      }
+    }
+
+    async function exportJsonEvidence() {
+      if (!sessionId) { showToast('Start a session first.'); return; }
+      try {
+        const res = await fetch(`${API}/api/export`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, format: 'json' }),
+        });
+        if (!res.ok) throw new Error('export failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'evidence-pack-' + sessionId + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Evidence pack downloaded.');
+      } catch (e) {
+        showToast('JSON export failed.', true);
+      }
+    }
+
+    async function loadProfilePanel() {
+      const el = document.getElementById('profileContent');
+      const savedUid = localStorage.getItem('careerbot_user_id') || '';
+      if (!sessionId) {
+        el.innerHTML = '<div class="empty-state"><h3>No Session</h3><p>Start a session to see profile and progress.</p><button class="btn btn-primary" onclick="switchView(\'chat\')">Go to Career Coach</button></div>';
+        return;
+      }
+      el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x23F3;</div><h3>Loading...</h3></div>';
+      try {
+        const [evRes, sumRes] = await Promise.all([
+          fetch(`${API}/api/session/${sessionId}/evidence`),
+          fetch(`${API}/api/session/${sessionId}/summary`),
+        ]);
+        const pack = evRes.ok ? await evRes.json() : {};
+        const sum = sumRes.ok ? await sumRes.json() : {};
+        let html = '<div class="profile-card-ui" style="background:var(--bg-white);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;">';
+        html += '<h3 style="margin-bottom:12px;font-size:16px;">Optional user ID (cross-session)</h3>';
+        html += '<p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">New sessions started with this ID can load a short summary from the server profile store.</p>';
+        html += '<input type="text" id="userIdInput" value="' + escapeHtml(savedUid) + '" placeholder="e.g. my-work-email" style="width:100%;max-width:360px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-right:8px;" /> ';
+        html += '<button type="button" class="btn btn-outline" id="saveUserIdBtn">Save</button></div>';
+
+        html += '<div class="profile-card-ui" style="background:var(--bg-white);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;"><h3 style="margin-bottom:12px;">Session profile</h3>';
+        html += '<p style="font-size:14px;"><strong>Role:</strong> ' + escapeHtml(sum.profile?.jobTitle || '—') + '</p>';
+        html += '<p style="font-size:14px;"><strong>Target:</strong> ' + escapeHtml(sum.profile?.targetRole || '—') + '</p>';
+        html += '<p style="font-size:14px;"><strong>Phase:</strong> ' + escapeHtml(sum.phaseDisplay || sum.phase || '—') + '</p></div>';
+
+        const items = (pack.progress_items && pack.progress_items.length) ? pack.progress_items : cachedProgressItems;
+        html += '<div class="profile-card-ui" style="background:var(--bg-white);border:1px solid var(--border);border-radius:12px;padding:20px;"><h3 style="margin-bottom:12px;">Progress checklist</h3>';
+        if (!items || !items.length) {
+          html += '<p style="color:var(--text-secondary);">Progress items appear when you reach the action plan phase.</p>';
+        } else {
+          html += '<ul style="list-style:none;padding:0;margin:0;">';
+          for (const it of items) {
+            html += '<li style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);"><label style="display:flex;gap:10px;cursor:pointer;flex:1;"><input type="checkbox" data-pid="' + escapeHtml(it.id) + '" ' + (it.done ? 'checked' : '') + ' /><span style="font-size:14px;">' + escapeHtml(it.label) + '</span></label></li>';
+          }
+          html += '</ul>';
+        }
+        html += '</div>';
+        el.innerHTML = html;
+        const saveBtn = el.querySelector('#saveUserIdBtn');
+        if (saveBtn) saveBtn.addEventListener('click', saveUserIdLocal);
+        el.querySelectorAll('input[type="checkbox"][data-pid]').forEach((input) => {
+          input.addEventListener('change', () => toggleProgressItem(input.getAttribute('data-pid'), input.checked));
+        });
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><h3>Error</h3></div>';
+      }
+    }
+
+    function saveUserIdLocal() {
+      const v = document.getElementById('userIdInput').value.trim().slice(0, 128);
+      if (v) localStorage.setItem('careerbot_user_id', v);
+      else localStorage.removeItem('careerbot_user_id');
+      showToast('User ID saved for your next new session.');
+    }
+
+    async function toggleProgressItem(id, done) {
+      if (!sessionId) return;
+      const packRes = await fetch(`${API}/api/session/${sessionId}/evidence`);
+      if (!packRes.ok) return;
+      const pack = await packRes.json();
+      let items = pack.progress_items || cachedProgressItems || [];
+      items = items.map((it) => (it.id === id ? { ...it, done } : it));
+      cachedProgressItems = items;
+      try {
+        await fetch(`${API}/api/session/${sessionId}/progress`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items }),
+        });
+      } catch { /* ignore */ }
+    }
+
+    async function loadHistoryPanel() {
+      const el = document.getElementById('historyContent');
+      if (!sessionId) {
+        el.innerHTML = '<div class="empty-state"><h3>No Session</h3></div>';
+        return;
+      }
+      el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x23F3;</div><h3>Loading...</h3></div>';
+      try {
+        const res = await fetch(`${API}/api/session/${sessionId}/history`);
+        if (!res.ok) throw new Error('fail');
+        const data = await res.json();
+        if (!data.conversationHistory || !data.conversationHistory.length) {
+          el.innerHTML = '<p style="color:var(--text-secondary);">No messages stored yet.</p>';
+          return;
+        }
+        let html = '<ul class="history-list" style="list-style:none;padding:0;">';
+        for (const m of data.conversationHistory) {
+          const role = m.role === 'user' ? 'You' : 'Coach';
+          html += '<li style="margin-bottom:12px;padding:12px;background:var(--bg-white);border-radius:8px;border:1px solid var(--border);"><strong>' + role + '</strong><div style="margin-top:6px;font-size:14px;white-space:pre-wrap;">' + escapeHtml(m.content || '') + '</div></li>';
+        }
+        html += '</ul>';
+        el.innerHTML = html;
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><h3>Error</h3></div>';
+      }
+    }
 
     // ========== SKILLS DASHBOARD ==========
     async function loadDashboard() {

@@ -17,6 +17,10 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     const stream = createWriteStream(outputPath);
     doc.pipe(stream);
 
+    doc.save();
+    doc.rect(0, 0, doc.page.width, 6).fill("#2a9d8f");
+    doc.restore();
+
     const isExplore = state.sessionGoal === "explore_options";
     const directions = state.candidateDirections ?? [];
     const candidateSkills = (state as any).candidateSkills ?? {};
@@ -29,16 +33,18 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     const timeline = state.timeline ?? "to be determined";
 
     // --- Title ---
-    doc.fontSize(24).font("Helvetica-Bold").text("Career Plan Report", { align: "center" });
-    doc.moveDown(0.5);
+    doc.fillColor("#c94c4c").fontSize(22).font("Helvetica-Bold").text("Career Development Plan", { align: "center" });
+    doc.fillColor("#333333");
+    doc.moveDown(0.4);
     doc.fontSize(10).font("Helvetica").fillColor("#666666")
       .text(`Generated: ${new Date().toLocaleDateString()}`, { align: "center" });
-    doc.moveDown(1);
-    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke("#cccccc");
-    doc.moveDown(1);
+    doc.fillColor("#000000");
+    doc.moveDown(0.8);
+    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke("#e8c4cc");
+    doc.moveDown(0.8);
 
-    // --- Section 1: Profile Summary ---
-    sectionHeader(doc, "1. Profile Summary");
+    // --- Section 1: Profile ---
+    sectionBanner(doc, "1. Your career snapshot", "orange");
     addField(doc, "Current/Recent Role", state.jobTitle ?? "Not provided");
     addField(doc, "Industry", state.industry ?? "Not provided");
     addField(doc, "Years of Experience", state.yearsExperience !== null ? `${state.yearsExperience} years` : "Not provided");
@@ -55,38 +61,79 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     // --- Section 3: Skill Gap Analysis ---
     renderSection3(doc, state, isExplore, skills, techSkills, softSkills, timeline, candidateSkills);
 
-    // --- Section 4: Development Timeline ---
-    sectionHeader(doc, "4. Development Timeline");
+    // --- Section 4: Development Timeline (GBH-style steps) ---
+    sectionBanner(doc, "4. Development timeline", "purple");
     doc.fontSize(11).font("Helvetica").fillColor("#000000")
       .text(`Estimated timeline: ${timeline}`, { lineGap: 4 });
 
-    if (state.skillDevelopmentAgenda.length > 0) {
+    const devSteps = buildDevelopmentSteps(state, skills);
+    if (devSteps.length > 0) {
       doc.moveDown(0.3);
-      doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333").text("Skill Development Priorities:");
-      doc.font("Helvetica").fillColor("#000000");
-      for (const item of state.skillDevelopmentAgenda) {
-        doc.fontSize(10).text(`  •  ${item}`, { lineGap: 2 });
+      for (let i = 0; i < devSteps.length; i++) {
+        renderIdpStepPdf(doc, i, devSteps[i]!.label, devSteps[i]!.content);
       }
+    } else {
+      doc.moveDown(0.3);
+      doc.fontSize(10).font("Helvetica").fillColor("#666666")
+        .text("Complete a full career coaching session to receive a personalized development timeline.", { lineGap: 3 });
+    }
+
+    if (skills.length > 0) {
+      doc.moveDown(0.3);
+      doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333").text("Overall readiness");
+      doc.moveDown(0.2);
+      const techReady = techSkills.length > 0 ? Math.round((techSkills.filter(s => s.gap_category === "strong").length / techSkills.length) * 100) : 0;
+      const softReady = softSkills.length > 0 ? Math.round((softSkills.filter(s => s.gap_category === "strong").length / softSkills.length) * 100) : 0;
+      doc.fontSize(10).font("Helvetica").fillColor("#2874a6").text(`Technical skills on track: ${techReady}%`);
+      doc.fillColor("#7d3c98").text(`Soft skills on track: ${softReady}%`);
+      doc.fillColor("#000000");
     }
     doc.moveDown(0.5);
 
-    // --- Section 5: Suggested Next Steps ---
-    sectionHeader(doc, "5. Suggested Next Steps");
-    if (state.immediateNextSteps.length > 0) {
-      for (let i = 0; i < state.immediateNextSteps.length; i++) {
-        doc.fontSize(11).font("Helvetica").fillColor("#000000")
-          .text(`${i + 1}. ${softenStep(state.immediateNextSteps[i])}`, { lineGap: 4 });
+    // --- Section 5: Suggested Next Steps (5-day view) ---
+    sectionBanner(doc, "5. Suggested next steps (first-week view)", "coral");
+    const nextItems: string[] =
+      state.immediateNextSteps.length > 0
+        ? state.immediateNextSteps.map(softenStep)
+        : isExplore && directions.length > 0
+          ? [
+              `You might consider researching job postings for ${directions[0].direction_title} to understand current market expectations`,
+              "It could be helpful to connect with professionals in these fields for informational conversations",
+              "You may find it valuable to start a focused session for your top-choice role to get a detailed skill gap analysis",
+            ]
+          : [];
+
+    if (nextItems.length > 0) {
+      doc.fontSize(9).font("Helvetica").fillColor("#555555")
+        .text("Tasks are grouped across five focus days (round-robin). Empty days are buffer time.", { lineGap: 2 });
+      doc.fillColor("#000000");
+      doc.moveDown(0.3);
+      const byDay: string[][] = [[], [], [], [], []];
+      nextItems.forEach((item, i) => {
+        byDay[i % 5]!.push(item);
+      });
+      for (let d = 0; d < 5; d++) {
+        checkPageBreak(doc);
+        renderDayHeaderPdf(doc, d + 1, d % 2 === 0);
+        const lines = byDay[d]!;
+        if (lines.length === 0) {
+          doc.fontSize(10).font("Helvetica-Oblique").fillColor("#888888")
+            .text("Buffer day: revisit priorities or catch up on earlier steps.", { lineGap: 2 });
+          doc.fillColor("#000000");
+        } else {
+          for (const line of lines) {
+            doc.fontSize(10).font("Helvetica").fillColor("#000000").text(`    ○  ${line}`, { lineGap: 3 });
+          }
+        }
+        doc.moveDown(0.4);
       }
-    } else if (isExplore && directions.length > 0) {
-      doc.fontSize(11).font("Helvetica").fillColor("#000000");
-      doc.text(`1. You might consider researching job postings for ${directions[0].direction_title} to understand current market expectations`, { lineGap: 4 });
-      doc.text("2. It could be helpful to connect with professionals in these fields for informational conversations", { lineGap: 4 });
-      doc.text("3. You may find it valuable to start a focused session for your top-choice role to get a detailed skill gap analysis", { lineGap: 4 });
     } else {
       doc.fontSize(11).font("Helvetica").fillColor("#000000")
         .text("Complete a full career coaching session to receive personalized recommendations.", { lineGap: 4 });
     }
     doc.moveDown(0.5);
+
+    renderLearningEvidencePdf(doc, state);
 
     // --- Footer ---
     doc.moveDown(1);
@@ -103,6 +150,43 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
   });
 }
 
+function renderLearningEvidencePdf(doc: PDFKit.PDFDocument, state: AgentStateType): void {
+  const lr = state.learningResources ?? [];
+  const kept = state.evidenceKept ?? [];
+  const disc = state.evidenceDiscarded ?? [];
+  if (lr.length === 0 && kept.length === 0 && disc.length === 0) return;
+
+  checkPageBreak(doc);
+  sectionBanner(doc, "6. Resources & evidence log", "blue");
+  if (lr.length > 0) {
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#2874a6").text("Suggested learning resources");
+    doc.moveDown(0.2);
+    doc.fontSize(10).font("Helvetica").fillColor("#000000");
+    for (const r of lr) {
+      doc.text(`  • ${r.title}: ${r.url}${r.note ? ` (${r.note})` : ""}`, { lineGap: 2 });
+    }
+    doc.moveDown(0.3);
+  }
+  if (kept.length > 0) {
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#27ae60").text("Evidence retained");
+    doc.moveDown(0.2);
+    doc.fontSize(10).font("Helvetica").fillColor("#000000");
+    for (const e of kept) {
+      doc.text(`  + [${e.source}] ${e.detail}. Reason: ${e.reason}`, { lineGap: 2 });
+    }
+    doc.moveDown(0.3);
+  }
+  if (disc.length > 0) {
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#c0392b").text("Evidence set aside");
+    doc.moveDown(0.2);
+    doc.fontSize(10).font("Helvetica").fillColor("#000000");
+    for (const e of disc) {
+      doc.text(`  - [${e.source}] ${e.detail}. Reason: ${e.reason}`, { lineGap: 2 });
+    }
+    doc.moveDown(0.3);
+  }
+}
+
 // --- Section Renderers ---
 
 function renderSection2(
@@ -117,7 +201,7 @@ function renderSection2(
 ): void {
   if (isExplore && directions.length > 0) {
     // Explore track: ranked directions + blended skills
-    sectionHeader(doc, "2. Recommended Career Directions");
+    sectionBanner(doc, "2. Recommended career directions", "green");
     doc.fontSize(11).font("Helvetica").fillColor("#000000")
       .text("Based on your background and interests, the following career directions may be a strong fit:", { lineGap: 4 });
     doc.moveDown(0.3);
@@ -151,7 +235,7 @@ function renderSection2(
 
   if (state.targetRole && skills.length > 0) {
     // Specific role track: target role + tech/soft skill tables
-    sectionHeader(doc, "2. Recommended Career Path");
+    sectionBanner(doc, "2. Recommended career path", "green");
     addField(doc, "Target Role", state.targetRole);
     if (state.recommendedPath) {
       doc.fontSize(11).font("Helvetica").fillColor("#000000")
@@ -190,7 +274,7 @@ function renderSection2(
   }
 
   // Fallback
-  sectionHeader(doc, "2. Recommended Career Path");
+  sectionBanner(doc, "2. Recommended career path", "green");
   if (state.recommendedPath) {
     doc.fontSize(11).font("Helvetica").fillColor("#000000")
       .text(state.recommendedPath, { lineGap: 4 });
@@ -213,7 +297,7 @@ function renderSection3(
 ): void {
   if (!isExplore && skills.length > 0) {
     // Specific role: tech/soft gap tables with actionables
-    sectionHeader(doc, "3. Skill Gap Analysis");
+    sectionBanner(doc, "3. Skill gap analysis", "blue");
 
     if (techSkills.length > 0) {
       doc.fontSize(12).font("Helvetica-Bold").fillColor("#333333").text("Technical Skills");
@@ -245,7 +329,7 @@ function renderSection3(
   }
 
   // Explore track or empty skills
-  sectionHeader(doc, "3. Skill Gap Analysis");
+  sectionBanner(doc, "3. Skill gap analysis", "blue");
   const blended = blendSkillsAcrossRoles(candidateSkills, 5);
 
   if (blended.length > 0) {
@@ -392,10 +476,99 @@ function checkPageBreak(doc: PDFKit.PDFDocument): void {
   if (doc.y > 700) { doc.addPage(); }
 }
 
-function sectionHeader(doc: PDFKit.PDFDocument, title: string): void {
+type BannerTone = "orange" | "green" | "blue" | "purple" | "coral";
+
+const BANNER_HEX: Record<BannerTone, string> = {
+  orange: "#e67e22",
+  green: "#27ae60",
+  blue: "#2874a6",
+  purple: "#6c3483",
+  coral: "#c0392b",
+};
+
+function sectionBanner(doc: PDFKit.PDFDocument, title: string, tone: BannerTone): void {
   checkPageBreak(doc);
-  doc.fontSize(14).font("Helvetica-Bold").fillColor("#333333").text(title);
-  doc.moveDown(0.3);
+  const x = 50;
+  const y = doc.y;
+  const bannerW = 495;
+  const bannerH = 24;
+  const r = 10;
+  doc.save();
+  doc.roundedRect(x, y, bannerW, bannerH, r).fill(BANNER_HEX[tone]);
+  doc.font("Helvetica-Bold").fontSize(11).fillColor("#ffffff");
+  doc.text(title, x + 14, y + 7, { width: bannerW - 28 });
+  doc.restore();
+  doc.fillColor("#000000");
+  doc.y = y + bannerH + 10;
+}
+
+function buildDevelopmentSteps(
+  state: AgentStateType,
+  skills: SkillAssessment[],
+): { label: string; content: string }[] {
+  const agenda = state.skillDevelopmentAgenda ?? [];
+  const steps: { label: string; content: string }[] = [];
+  if (agenda.length > 0) {
+    agenda.forEach((item, i) => {
+      steps.push({ label: `Priority ${i + 1}`, content: item });
+    });
+  } else if (skills.length > 0) {
+    const gaps = skills.filter(s => s.gap_category === "absent" || s.gap_category === "underdeveloped");
+    if (gaps.length > 0) {
+      steps.push({
+        label: "Assess",
+        content: "Complete self-assessment of all required skills for your target role.",
+      });
+      steps.push({
+        label: "Foundation",
+        content: `Build foundational knowledge in ${gaps.slice(0, 2).map(s => s.skill_name).join(" and ")}.`,
+      });
+      steps.push({
+        label: "Practice",
+        content: "Apply skills through projects, exercises, or real-world tasks.",
+      });
+      steps.push({
+        label: "Review",
+        content: "Revisit progress and adjust your development plan as needed.",
+      });
+    }
+  }
+  return steps;
+}
+
+function renderIdpStepPdf(doc: PDFKit.PDFDocument, stepIndex: number, label: string, content: string): void {
+  checkPageBreak(doc);
+  const colors = ["#e67e22", "#27ae60", "#16a085", "#2874a6", "#6c3483"];
+  const c = colors[stepIndex % 5]!;
+  const x = 50;
+  const w = 495;
+  const barH = 22;
+  const y0 = doc.y;
+  doc.save();
+  doc.roundedRect(x, y0, w, barH, 6).fill(c);
+  doc.font("Helvetica-Bold").fontSize(10).fillColor("#ffffff");
+  doc.text(`Step ${String(stepIndex + 1).padStart(2, "0")}: ${label}`, x + 12, y0 + 6, { width: w - 24 });
+  doc.restore();
+  doc.y = y0 + barH + 6;
+  doc.font("Helvetica").fontSize(10).fillColor("#444444").text(content, { width: w - 24, lineGap: 3 });
+  doc.fillColor("#000000");
+  doc.moveDown(0.45);
+}
+
+function renderDayHeaderPdf(doc: PDFKit.PDFDocument, dayNum: number, salmon: boolean): void {
+  checkPageBreak(doc);
+  const x = 50;
+  const y0 = doc.y;
+  const w = 160;
+  const h = 18;
+  const fill = salmon ? "#e57373" : "#7986cb";
+  doc.save();
+  doc.roundedRect(x, y0, w, h, 5).fill(fill);
+  doc.font("Helvetica-Bold").fontSize(10).fillColor("#ffffff");
+  doc.text(`Day ${dayNum}`, x + 10, y0 + 4, { width: w - 20 });
+  doc.restore();
+  doc.fillColor("#000000");
+  doc.y = y0 + h + 6;
 }
 
 function addField(doc: PDFKit.PDFDocument, label: string, value: string): void {

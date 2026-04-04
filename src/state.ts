@@ -34,6 +34,24 @@ export interface AnalyzerOutput {
   notes: string;
 }
 
+export interface LearningResourceItem {
+  title: string;
+  url: string;
+  note?: string;
+}
+
+export interface EvidenceDecisionItem {
+  source: string;
+  detail: string;
+  reason: string;
+}
+
+export interface ProgressItem {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
 export interface ConversationTurn {
   role: "user" | "assistant";
   content: string;
@@ -71,6 +89,8 @@ export const AgentState = Annotation.Root({
   yearsExperience: Annotation<number | null>({ reducer: (_, b) => b, default: () => null }),
   educationLevel: Annotation<EducationLevel | null>({ reducer: (_, b) => b, default: () => null }),
   sessionGoal: Annotation<SessionGoal | null>({ reducer: (_, b) => b, default: () => null }),
+  location: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  preferredTimeline: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
 
   // Exploration fields
   track: Annotation<Track | null>({ reducer: (_, b) => b, default: () => null }),
@@ -115,6 +135,11 @@ export const AgentState = Annotation.Root({
   }),
   planRationale: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
   reportGenerated: Annotation<boolean>({ reducer: (_, b) => b, default: () => false }),
+
+  learningResources: Annotation<LearningResourceItem[]>({ reducer: (_, b) => b, default: () => [] }),
+  evidenceKept: Annotation<EvidenceDecisionItem[]>({ reducer: (_, b) => b, default: () => [] }),
+  evidenceDiscarded: Annotation<EvidenceDecisionItem[]>({ reducer: (_, b) => b, default: () => [] }),
+  progressItems: Annotation<ProgressItem[]>({ reducer: (_, b) => b, default: () => [] }),
 
   // Runtime control
   turnType: Annotation<TurnType>({ reducer: (_, b) => b, default: () => "first_turn" }),

@@ -180,6 +180,48 @@
         "default": false,
         "display_name": "Report Generated",
         "description": "Whether a PDF/HTML career plan report has been exported."
+      },
+      "learning_resources": {
+        "type": "object[]",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": [],
+        "display_name": "Learning Resources",
+        "description": "Curated links (title, url, optional note) suggested for the user's plan.",
+        "entity_bearing": true,
+        "per_entity_fields": {
+          "title": { "type": "string", "description": "Resource title" },
+          "url": { "type": "string", "description": "HTTPS URL" },
+          "note": { "type": "string", "description": "Optional context", "default": null }
+        }
+      },
+      "evidence_kept": {
+        "type": "object[]",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": [],
+        "display_name": "Evidence Kept",
+        "description": "Data sources or facts retained for the plan with reasons.",
+        "entity_bearing": true,
+        "per_entity_fields": {
+          "source": { "type": "string", "description": "e.g. O*NET, BLS, conversation" },
+          "detail": { "type": "string", "description": "What was kept" },
+          "reason": { "type": "string", "description": "Why it supports the plan" }
+        }
+      },
+      "evidence_discarded": {
+        "type": "object[]",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": [],
+        "display_name": "Evidence Discarded",
+        "description": "Sources or claims set aside with reasons.",
+        "entity_bearing": true,
+        "per_entity_fields": {
+          "source": { "type": "string", "description": "e.g. anecdote, unverifiable claim" },
+          "detail": { "type": "string", "description": "What was discarded" },
+          "reason": { "type": "string", "description": "Why it was not used" }
+        }
       }
     }
   }

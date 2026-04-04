@@ -1,4 +1,13 @@
-import type { AgentStateType, TurnType, SkillAssessment, GapCategory, UserRating } from "../state.js";
+import type {
+  AgentStateType,
+  TurnType,
+  SkillAssessment,
+  GapCategory,
+  UserRating,
+  LearningResourceItem,
+  EvidenceDecisionItem,
+  ProgressItem,
+} from "../state.js";
 import { config } from "../config.js";
 import { retrieveSkillsForRole, retrieveSkillsForMultipleRoles, categorizeSkillType } from "../utils/rag.js";
 
@@ -25,6 +34,8 @@ function mergeOrientationFields(
   if (fields.years_experience !== undefined) updates.yearsExperience = fields.years_experience as number;
   if (fields.education_level !== undefined) updates.educationLevel = fields.education_level as AgentStateType["educationLevel"];
   if (fields.session_goal !== undefined) updates.sessionGoal = fields.session_goal as AgentStateType["sessionGoal"];
+  if (fields.location !== undefined) updates.location = fields.location as string;
+  if (fields.preferred_timeline !== undefined) updates.preferredTimeline = fields.preferred_timeline as string;
   // Also capture target_role if mentioned during orientation
   if (fields.target_role !== undefined) updates.targetRole = fields.target_role as string;
   return updates;
@@ -83,6 +94,47 @@ function mergeRoleTargetingFields(
   return updates;
 }
 
+function parseLearningResources(raw: unknown): LearningResourceItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: LearningResourceItem[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const title = typeof o.title === "string" ? o.title.trim() : "";
+    const url = typeof o.url === "string" ? o.url.trim() : "";
+    if (!title || !url) continue;
+    const note = typeof o.note === "string" ? o.note.trim() : undefined;
+    out.push(note ? { title, url, note } : { title, url });
+  }
+  return out;
+}
+
+function parseEvidenceDecisions(raw: unknown): EvidenceDecisionItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: EvidenceDecisionItem[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const source = typeof o.source === "string" ? o.source.trim() : "";
+    const detail = typeof o.detail === "string" ? o.detail.trim() : "";
+    const reason = typeof o.reason === "string" ? o.reason.trim() : "";
+    if (!source || !detail) continue;
+    out.push({ source, detail, reason: reason || "Not specified" });
+  }
+  return out;
+}
+
+function mergeByUrl(a: LearningResourceItem[], b: LearningResourceItem[]): LearningResourceItem[] {
+  const seen = new Set(a.map((r) => r.url));
+  const merged = [...a];
+  for (const r of b) {
+    if (seen.has(r.url)) continue;
+    seen.add(r.url);
+    merged.push(r);
+  }
+  return merged;
+}
+
 function mergePlanningFields(
   state: AgentStateType,
   fields: Record<string, unknown>
@@ -94,6 +146,19 @@ function mergePlanningFields(
   if (fields.immediate_next_steps !== undefined) updates.immediateNextSteps = fields.immediate_next_steps as string[];
   if (fields.plan_rationale !== undefined) updates.planRationale = fields.plan_rationale as string;
   if (fields.report_generated !== undefined) updates.reportGenerated = fields.report_generated as boolean;
+
+  if (fields.learning_resources !== undefined) {
+    const incoming = parseLearningResources(fields.learning_resources);
+    updates.learningResources = mergeByUrl(state.learningResources ?? [], incoming).slice(0, 30);
+  }
+  if (fields.evidence_kept !== undefined) {
+    const incoming = parseEvidenceDecisions(fields.evidence_kept);
+    updates.evidenceKept = [...(state.evidenceKept ?? []), ...incoming].slice(0, 50);
+  }
+  if (fields.evidence_discarded !== undefined) {
+    const incoming = parseEvidenceDecisions(fields.evidence_discarded);
+    updates.evidenceDiscarded = [...(state.evidenceDiscarded ?? []), ...incoming].slice(0, 50);
+  }
   return updates;
 }
 
@@ -333,6 +398,29 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
       } else {
         updates.planRationale = `This plan is based on comparing your self-assessed skills against O*NET requirements for ${targetRole ?? "your target role"}. ${gaps.length} skill gap${gaps.length !== 1 ? "s" : ""} ${gaps.length !== 1 ? "were" : "was"} identified and ${strengths.length} strength${strengths.length !== 1 ? "s" : ""} confirmed.`;
       }
+    }
+
+    const mergedKept = updates.evidenceKept ?? state.evidenceKept ?? [];
+    if (mergedKept.length === 0) {
+      updates.evidenceKept = [
+        {
+          source: "O*NET",
+          detail: targetRole
+            ? `Retrieved required skills and knowledge for "${targetRole}"`
+            : "Retrieved occupational skill profiles for recommended directions",
+          reason: "Authoritative occupation-skill linkage for gap analysis",
+        },
+      ];
+    }
+
+    if (!state.progressItems?.length) {
+      const ns = updates.immediateNextSteps ?? state.immediateNextSteps ?? [];
+      const ag = updates.skillDevelopmentAgenda ?? state.skillDevelopmentAgenda ?? [];
+      const items: ProgressItem[] = [
+        ...ns.map((label, i) => ({ id: `ns-${i}`, label, done: false })),
+        ...ag.slice(0, 8).map((label, i) => ({ id: `ag-${i}`, label, done: false })),
+      ].slice(0, 16);
+      if (items.length > 0) updates.progressItems = items;
     }
   }
 

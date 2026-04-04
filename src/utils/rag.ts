@@ -100,7 +100,13 @@ export async function retrieveChunks(query: string, topK: number = 5): Promise<R
     return [];
   }
 
-  const queryEmb = await embedQuery(query);
+  let queryEmb: number[];
+  try {
+    queryEmb = await embedQuery(query);
+  } catch (e) {
+    console.warn("[RAG] Embedding unavailable (e.g. Ollama not reachable):", (e as Error).message);
+    return [];
+  }
 
   const scored = cachedEmbeddings.map((emb, idx) => ({
     idx,
@@ -120,8 +126,8 @@ export async function retrieveChunks(query: string, topK: number = 5): Promise<R
  * Strategy: try live O*NET API first, fall back to local cached data.
  */
 export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAssessment[]> {
-  // Try live O*NET API first
-  if (process.env.ONET_USERNAME && process.env.ONET_PASSWORD) {
+  // Try live O*NET API first (v2: API key in ONET_USERNAME; see services/onet.ts)
+  if (process.env.ONET_USERNAME) {
     try {
       const result = await liveOnetSkills(targetRole);
       if (result && result.skills.length > 0) {

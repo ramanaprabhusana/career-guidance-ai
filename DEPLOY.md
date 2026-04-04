@@ -1,0 +1,53 @@
+# Deploy Career Guidance Assistant (Render)
+
+This app is configured for **Docker** deployment. The public URL updates only after you **push code to Git** and **Render rebuilds**, and after **environment variables** match your local setup.
+
+## 1. Repository layout on GitHub
+
+- If the Git repository root **is** the `career-guidance-ai` folder, use the default root in Render.
+- If the repo root is the parent **Execution final deployment** folder, set **Root Directory** in the Render service to `career-guidance-ai` (Dashboard: Settings → Build & Deploy → Root Directory).
+
+## 2. Required environment variables (Render → Environment)
+
+| Variable | Required | Notes |
+|----------|----------|--------|
+| `GOOGLE_API_KEY` | **Yes** | Gemini API key. Server exits without it. |
+| `PORT` | Auto | Render injects `3000`; Dockerfile exposes 3000. |
+| `ONET_USERNAME` | Recommended | O*NET v2 **API key** (stored in this variable name for history). |
+| `ONET_PASSWORD` | No | Optional; live O*NET uses `ONET_USERNAME` only. |
+| `BLS_API_KEY` | No | Enables live wage data when set. |
+| `USAJOBS_API_KEY` | No | With `USAJOBS_EMAIL`, enables federal job signals. |
+| `USAJOBS_EMAIL` | No | Required with USAJOBS key. |
+| `LANGCHAIN_TRACING_V2` | No | Set `true` to send traces to LangSmith. |
+| `LANGCHAIN_API_KEY` | No | LangSmith API key. |
+| `LANGCHAIN_PROJECT` | No | Defaults to `career-guidance-ai`. |
+| `OLLAMA_BASE_URL` | No | On Render there is usually **no** Ollama; leave unset. RAG **skill lists** still work via O*NET live + `data/occupations.json`. |
+
+Copy values from your local `career-guidance-ai/.env` (never commit `.env`).
+
+## 3. Ship code changes
+
+```bash
+cd career-guidance-ai
+git add -A
+git commit -m "Describe your change"
+git push origin main
+```
+
+Render will redeploy if auto-deploy is on. Otherwise use **Manual Deploy → Deploy latest commit**.
+
+## 4. Verify production
+
+1. Open `https://<your-service>.onrender.com/api/health` → should return JSON with `"ok": true` and `version`.
+2. Open `/api/data-sources` → `onet.connected` should be **true** if `ONET_USERNAME` is set.
+3. Load the site, start a session, send a chat message, export a report.
+
+## 5. Files included in the Docker image
+
+- `data/*.json` (occupations, chunks, embeddings, curated-resources) is **copied** into the image unless excluded. Do not add broad `data/*` rules to `.gitignore` for files the app needs in production.
+
+## 6. Blueprint (`render.yaml`)
+
+Optional: connect the repo to Render Blueprint and use `render.yaml`. Sync **secret** vars in the dashboard (`sync: false` placeholders).
+
+After each architecture or deploy change, record date, time, and version in your technical changelog if you maintain one.

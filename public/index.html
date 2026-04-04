@@ -34,6 +34,15 @@
       <div class="nav-item" data-view="resources" onclick="switchView('resources')" tabindex="0" role="link" aria-label="Learning Resources">
         <span class="nav-item-icon">&#x1F4DA;</span> Resources
       </div>
+      <div class="nav-item" data-view="evidence" onclick="switchView('evidence')" tabindex="0" role="link" aria-label="Evidence pack">
+        <span class="nav-item-icon">&#x1F4C1;</span> Evidence Pack
+      </div>
+      <div class="nav-item" data-view="profile" onclick="switchView('profile')" tabindex="0" role="link" aria-label="Profile and progress">
+        <span class="nav-item-icon">&#x1F464;</span> Profile
+      </div>
+      <div class="nav-item" data-view="history" onclick="switchView('history')" tabindex="0" role="link" aria-label="Conversation history">
+        <span class="nav-item-icon">&#x1F4DC;</span> History
+      </div>
 
       <div class="nav-section-label" style="margin-top: 16px;">Tools</div>
       <div class="nav-item" onclick="exportReport()">
@@ -352,6 +361,51 @@
         <div class="empty-state" id="resourcesLoading">
           <div class="empty-state-icon">&#x1F4DA;</div>
           <h3>Loading Resources...</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== EVIDENCE PACK VIEW ========== -->
+    <div class="view-panel" id="viewEvidence" role="region" aria-label="Evidence pack">
+      <div class="view-panel-header">
+        <h2>Evidence Pack</h2>
+        <p>Structured plan data, learning links, and keep or discard log from your session.</p>
+      </div>
+      <div id="evidenceContent" class="evidence-panel-body">
+        <div class="empty-state">
+          <div class="empty-state-icon">&#x1F4C1;</div>
+          <h3>No Session</h3>
+          <p>Start a coaching session to populate the evidence pack.</p>
+          <button class="btn btn-primary" onclick="switchView('chat')">Go to Career Coach</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== PROFILE & PROGRESS VIEW ========== -->
+    <div class="view-panel" id="viewProfile" role="region" aria-label="Profile and progress">
+      <div class="view-panel-header">
+        <h2>Profile &amp; Progress</h2>
+        <p>Optional user ID links sessions in local SQLite (when enabled on server). Track checklist items below.</p>
+      </div>
+      <div id="profileContent" class="profile-panel-body">
+        <div class="empty-state">
+          <div class="empty-state-icon">&#x1F464;</div>
+          <h3>No Session</h3>
+          <p>Start a session to see your profile and progress checklist.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== HISTORY VIEW ========== -->
+    <div class="view-panel" id="viewHistory" role="region" aria-label="History">
+      <div class="view-panel-header">
+        <h2>Conversation History</h2>
+        <p>Read-only transcript for this session.</p>
+      </div>
+      <div id="historyContent" class="history-panel-body">
+        <div class="empty-state">
+          <div class="empty-state-icon">&#x1F4DC;</div>
+          <h3>No Session</h3>
         </div>
       </div>
     </div>

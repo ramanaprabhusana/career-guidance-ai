@@ -1,0 +1,202 @@
+[
+  {
+    "title": "CS50: Introduction to Computer Science",
+    "url": "https://cs50.harvard.edu/x/",
+    "source": "Harvard / edX",
+    "type": "free",
+    "certification": false,
+    "skills": ["Programming", "Computer Science", "Problem Solving"],
+    "domains": ["Technology", "Software"],
+    "description": "Harvard's intro to CS covering C, Python, SQL, and web development."
+  },
+  {
+    "title": "Google Data Analytics Professional Certificate",
+    "url": "https://www.coursera.org/professional-certificates/google-data-analytics",
+    "source": "Coursera",
+    "type": "paid",
+    "certification": true,
+    "skills": ["Data Analysis", "SQL", "Spreadsheets", "Data Visualization"],
+    "domains": ["Data Science", "Analytics"],
+    "description": "8-course series covering data analytics foundations with Google tools."
+  },
+  {
+    "title": "freeCodeCamp Full Stack Web Development",
+    "url": "https://www.freecodecamp.org/",
+    "source": "freeCodeCamp",
+    "type": "free",
+    "certification": true,
+    "skills": ["Programming", "JavaScript", "HTML/CSS", "Web Development"],
+    "domains": ["Technology", "Software"],
+    "description": "Self-paced curriculum covering responsive web design through APIs."
+  },
+  {
+    "title": "IBM Data Science Professional Certificate",
+    "url": "https://www.coursera.org/professional-certificates/ibm-data-science",
+    "source": "Coursera",
+    "type": "paid",
+    "certification": true,
+    "skills": ["Data Science", "Python", "Machine Learning", "SQL"],
+    "domains": ["Data Science", "Technology"],
+    "description": "9-course program covering data science methodology and machine learning."
+  },
+  {
+    "title": "Khan Academy Finance and Capital Markets",
+    "url": "https://www.khanacademy.org/economics-finance-domain/core-finance",
+    "source": "Khan Academy",
+    "type": "free",
+    "certification": false,
+    "skills": ["Financial Analysis", "Accounting", "Economics"],
+    "domains": ["Finance", "Accounting"],
+    "description": "Free courses on stocks, bonds, financial statements, and valuation."
+  },
+  {
+    "title": "Google Project Management Professional Certificate",
+    "url": "https://www.coursera.org/professional-certificates/google-project-management",
+    "source": "Coursera",
+    "type": "paid",
+    "certification": true,
+    "skills": ["Project Management", "Agile", "Strategic Planning", "Communication"],
+    "domains": ["Management", "Operations"],
+    "description": "6-course series on project management fundamentals and Agile methodology."
+  },
+  {
+    "title": "MIT OpenCourseWare: Introduction to Algorithms",
+    "url": "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/",
+    "source": "MIT OCW",
+    "type": "free",
+    "certification": false,
+    "skills": ["Algorithms", "Data Structures", "Problem Solving", "Mathematics"],
+    "domains": ["Technology", "Software"],
+    "description": "MIT's algorithms course with lecture videos and problem sets."
+  },
+  {
+    "title": "Google UX Design Professional Certificate",
+    "url": "https://www.coursera.org/professional-certificates/google-ux-design",
+    "source": "Coursera",
+    "type": "paid",
+    "certification": true,
+    "skills": ["UX Design", "User Research", "Prototyping", "Wireframing"],
+    "domains": ["Design", "Technology"],
+    "description": "7-course series on UX design process from research to high-fidelity prototypes."
+  },
+  {
+    "title": "Coursera: Marketing in a Digital World",
+    "url": "https://www.coursera.org/learn/marketing-digital",
+    "source": "Coursera / UIUC",
+    "type": "free",
+    "certification": false,
+    "skills": ["Digital Marketing", "Market Research", "Marketing Strategy"],
+    "domains": ["Marketing", "Business"],
+    "description": "Free audit on how digital tools are changing marketing."
+  },
+  {
+    "title": "HubSpot Academy: Inbound Marketing",
+    "url": "https://academy.hubspot.com/courses/inbound-marketing",
+    "source": "HubSpot Academy",
+    "type": "free",
+    "certification": true,
+    "skills": ["Content Marketing", "SEO", "Social Media", "Lead Generation"],
+    "domains": ["Marketing", "Business"],
+    "description": "Free certification course on inbound marketing strategy."
+  },
+  {
+    "title": "LinkedIn Learning: Become a Manager",
+    "url": "https://www.linkedin.com/learning/paths/become-a-manager",
+    "source": "LinkedIn Learning",
+    "type": "paid",
+    "certification": true,
+    "skills": ["Leadership", "Management", "Communication", "Team Building"],
+    "domains": ["Management", "Leadership"],
+    "description": "Learning path covering management essentials and leadership skills."
+  },
+  {
+    "title": "Codecademy: Learn Python 3",
+    "url": "https://www.codecademy.com/learn/learn-python-3",
+    "source": "Codecademy",
+    "type": "free",
+    "certification": false,
+    "skills": ["Python", "Programming", "Data Analysis"],
+    "domains": ["Technology", "Data Science"],
+    "description": "Interactive Python course covering syntax, functions, and data structures."
+  },
+  {
+    "title": "edX: Introduction to Nursing",
+    "url": "https://www.edx.org/learn/nursing",
+    "source": "edX",
+    "type": "free",
+    "certification": false,
+    "skills": ["Patient Care", "Clinical Skills", "Health Assessment"],
+    "domains": ["Healthcare", "Nursing"],
+    "description": "Introductory nursing courses from accredited institutions."
+  },
+  {
+    "title": "Google IT Support Professional Certificate",
+    "url": "https://www.coursera.org/professional-certificates/google-it-support",
+    "source": "Coursera",
+    "type": "paid",
+    "certification": true,
+    "skills": ["IT Support", "Networking", "Operating Systems", "Troubleshooting"],
+    "domains": ["Technology", "IT"],
+    "description": "5-course program covering IT support fundamentals."
+  },
+  {
+    "title": "Kaggle Learn: Intro to Machine Learning",
+    "url": "https://www.kaggle.com/learn/intro-to-machine-learning",
+    "source": "Kaggle",
+    "type": "free",
+    "certification": true,
+    "skills": ["Machine Learning", "Python", "Data Science", "Statistics"],
+    "domains": ["Data Science", "Technology"],
+    "description": "Hands-on micro-course on ML fundamentals with real datasets."
+  },
+  {
+    "title": "Accounting Fundamentals (AICPA)",
+    "url": "https://www.aicpa-cima.com/resources/landing/accounting-fundamentals",
+    "source": "AICPA",
+    "type": "free",
+    "certification": false,
+    "skills": ["Accounting", "Financial Reporting", "Bookkeeping"],
+    "domains": ["Finance", "Accounting"],
+    "description": "Foundational accounting resources from the professional association."
+  },
+  {
+    "title": "Tableau Public: Free Data Visualization",
+    "url": "https://public.tableau.com/app/resources/learn",
+    "source": "Tableau",
+    "type": "free",
+    "certification": false,
+    "skills": ["Data Visualization", "Dashboard Design", "Data Analysis"],
+    "domains": ["Data Science", "Analytics", "Business"],
+    "description": "Free learning resources for data visualization with Tableau."
+  },
+  {
+    "title": "AWS Cloud Practitioner Essentials",
+    "url": "https://aws.amazon.com/training/digital/aws-cloud-practitioner-essentials/",
+    "source": "AWS",
+    "type": "free",
+    "certification": false,
+    "skills": ["Cloud Computing", "AWS", "Infrastructure"],
+    "domains": ["Technology", "IT"],
+    "description": "Free digital training covering AWS cloud fundamentals."
+  },
+  {
+    "title": "PMI Project Management Ready",
+    "url": "https://www.pmi.org/certifications/project-management-ready",
+    "source": "PMI",
+    "type": "paid",
+    "certification": true,
+    "skills": ["Project Management", "Scheduling", "Risk Management"],
+    "domains": ["Management", "Operations"],
+    "description": "Entry-level project management certification from PMI."
+  },
+  {
+    "title": "Stanford Online: Statistical Learning",
+    "url": "https://online.stanford.edu/courses/sohs-ystatslearning-statistical-learning",
+    "source": "Stanford Online",
+    "type": "free",
+    "certification": false,
+    "skills": ["Statistics", "Machine Learning", "R Programming", "Data Analysis"],
+    "domains": ["Data Science", "Technology"],
+    "description": "Free course covering statistical learning methods with R."
+  }
+]

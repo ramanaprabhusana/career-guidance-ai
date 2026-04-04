@@ -1,6 +1,6 @@
 {
   "name": "career-guidance-ai",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
@@ -8,7 +8,10 @@
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "smoke": "tsx src/tests/smoke-test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "validate-config": "tsx scripts/validate-config.ts",
+    "eval-fixtures": "tsx scripts/eval-fixtures.ts",
+    "check": "npm run typecheck && npm run validate-config && npm run smoke && npm run eval-fixtures"
   },
   "keywords": [
     "career-guidance",

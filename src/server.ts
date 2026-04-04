@@ -9,9 +9,12 @@ import { buildGraph } from "./graph.js";
 import { config } from "./config.js";
 import { generatePDFReport } from "./report/pdf-generator.js";
 import { generateHTMLReport } from "./report/html-generator.js";
+import { buildEvidencePack, writeEvidencePackFile } from "./report/evidence-pack.js";
 import { searchOccupations } from "./services/onet.js";
-import type { AgentStateType } from "./state.js";
+import type { AgentStateType, ProgressItem } from "./state.js";
 import { categorizeSkillType } from "./utils/rag.js";
+import { maybeSummarize } from "./utils/summarizer.js";
+import { openProfileDb, getProfilePayload, upsertProfilePayload, appendEpisodicSummary, listRecentEpisodic } from "./db/profile-db.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -43,6 +46,13 @@ const SESSION_DIR = join(ROOT, "sessions");
 mkdirSync(SESSION_DIR, { recursive: true });
 
 const sessions = new Map<string, AgentStateType>();
+
+let profileDb: ReturnType<typeof openProfileDb> | null = null;
+try {
+  profileDb = openProfileDb(join(ROOT, "data", "profiles.db"));
+} catch (e) {
+  console.warn("SQLite profile store unavailable:", (e as Error).message);
+}
 
 function saveSession(id: string, state: AgentStateType): void {
   sessions.set(id, state);
@@ -81,7 +91,27 @@ function migrateSession(state: any): AgentStateType {
     state.candidateSkills = {};
   }
 
+  if (state.location === undefined) state.location = null;
+  if (state.preferredTimeline === undefined) state.preferredTimeline = null;
+  if (!Array.isArray(state.learningResources)) state.learningResources = [];
+  if (!Array.isArray(state.evidenceKept)) state.evidenceKept = [];
+  if (!Array.isArray(state.evidenceDiscarded)) state.evidenceDiscarded = [];
+  if (!Array.isArray(state.progressItems)) state.progressItems = [];
+
   return state as AgentStateType;
+}
+
+function persistUserProfile(state: AgentStateType, sessionId: string): void {
+  if (!profileDb || !state.userId) return;
+  upsertProfilePayload(profileDb, state.userId, {
+    last_session_id: sessionId,
+    target_role: state.targetRole,
+    job_title: state.jobTitle,
+    conversation_summary: state.conversationSummary || undefined,
+  });
+  if (state.transitionDecision === "complete" && state.conversationSummary?.trim()) {
+    appendEpisodicSummary(profileDb, state.userId, sessionId, state.conversationSummary);
+  }
 }
 
 function buildSkillsMeta(state: AgentStateType) {
@@ -133,20 +163,34 @@ const graph = buildGraph();
 // --- API Routes ---
 
 // Create a new session
-app.post("/api/session", async (_req, res) => {
+app.post("/api/session", async (req, res) => {
   const sessionId = uuidv4();
+  const userId =
+    typeof req.body?.userId === "string" && req.body.userId.trim().length > 0
+      ? req.body.userId.trim().slice(0, 128)
+      : null;
 
   try {
-    const state = await graph.invoke({
+    let state = await graph.invoke({
       sessionId,
+      userId,
       startedAt: Date.now(),
       userMessage: "",
       turnType: "first_turn",
     }, {
       runName: "career-guidance-session-start",
       tags: ["first_turn", "session_init"],
-      metadata: { sessionId },
+      metadata: { sessionId, userId: userId ?? undefined },
     });
+
+    if (userId && profileDb) {
+      const prof = getProfilePayload(profileDb, userId);
+      if (prof?.conversation_summary) {
+        state = { ...state, userId, conversationSummary: prof.conversation_summary };
+      } else {
+        state = { ...state, userId };
+      }
+    }
 
     saveSession(sessionId, state);
 
@@ -154,6 +198,7 @@ app.post("/api/session", async (_req, res) => {
       sessionId,
       message: state.speakerOutput,
       phase: state.currentPhase,
+      userId: state.userId,
     });
   } catch (e) {
     res.status(500).json({ error: (e as Error).message });
@@ -176,7 +221,7 @@ app.post("/api/chat", async (req, res) => {
   }
 
   try {
-    const newState = await graph.invoke({
+    let newState = await graph.invoke({
       ...state,
       userMessage: message,
       turnType: "standard",
@@ -201,13 +246,22 @@ app.post("/api/chat", async (req, res) => {
       },
     });
 
+    if (newState.conversationHistory.length >= 8 && newState.turnNumber > 0 && newState.turnNumber % 5 === 0) {
+      const sumPatch = await maybeSummarize(newState);
+      if (sumPatch.conversationSummary) {
+        newState = { ...newState, ...sumPatch };
+      }
+    }
+
     saveSession(sessionId, newState);
+    persistUserProfile(newState, sessionId);
 
     res.json({
       message: newState.speakerOutput,
       phase: newState.currentPhase,
       phaseDisplay: config.phaseRegistry.phases[newState.currentPhase]?.display_name ?? newState.currentPhase,
       isComplete: newState.transitionDecision === "complete",
+      turnNumber: newState.turnNumber,
       profile: {
         jobTitle: newState.jobTitle,
         industry: newState.industry,
@@ -216,6 +270,7 @@ app.post("/api/chat", async (req, res) => {
         targetRole: newState.targetRole,
       },
       skillsMeta: buildSkillsMeta(newState),
+      progressItems: newState.progressItems ?? [],
     });
   } catch (e) {
     console.error("Chat error:", (e as Error).message);
@@ -225,7 +280,7 @@ app.post("/api/chat", async (req, res) => {
 
 // Export report
 app.post("/api/export", async (req, res) => {
-  const { sessionId } = req.body;
+  const { sessionId, format } = req.body;
 
   const state = loadSession(sessionId);
   if (!state) {
@@ -233,9 +288,29 @@ app.post("/api/export", async (req, res) => {
     return;
   }
 
+  // JSON evidence pack export
+  if (format === "json") {
+    try {
+      const withReport = { ...state, reportGenerated: true };
+      saveSession(sessionId, withReport);
+      const evidencePack = buildEvidencePack(withReport);
+      writeEvidencePackFile(ROOT, withReport);
+
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", `attachment; filename="evidence-pack-${sessionId}.json"`);
+      res.send(JSON.stringify(evidencePack, null, 2));
+      return;
+    } catch (e) {
+      console.error("JSON export error:", (e as Error).message);
+      res.status(500).json({ error: (e as Error).message });
+      return;
+    }
+  }
+
   try {
     const pdfPath = await generatePDFReport(state);
     const htmlPath = generateHTMLReport(state);
+    writeEvidencePackFile(ROOT, { ...state, reportGenerated: true });
 
     saveSession(sessionId, { ...state, reportGenerated: true });
 
@@ -275,6 +350,53 @@ app.get("/api/session/:sessionId", (req, res) => {
   });
 });
 
+// Evidence pack (structured JSON view for UI)
+app.get("/api/session/:sessionId/evidence", (req, res) => {
+  const state = loadSession(req.params.sessionId);
+  if (!state) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  res.json(buildEvidencePack(state));
+});
+
+// User progress checklist (plan Week 6)
+app.patch("/api/session/:sessionId/progress", (req, res) => {
+  const state = loadSession(req.params.sessionId);
+  if (!state) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  const raw = req.body?.items;
+  if (!Array.isArray(raw)) {
+    res.status(400).json({ error: "items array required" });
+    return;
+  }
+  const items: ProgressItem[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const o = row as Record<string, unknown>;
+    const id = typeof o.id === "string" ? o.id : "";
+    const label = typeof o.label === "string" ? o.label : "";
+    const done = Boolean(o.done);
+    if (!id || !label) continue;
+    items.push({ id, label, done });
+  }
+  state.progressItems = items;
+  saveSession(req.params.sessionId, state);
+  res.json({ ok: true, progressItems: state.progressItems });
+});
+
+// Episodic summaries for a user (when userId was used)
+app.get("/api/profile/:userId/episodic", (req, res) => {
+  if (!profileDb) {
+    res.json({ summaries: [] });
+    return;
+  }
+  const uid = req.params.userId.slice(0, 128);
+  res.json({ summaries: listRecentEpisodic(profileDb, uid, 8) });
+});
+
 // Get session history (for returning users)
 app.get("/api/session/:sessionId/history", (req, res) => {
   const state = loadSession(req.params.sessionId);
@@ -300,10 +422,28 @@ app.get("/api/session/:sessionId/history", (req, res) => {
   });
 });
 
+// Health (for uptime checks and deploy verification)
+app.get("/api/health", (_req, res) => {
+  let version = "unknown";
+  try {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8")) as { version?: string };
+    version = pkg.version ?? "unknown";
+  } catch {
+    /* ignore */
+  }
+  res.json({
+    ok: true,
+    service: "career-guidance-ai",
+    version,
+    time: new Date().toISOString(),
+  });
+});
+
 // Data source status
 app.get("/api/data-sources", (_req, res) => {
   res.json({
-    onet: { connected: !!(process.env.ONET_USERNAME && process.env.ONET_PASSWORD), label: "O*NET" },
+    // O*NET Web Services v2 uses X-API-Key from ONET_USERNAME only (see services/onet.ts)
+    onet: { connected: !!process.env.ONET_USERNAME, label: "O*NET" },
     bls: { connected: !!process.env.BLS_API_KEY, label: "BLS" },
     usajobs: { connected: !!(process.env.USAJOBS_API_KEY && process.env.USAJOBS_EMAIL), label: "USAJOBS" },
     localData: { connected: true, label: "Local O*NET Cache" },

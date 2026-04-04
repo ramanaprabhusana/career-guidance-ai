@@ -11,8 +11,8 @@ RUN npm install --production=false
 # Copy source code
 COPY . .
 
-# Create exports directory
-RUN mkdir -p exports
+# Create exports and data (SQLite profile store)
+RUN mkdir -p exports data
 
 # Expose port
 EXPOSE 3000

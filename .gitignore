@@ -4,6 +4,7 @@ dist/
 db/*.db
 data/*.zip
 data/*.csv
+data/*.db
 *.faiss
 *.pkl
 exports/
