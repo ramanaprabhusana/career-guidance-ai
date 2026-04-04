@@ -15,12 +15,15 @@ export interface CandidateDirection {
   rationale: string;
 }
 
+export type SkillType = "technical" | "soft";
+
 export interface SkillAssessment {
   skill_name: string;
   onet_source: string;
   required_proficiency: string;
   user_rating: UserRating | null;
   gap_category: GapCategory | null;
+  skill_type: SkillType;
 }
 
 export interface AnalyzerOutput {
@@ -93,6 +96,10 @@ export const AgentState = Annotation.Root({
   skillsAssessmentStatus: Annotation<SkillsAssessmentStatus>({
     reducer: (_, b) => b,
     default: () => "not_started",
+  }),
+  candidateSkills: Annotation<Record<string, SkillAssessment[]>>({
+    reducer: (_, b) => b,
+    default: () => ({}),
   }),
 
   // Planning fields

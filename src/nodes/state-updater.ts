@@ -1,6 +1,6 @@
 import type { AgentStateType, TurnType, SkillAssessment, GapCategory, UserRating } from "../state.js";
 import { config } from "../config.js";
-import { retrieveSkillsForRole } from "../utils/rag.js";
+import { retrieveSkillsForRole, retrieveSkillsForMultipleRoles, categorizeSkillType } from "../utils/rag.js";
 
 function deriveGapCategory(userRating: UserRating | null, requiredProficiency: string): GapCategory | null {
   if (!userRating) return null;
@@ -251,25 +251,55 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
 
   // Populate planning fields deterministically when transitioning to planning
   if (nextPhase === "planning" && state.currentPhase !== "planning") {
+    const effectiveTrack = updates.track ?? state.track;
     const skills = updates.skills ?? state.skills;
     const gaps = skills.filter((s) => s.gap_category === "absent" || s.gap_category === "underdeveloped");
     const strengths = skills.filter((s) => s.gap_category === "strong");
-    const targetRole = updates.targetRole ?? state.targetRole ?? "your target role";
+    const targetRole = updates.targetRole ?? state.targetRole;
+    const directions = updates.candidateDirections ?? state.candidateDirections;
 
-    if (!state.recommendedPath) {
-      const currentRole = state.jobTitle ?? "your current role";
-      updates.recommendedPath = `Transition from ${currentRole} to ${targetRole}, leveraging your strengths in ${
-        strengths.length > 0
-          ? strengths.slice(0, 3).map((s) => s.skill_name).join(", ")
-          : "your existing professional experience"
-      } while developing ${
-        gaps.length > 0
-          ? gaps.slice(0, 3).map((s) => s.skill_name).join(", ")
-          : "additional role-specific skills"
-      }.`;
+    // --- EXPLORE TRACK: fetch O*NET skills for all candidate directions ---
+    if (effectiveTrack === "career_exploration" && directions.length > 0) {
+      try {
+        const roleNames = directions.map(d => d.direction_title);
+        const multiSkills = await retrieveSkillsForMultipleRoles(roleNames);
+        updates.candidateSkills = multiSkills;
+        console.log(`[StateUpdater] Fetched skills for ${roleNames.length} candidate directions`);
+      } catch (e) {
+        console.warn("[StateUpdater] Multi-role skill fetch failed:", (e as Error).message);
+      }
+
+      if (!state.recommendedPath) {
+        const currentRole = state.jobTitle ?? "your current background";
+        const dirList = directions.map((d, i) => `${i + 1}. ${d.direction_title}`).join("; ");
+        updates.recommendedPath = `Based on your ${currentRole} background and interests, we identified ${directions.length} promising career directions: ${dirList}. Each of these paths aligns with your education and professional interests, and you may find it valuable to explore them further.`;
+      }
     }
 
-    if (state.skillDevelopmentAgenda.length === 0) {
+    // --- SPECIFIC ROLE TRACK ---
+    if (effectiveTrack === "role_targeting" && targetRole) {
+      // Ensure skill_type is stamped on existing skills
+      updates.skills = skills.map(s => ({
+        ...s,
+        skill_type: s.skill_type ?? categorizeSkillType(s.skill_name),
+      }));
+
+      if (!state.recommendedPath) {
+        const currentRole = state.jobTitle ?? "your current role";
+        updates.recommendedPath = `Your target role: ${targetRole}. Transitioning from ${currentRole}, you could leverage your strengths in ${
+          strengths.length > 0
+            ? strengths.slice(0, 3).map((s) => s.skill_name).join(", ")
+            : "your existing professional experience"
+        } while developing ${
+          gaps.length > 0
+            ? gaps.slice(0, 3).map((s) => s.skill_name).join(", ")
+            : "additional role-specific skills"
+        }.`;
+      }
+    }
+
+    // Skill development agenda (specific role track)
+    if (state.skillDevelopmentAgenda.length === 0 && skills.length > 0) {
       const absent = skills.filter((s) => s.gap_category === "absent");
       const underdeveloped = skills.filter((s) => s.gap_category === "underdeveloped");
       const agenda: string[] = [];
@@ -279,18 +309,30 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
       if (agenda.length > 0) updates.skillDevelopmentAgenda = agenda;
     }
 
+    // Immediate next steps — soft recommendation language
     if (state.immediateNextSteps.length === 0) {
       const nextSteps: string[] = [];
-      if (gaps.length > 0) {
-        nextSteps.push(`Research learning resources for ${gaps[0].skill_name}, the highest-priority skill gap for ${targetRole}`);
+      if (effectiveTrack === "career_exploration" && directions.length > 0) {
+        nextSteps.push(`You might consider researching job postings for ${directions[0].direction_title} to understand current market expectations`);
+        nextSteps.push(`It could be helpful to connect with professionals in these fields for informational conversations`);
+        nextSteps.push(`You may find it valuable to start a focused session for your top-choice role to get a detailed skill gap analysis`);
+      } else if (targetRole) {
+        if (gaps.length > 0) {
+          nextSteps.push(`You might consider exploring learning resources for ${gaps[0].skill_name}, which appears to be the most important skill to develop for ${targetRole}`);
+        }
+        nextSteps.push(`It could be helpful to review current job postings for ${targetRole} to understand what employers are looking for`);
+        nextSteps.push(`You may find it valuable to connect with professionals working as ${targetRole} for informational conversations`);
       }
-      nextSteps.push(`Review job postings for ${targetRole} to understand current market requirements`);
-      nextSteps.push(`Connect with professionals currently working as ${targetRole} for informational interviews`);
-      updates.immediateNextSteps = nextSteps;
+      if (nextSteps.length > 0) updates.immediateNextSteps = nextSteps;
     }
 
+    // Plan rationale
     if (!state.planRationale) {
-      updates.planRationale = `This plan is based on comparing your self-assessed skills against O*NET requirements for ${targetRole}. ${gaps.length} skill gap${gaps.length !== 1 ? "s" : ""} ${gaps.length !== 1 ? "were" : "was"} identified and ${strengths.length} strength${strengths.length !== 1 ? "s" : ""} confirmed.`;
+      if (effectiveTrack === "career_exploration") {
+        updates.planRationale = `This plan is based on exploring ${directions.length} career direction${directions.length !== 1 ? "s" : ""} aligned with your background and interests. Skills data is sourced from O*NET occupational requirements.`;
+      } else {
+        updates.planRationale = `This plan is based on comparing your self-assessed skills against O*NET requirements for ${targetRole ?? "your target role"}. ${gaps.length} skill gap${gaps.length !== 1 ? "s" : ""} ${gaps.length !== 1 ? "were" : "was"} identified and ${strengths.length} strength${strengths.length !== 1 ? "s" : ""} confirmed.`;
+      }
     }
   }
 

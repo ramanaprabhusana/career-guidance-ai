@@ -1,8 +1,9 @@
 import PDFDocument from "pdfkit";
 import { createWriteStream } from "fs";
 import { join } from "path";
-import type { AgentStateType } from "../state.js";
+import type { AgentStateType, SkillAssessment } from "../state.js";
 import { config } from "../config.js";
+import { blendSkillsAcrossRoles, categorizeSkillType } from "../utils/rag.js";
 
 export async function generatePDFReport(state: AgentStateType): Promise<string> {
   const outputPath = join(config.paths.root, "exports", `career-plan-${state.sessionId}.pdf`);
@@ -15,6 +16,17 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     const stream = createWriteStream(outputPath);
     doc.pipe(stream);
+
+    const isExplore = state.sessionGoal === "explore_options";
+    const directions = state.candidateDirections ?? [];
+    const candidateSkills = (state as any).candidateSkills ?? {};
+    const skills = (state.skills ?? []).map((s: SkillAssessment) => ({
+      ...s,
+      skill_type: s.skill_type ?? categorizeSkillType(s.skill_name),
+    }));
+    const techSkills = skills.filter((s: SkillAssessment) => s.skill_type === "technical");
+    const softSkills = skills.filter((s: SkillAssessment) => s.skill_type === "soft");
+    const timeline = state.timeline ?? "to be determined";
 
     // --- Title ---
     doc.fontSize(24).font("Helvetica-Bold").text("Career Plan Report", { align: "center" });
@@ -37,105 +49,44 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     }
     doc.moveDown(0.5);
 
-    // --- Section 2: Recommended Path ---
-    sectionHeader(doc, "2. Recommended Career Path");
-    if (state.recommendedPath) {
-      doc.fontSize(11).font("Helvetica").text(state.recommendedPath, { lineGap: 4 });
-    } else if (state.targetRole) {
-      doc.fontSize(11).font("Helvetica").text(
-        `Your target role is ${state.targetRole}. A detailed recommended path could not be generated because the skills assessment was not completed. Complete the skills assessment to receive a personalized career path recommendation.`,
-        { lineGap: 4 }
-      );
-    } else {
-      doc.fontSize(11).font("Helvetica").text(
-        "A recommended career path could not be generated for this session. Complete a full career coaching session including skills assessment to receive personalized recommendations.",
-        { lineGap: 4 }
-      );
-    }
-    doc.moveDown(0.5);
+    // --- Section 2: Recommended Career Path ---
+    renderSection2(doc, state, isExplore, directions, candidateSkills, skills, techSkills, softSkills);
 
     // --- Section 3: Skill Gap Analysis ---
-    sectionHeader(doc, "3. Skill Gap Analysis");
-    if (state.skills.length > 0) {
-      // Table header
-      const tableTop = doc.y;
-      doc.fontSize(9).font("Helvetica-Bold");
-      doc.text("Skill", 50, tableTop, { width: 150 });
-      doc.text("Required Level", 200, tableTop, { width: 120 });
-      doc.text("Your Level", 320, tableTop, { width: 100 });
-      doc.text("Gap Status", 420, tableTop, { width: 120 });
-      doc.moveDown(0.3);
-      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke("#cccccc");
-      doc.moveDown(0.3);
-
-      doc.fontSize(9).font("Helvetica");
-      for (const skill of state.skills) {
-        const y = doc.y;
-        if (y > 700) { doc.addPage(); }
-        doc.text(skill.skill_name, 50, doc.y, { width: 150 });
-        const rowY = doc.y - doc.currentLineHeight();
-        doc.text(skill.required_proficiency || "-", 200, rowY, { width: 120 });
-        doc.text(formatRating(skill.user_rating), 320, rowY, { width: 100 });
-        doc.text(formatGap(skill.gap_category), 420, rowY, { width: 120 });
-        doc.moveDown(0.2);
-      }
-    } else {
-      doc.fontSize(11).font("Helvetica");
-      const status = (state as any).skillsAssessmentStatus;
-      if (status === "skipped") {
-        doc.text("Skills assessment was not completed during this session. The session reached its turn limit before skills could be evaluated. To get a full skill gap analysis, start a new session and complete the skills assessment phase.", { lineGap: 4 });
-      } else if (!state.targetRole) {
-        doc.text("No target role was specified during this session, so skills could not be assessed against role requirements. To get a skill gap analysis, start a new session and specify a target role.", { lineGap: 4 });
-      } else {
-        doc.text("Skills assessment was not completed during this session. To get a full skill gap analysis, continue your session or start a new one focused on your target role.", { lineGap: 4 });
-      }
-    }
-    doc.moveDown(0.5);
+    renderSection3(doc, state, isExplore, skills, techSkills, softSkills, timeline, candidateSkills);
 
     // --- Section 4: Development Timeline ---
     sectionHeader(doc, "4. Development Timeline");
-    doc.fontSize(11).font("Helvetica")
-      .text(`Estimated timeline: ${state.timeline ?? "To be determined based on your availability and goals."}`, { lineGap: 4 });
+    doc.fontSize(11).font("Helvetica").fillColor("#000000")
+      .text(`Estimated timeline: ${timeline}`, { lineGap: 4 });
 
     if (state.skillDevelopmentAgenda.length > 0) {
       doc.moveDown(0.3);
-      doc.fontSize(11).font("Helvetica-Bold").text("Skill Development Priorities:");
-      doc.font("Helvetica");
+      doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333").text("Skill Development Priorities:");
+      doc.font("Helvetica").fillColor("#000000");
       for (const item of state.skillDevelopmentAgenda) {
         doc.fontSize(10).text(`  •  ${item}`, { lineGap: 2 });
       }
     }
     doc.moveDown(0.5);
 
-    // --- Section 5: Immediate Next Steps ---
-    sectionHeader(doc, "5. Immediate Next Steps");
+    // --- Section 5: Suggested Next Steps ---
+    sectionHeader(doc, "5. Suggested Next Steps");
     if (state.immediateNextSteps.length > 0) {
       for (let i = 0; i < state.immediateNextSteps.length; i++) {
-        doc.fontSize(11).font("Helvetica").text(`${i + 1}. ${state.immediateNextSteps[i]}`, { lineGap: 4 });
+        doc.fontSize(11).font("Helvetica").fillColor("#000000")
+          .text(`${i + 1}. ${softenStep(state.immediateNextSteps[i])}`, { lineGap: 4 });
       }
+    } else if (isExplore && directions.length > 0) {
+      doc.fontSize(11).font("Helvetica").fillColor("#000000");
+      doc.text(`1. You might consider researching job postings for ${directions[0].direction_title} to understand current market expectations`, { lineGap: 4 });
+      doc.text("2. It could be helpful to connect with professionals in these fields for informational conversations", { lineGap: 4 });
+      doc.text("3. You may find it valuable to start a focused session for your top-choice role to get a detailed skill gap analysis", { lineGap: 4 });
     } else {
-      doc.fontSize(11).font("Helvetica");
-      if (state.targetRole) {
-        doc.text(`1. Research job postings for ${state.targetRole} to understand current requirements`, { lineGap: 4 });
-        doc.text("2. Complete a full career coaching session including skills assessment", { lineGap: 4 });
-        doc.text("3. Connect with professionals in your target field for informational interviews", { lineGap: 4 });
-      } else {
-        doc.text("Complete a full career coaching session to receive personalized next steps.", { lineGap: 4 });
-      }
+      doc.fontSize(11).font("Helvetica").fillColor("#000000")
+        .text("Complete a full career coaching session to receive personalized recommendations.", { lineGap: 4 });
     }
     doc.moveDown(0.5);
-
-    // --- Section 6: Evidence & Sources ---
-    sectionHeader(doc, "6. Evidence & Sources");
-    doc.fontSize(10).font("Helvetica").fillColor("#444444");
-    doc.text("Data sources used in this analysis:", { lineGap: 2 });
-    doc.text("  •  O*NET OnLine - Occupational skill and task requirements (U.S. Department of Labor)");
-    doc.text("  •  Bureau of Labor Statistics (BLS) - Occupational Employment and Wage Statistics");
-    doc.text("  •  USAJOBS - Federal government job postings");
-    doc.moveDown(0.5);
-    if (state.planRationale) {
-      doc.fontSize(10).font("Helvetica-Oblique").text(`Rationale: ${state.planRationale}`, { lineGap: 4 });
-    }
 
     // --- Footer ---
     doc.moveDown(1);
@@ -143,7 +94,7 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     doc.moveDown(0.5);
     doc.fontSize(8).font("Helvetica").fillColor("#999999")
       .text("Generated by Career Guidance Assistant. This report is for informational purposes only.", { align: "center" });
-    doc.text("Career outcomes depend on many factors. Consult with a professional career advisor for personalized guidance.", { align: "center" });
+    doc.text("Career outcomes depend on many factors. Consider consulting with a professional career advisor for personalized guidance.", { align: "center" });
 
     doc.end();
 
@@ -152,7 +103,297 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
   });
 }
 
+// --- Section Renderers ---
+
+function renderSection2(
+  doc: PDFKit.PDFDocument,
+  state: AgentStateType,
+  isExplore: boolean,
+  directions: AgentStateType["candidateDirections"],
+  candidateSkills: Record<string, SkillAssessment[]>,
+  skills: SkillAssessment[],
+  techSkills: SkillAssessment[],
+  softSkills: SkillAssessment[],
+): void {
+  if (isExplore && directions.length > 0) {
+    // Explore track: ranked directions + blended skills
+    sectionHeader(doc, "2. Recommended Career Directions");
+    doc.fontSize(11).font("Helvetica").fillColor("#000000")
+      .text("Based on your background and interests, the following career directions may be a strong fit:", { lineGap: 4 });
+    doc.moveDown(0.3);
+
+    for (let i = 0; i < directions.length; i++) {
+      checkPageBreak(doc);
+      doc.fontSize(12).font("Helvetica-Bold").fillColor("#1a1a2e")
+        .text(`${i + 1}. ${directions[i].direction_title}`);
+      doc.fontSize(10).font("Helvetica").fillColor("#555555")
+        .text(directions[i].rationale, { lineGap: 2 });
+      doc.moveDown(0.3);
+    }
+
+    const blended = blendSkillsAcrossRoles(candidateSkills, 5);
+    if (blended.length > 0) {
+      doc.moveDown(0.3);
+      doc.fontSize(12).font("Helvetica-Bold").fillColor("#333333")
+        .text("Key Skills Across These Paths");
+      doc.fontSize(10).font("Helvetica").fillColor("#666666")
+        .text("These skills appear frequently across your recommended directions and could give you leverage in pursuing any of them:", { lineGap: 2 });
+      doc.moveDown(0.3);
+      renderSkillsSubtable(doc, blended, ["Skill", "Type", "Typical Level"], (s) => [
+        s.skill_name,
+        s.skill_type,
+        s.required_proficiency || "-",
+      ]);
+    }
+    doc.moveDown(0.5);
+    return;
+  }
+
+  if (state.targetRole && skills.length > 0) {
+    // Specific role track: target role + tech/soft skill tables
+    sectionHeader(doc, "2. Recommended Career Path");
+    addField(doc, "Target Role", state.targetRole);
+    if (state.recommendedPath) {
+      doc.fontSize(11).font("Helvetica").fillColor("#000000")
+        .text(state.recommendedPath, { lineGap: 4 });
+    }
+    doc.moveDown(0.3);
+
+    const topTech = techSkills.slice(0, 5);
+    const topSoft = softSkills.slice(0, 5);
+
+    if (topTech.length > 0) {
+      doc.fontSize(12).font("Helvetica-Bold").fillColor("#333333")
+        .text(`Top Technical Skills for ${state.targetRole}`);
+      doc.moveDown(0.2);
+      renderSkillsSubtable(doc, topTech, ["Skill", "Required Level", "Your Level"], (s) => [
+        s.skill_name,
+        s.required_proficiency || "-",
+        formatRating(s.user_rating),
+      ]);
+      doc.moveDown(0.3);
+    }
+
+    if (topSoft.length > 0) {
+      checkPageBreak(doc);
+      doc.fontSize(12).font("Helvetica-Bold").fillColor("#333333")
+        .text(`Top Soft Skills for ${state.targetRole}`);
+      doc.moveDown(0.2);
+      renderSkillsSubtable(doc, topSoft, ["Skill", "Required Level", "Your Level"], (s) => [
+        s.skill_name,
+        s.required_proficiency || "-",
+        formatRating(s.user_rating),
+      ]);
+    }
+    doc.moveDown(0.5);
+    return;
+  }
+
+  // Fallback
+  sectionHeader(doc, "2. Recommended Career Path");
+  if (state.recommendedPath) {
+    doc.fontSize(11).font("Helvetica").fillColor("#000000")
+      .text(state.recommendedPath, { lineGap: 4 });
+  } else {
+    doc.fontSize(11).font("Helvetica").fillColor("#000000")
+      .text("A recommended career path could not be generated for this session. Complete a full career coaching session to receive personalized recommendations.", { lineGap: 4 });
+  }
+  doc.moveDown(0.5);
+}
+
+function renderSection3(
+  doc: PDFKit.PDFDocument,
+  state: AgentStateType,
+  isExplore: boolean,
+  skills: SkillAssessment[],
+  techSkills: SkillAssessment[],
+  softSkills: SkillAssessment[],
+  timeline: string,
+  candidateSkills: Record<string, SkillAssessment[]>,
+): void {
+  if (!isExplore && skills.length > 0) {
+    // Specific role: tech/soft gap tables with actionables
+    sectionHeader(doc, "3. Skill Gap Analysis");
+
+    if (techSkills.length > 0) {
+      doc.fontSize(12).font("Helvetica-Bold").fillColor("#333333").text("Technical Skills");
+      doc.moveDown(0.2);
+      renderGapTable(doc, techSkills, timeline, "tech");
+
+      const techGaps = techSkills.filter(s => s.gap_category === "absent" || s.gap_category === "underdeveloped");
+      if (techGaps.length > 0) {
+        doc.moveDown(0.3);
+        doc.fontSize(9).font("Helvetica-Oblique").fillColor("#555555")
+          .text(`For technical skill gaps, you might explore free resources on YouTube and freeCodeCamp first, then consider structured courses on Coursera or edX as your learning progresses within your ${timeline} timeline.`, { lineGap: 2 });
+      }
+      doc.moveDown(0.4);
+    }
+
+    if (softSkills.length > 0) {
+      checkPageBreak(doc);
+      doc.fontSize(12).font("Helvetica-Bold").fillColor("#333333").text("Soft Skills");
+      doc.moveDown(0.2);
+      renderGapTable(doc, softSkills, timeline, "soft");
+
+      doc.moveDown(0.4);
+      // Soft skills note
+      doc.fontSize(9).font("Helvetica-Oblique").fillColor("#555555")
+        .text("A note on soft skills: Many interpersonal and leadership skills develop most effectively through hands-on experience, mentoring, and real-world practice rather than formal coursework alone. While workshops and online resources can provide frameworks and techniques, the depth of these skills often comes from consistently applying them in professional settings. Consider seeking out projects, volunteer roles, or workplace opportunities that let you practice these skills regularly.", { lineGap: 2 });
+    }
+    doc.moveDown(0.5);
+    return;
+  }
+
+  // Explore track or empty skills
+  sectionHeader(doc, "3. Skill Gap Analysis");
+  const blended = blendSkillsAcrossRoles(candidateSkills, 5);
+
+  if (blended.length > 0) {
+    doc.fontSize(11).font("Helvetica").fillColor("#000000")
+      .text("Since you are exploring multiple career directions, a detailed personalized gap analysis will be available once you select a specific target role. Below are cross-cutting skills that could strengthen your candidacy across all recommended paths:", { lineGap: 4 });
+    doc.moveDown(0.3);
+    renderSkillsSubtable(doc, blended, ["Skill", "Type", "Typical Level"], (s) => [
+      s.skill_name,
+      s.skill_type,
+      s.required_proficiency || "-",
+    ]);
+    doc.moveDown(0.3);
+    doc.fontSize(9).font("Helvetica").fillColor("#666666")
+      .text("To get a personalized gap analysis with self-assessment ratings and specific course recommendations, you might consider starting a new session focused on one of the career directions listed above.", { lineGap: 2 });
+  } else {
+    doc.fontSize(11).font("Helvetica").fillColor("#000000");
+    if (!state.targetRole) {
+      doc.text("No target role was specified during this session, so skills could not be assessed against role requirements. To get a skill gap analysis, consider starting a new session and specifying a target role.", { lineGap: 4 });
+    } else {
+      doc.text("Skills assessment was not completed during this session. To get a full skill gap analysis, consider continuing your session or starting a new one.", { lineGap: 4 });
+    }
+  }
+  doc.moveDown(0.5);
+}
+
+// --- Table Helpers ---
+
+function renderSkillsSubtable(
+  doc: PDFKit.PDFDocument,
+  skills: SkillAssessment[],
+  headers: string[],
+  rowFn: (s: SkillAssessment) => string[],
+): void {
+  const colWidths = headers.length === 3 ? [200, 100, 150] : [150, 100, 100, 100];
+  const startX = 55;
+
+  // Header row
+  const headerY = doc.y;
+  doc.fontSize(9).font("Helvetica-Bold").fillColor("#333333");
+  let x = startX;
+  for (let i = 0; i < headers.length; i++) {
+    doc.text(headers[i], x, headerY, { width: colWidths[i] });
+    x += colWidths[i];
+  }
+  doc.moveDown(0.3);
+  doc.moveTo(startX, doc.y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), doc.y).stroke("#cccccc");
+  doc.moveDown(0.3);
+
+  // Data rows
+  doc.fontSize(9).font("Helvetica").fillColor("#000000");
+  for (const skill of skills) {
+    checkPageBreak(doc);
+    const cols = rowFn(skill);
+    const rowY = doc.y;
+    x = startX;
+    for (let i = 0; i < cols.length; i++) {
+      doc.text(cols[i], x, rowY, { width: colWidths[i] });
+      x += colWidths[i];
+    }
+    doc.moveDown(0.2);
+  }
+}
+
+function renderGapTable(
+  doc: PDFKit.PDFDocument,
+  skills: SkillAssessment[],
+  timeline: string,
+  type: "tech" | "soft",
+): void {
+  const headers = ["Skill", "Required", "Your Level", "Gap", "Suggested Action"];
+  const colWidths = [100, 65, 65, 80, 175];
+  const startX = 55;
+
+  // Header row
+  const headerY = doc.y;
+  doc.fontSize(8).font("Helvetica-Bold").fillColor("#333333");
+  let x = startX;
+  for (let i = 0; i < headers.length; i++) {
+    doc.text(headers[i], x, headerY, { width: colWidths[i] });
+    x += colWidths[i];
+  }
+  doc.moveDown(0.3);
+  doc.moveTo(startX, doc.y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), doc.y).stroke("#cccccc");
+  doc.moveDown(0.3);
+
+  // Data rows
+  doc.fontSize(8).font("Helvetica").fillColor("#000000");
+  for (const skill of skills) {
+    checkPageBreak(doc);
+    const action = type === "tech" ? suggestTechAction(skill) : suggestSoftAction(skill);
+    const cols = [
+      skill.skill_name,
+      skill.required_proficiency || "-",
+      formatRating(skill.user_rating),
+      formatGap(skill.gap_category),
+      action,
+    ];
+    const rowY = doc.y;
+    x = startX;
+    for (let i = 0; i < cols.length; i++) {
+      doc.text(cols[i], x, rowY, { width: colWidths[i] });
+      x += colWidths[i];
+    }
+    doc.moveDown(0.3);
+  }
+}
+
+// --- Suggestion Helpers ---
+
+function suggestTechAction(skill: SkillAssessment): string {
+  if (skill.gap_category === "absent") {
+    return "Consider starting with free tutorials and introductory courses";
+  }
+  if (skill.gap_category === "underdeveloped") {
+    return "Consider intermediate-level practice projects or structured courses";
+  }
+  return "Continue building on this strength";
+}
+
+function suggestSoftAction(skill: SkillAssessment): string {
+  if (skill.gap_category === "absent") {
+    return "Seek opportunities to practice in team settings or projects";
+  }
+  if (skill.gap_category === "underdeveloped") {
+    return "Look for mentoring or leadership opportunities to develop further";
+  }
+  return "Continue applying this strength in your work";
+}
+
+function softenStep(step: string): string {
+  if (/^(you might|it could|you may|consider)/i.test(step)) return step;
+  return step
+    .replace(/^Research /i, "You might consider researching ")
+    .replace(/^Review /i, "It could be helpful to review ")
+    .replace(/^Connect /i, "You may find it valuable to connect ")
+    .replace(/^Explore /i, "You might consider exploring ")
+    .replace(/^Start /i, "Consider starting ")
+    .replace(/^Take /i, "You might consider taking ");
+}
+
+// --- Formatting Helpers ---
+
+function checkPageBreak(doc: PDFKit.PDFDocument): void {
+  if (doc.y > 700) { doc.addPage(); }
+}
+
 function sectionHeader(doc: PDFKit.PDFDocument, title: string): void {
+  checkPageBreak(doc);
   doc.fontSize(14).font("Helvetica-Bold").fillColor("#333333").text(title);
   doc.moveDown(0.3);
 }
@@ -185,9 +426,9 @@ function formatRating(rating: string | null): string {
 
 function formatGap(gap: string | null): string {
   const map: Record<string, string> = {
-    absent: "Gap - Needs Development",
-    underdeveloped: "Partial - Needs Growth",
-    strong: "Strong - On Track",
+    absent: "Needs Development",
+    underdeveloped: "Needs Growth",
+    strong: "On Track",
   };
   return gap ? map[gap] ?? gap : "-";
 }

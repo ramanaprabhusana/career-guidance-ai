@@ -1,7 +1,21 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { config } from "../config.js";
-import type { SkillAssessment } from "../state.js";
+import type { SkillAssessment, SkillType } from "../state.js";
+
+// --- Soft skill classification (O*NET taxonomy) ---
+const SOFT_SKILLS = new Set([
+  "critical thinking", "active learning", "complex problem solving",
+  "judgment and decision making", "communication", "active listening",
+  "social perceptiveness", "coordination", "negotiation", "persuasion",
+  "time management", "monitoring", "service orientation", "leadership",
+  "instructing", "management of personnel resources", "speaking",
+  "writing", "reading comprehension", "learning strategies",
+]);
+
+export function categorizeSkillType(skillName: string): SkillType {
+  return SOFT_SKILLS.has(skillName.toLowerCase().trim()) ? "soft" : "technical";
+}
 import { getSkillsForRole as liveOnetSkills } from "../services/onet.js";
 import { getWageData } from "../services/bls.js";
 import { searchJobs } from "../services/usajobs.js";
@@ -119,6 +133,7 @@ export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAs
             : skill.score && parseFloat(skill.score.value) >= 3 ? "Intermediate" : "Basic",
           user_rating: null,
           gap_category: null,
+          skill_type: categorizeSkillType(skill.name),
         }));
       }
     } catch (e) {
@@ -167,6 +182,7 @@ function retrieveSkillsFromLocal(targetRole: string): SkillAssessment[] {
     required_proficiency: skill.importance >= 80 ? "Advanced" : skill.importance >= 60 ? "Intermediate" : "Basic",
     user_rating: null,
     gap_category: null,
+    skill_type: categorizeSkillType(skill.name),
   }));
 }
 
@@ -229,6 +245,78 @@ async function getLiveMarketData(targetRole: string): Promise<{
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetch O*NET skills for multiple roles in parallel.
+ */
+export async function retrieveSkillsForMultipleRoles(
+  roleNames: string[]
+): Promise<Record<string, SkillAssessment[]>> {
+  const results: Record<string, SkillAssessment[]> = {};
+  await Promise.all(
+    roleNames.map(async (role) => {
+      try {
+        results[role] = await retrieveSkillsForRole(role);
+      } catch {
+        results[role] = [];
+      }
+    })
+  );
+  return results;
+}
+
+/**
+ * Blend skills across multiple roles, ranked by frequency (how many roles need it).
+ * Ensures a mix of technical and soft skills.
+ */
+export function blendSkillsAcrossRoles(
+  candidateSkills: Record<string, SkillAssessment[]>,
+  limit: number = 5
+): SkillAssessment[] {
+  const freq = new Map<string, { count: number; skill: SkillAssessment; roles: string[] }>();
+
+  for (const [role, skills] of Object.entries(candidateSkills)) {
+    for (const skill of skills) {
+      const key = skill.skill_name.toLowerCase();
+      const existing = freq.get(key);
+      if (existing) {
+        existing.count++;
+        existing.roles.push(role);
+      } else {
+        freq.set(key, { count: 1, skill, roles: [role] });
+      }
+    }
+  }
+
+  const sorted = [...freq.values()].sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    const profOrder: Record<string, number> = { Advanced: 3, Intermediate: 2, Basic: 1 };
+    return (profOrder[b.skill.required_proficiency] ?? 0) - (profOrder[a.skill.required_proficiency] ?? 0);
+  });
+
+  // Ensure at least 1 tech and 1 soft in the blend
+  const result: SkillAssessment[] = [];
+  let hasTech = false, hasSoft = false;
+
+  for (const entry of sorted) {
+    if (result.length >= limit) break;
+    result.push(entry.skill);
+    if (entry.skill.skill_type === "technical") hasTech = true;
+    if (entry.skill.skill_type === "soft") hasSoft = true;
+  }
+
+  // If missing a category, swap the last item with the first available of that category
+  if (!hasTech && result.length > 0) {
+    const techEntry = sorted.find(e => e.skill.skill_type === "technical" && !result.includes(e.skill));
+    if (techEntry) result[result.length - 1] = techEntry.skill;
+  }
+  if (!hasSoft && result.length > 0) {
+    const softEntry = sorted.find(e => e.skill.skill_type === "soft" && !result.includes(e.skill));
+    if (softEntry) result[result.length - 1] = softEntry.skill;
+  }
+
+  return result;
 }
 
 function getLocalMarketData(targetRole: string): {

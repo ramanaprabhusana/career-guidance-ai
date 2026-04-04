@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
@@ -10,6 +11,7 @@ import { generatePDFReport } from "./report/pdf-generator.js";
 import { generateHTMLReport } from "./report/html-generator.js";
 import { searchOccupations } from "./services/onet.js";
 import type { AgentStateType } from "./state.js";
+import { categorizeSkillType } from "./utils/rag.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -64,6 +66,21 @@ function migrateSession(state: any): AgentStateType {
       state.skillsAssessmentStatus = "in_progress";
     }
   }
+
+  // Patch skill_type onto existing skills for backward compat
+  if (Array.isArray(state.skills)) {
+    for (const skill of state.skills) {
+      if (!skill.skill_type) {
+        skill.skill_type = categorizeSkillType(skill.skill_name);
+      }
+    }
+  }
+
+  // Initialize candidateSkills if missing
+  if (state.candidateSkills === undefined) {
+    state.candidateSkills = {};
+  }
+
   return state as AgentStateType;
 }
 
@@ -99,9 +116,17 @@ function loadSession(id: string): AgentStateType | null {
 }
 
 const app = express();
+app.use(compression());
 app.use(cors());
 app.use(express.json());
-app.use(express.static(join(ROOT, "public")));
+
+// Static assets with long cache (fonts, CSS, JS) — cache 7 days
+app.use("/fonts", express.static(join(ROOT, "public/fonts"), { maxAge: "7d", immutable: true }));
+app.use("/css", express.static(join(ROOT, "public/css"), { maxAge: "1d" }));
+app.use("/js", express.static(join(ROOT, "public/js"), { maxAge: "1d" }));
+
+// HTML and other public files — no cache (always fresh)
+app.use(express.static(join(ROOT, "public"), { maxAge: 0 }));
 
 const graph = buildGraph();
 
