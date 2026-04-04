@@ -3,6 +3,9 @@ services:
     name: career-guidance-ai
     runtime: docker
     plan: free
+    autoDeploy: true
+    branch: main
+    repo: https://github.com/ramanaprabhusana/career-guidance-ai
     envVars:
       - key: GOOGLE_API_KEY
         sync: false
