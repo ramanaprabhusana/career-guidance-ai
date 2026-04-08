@@ -9,7 +9,12 @@ import type {
   ProgressItem,
 } from "../state.js";
 import { config } from "../config.js";
-import { retrieveSkillsForRole, retrieveSkillsForMultipleRoles, categorizeSkillType } from "../utils/rag.js";
+import { retrieveSkillsForMultipleRoles, categorizeSkillType } from "../utils/rag.js";
+import { runTool } from "./tool-executor.js";
+import { saveProfileHook, appendEpisodicHook } from "../utils/profile-hooks.js";
+import { AgentError, logAgentError } from "../utils/errors.js";
+import { isOffTopic, MAX_OFF_TOPIC_STRIKES } from "../utils/topic-guard.js";
+import { isOffensive, MAX_SAFETY_STRIKES } from "../utils/safety-guard.js";
 
 function deriveGapCategory(userRating: UserRating | null, requiredProficiency: string): GapCategory | null {
   if (!userRating) return null;
@@ -109,7 +114,10 @@ function parseLearningResources(raw: unknown): LearningResourceItem[] {
   return out;
 }
 
-function parseEvidenceDecisions(raw: unknown): EvidenceDecisionItem[] {
+function parseEvidenceDecisions(
+  raw: unknown,
+  options: { kind: "kept" | "discarded" } = { kind: "kept" }
+): EvidenceDecisionItem[] {
   if (!Array.isArray(raw)) return [];
   const out: EvidenceDecisionItem[] = [];
   for (const item of raw) {
@@ -119,6 +127,15 @@ function parseEvidenceDecisions(raw: unknown): EvidenceDecisionItem[] {
     const detail = typeof o.detail === "string" ? o.detail.trim() : "";
     const reason = typeof o.reason === "string" ? o.reason.trim() : "";
     if (!source || !detail) continue;
+    // G7: discard entries MUST carry a non-empty reason. Drop and log
+    // STATE_SCHEMA_VIOLATION rather than silently coercing to "Not specified".
+    if (options.kind === "discarded" && !reason) {
+      logAgentError(
+        new AgentError("STATE_SCHEMA_VIOLATION", "evidence_discarded item missing reason"),
+        { source, detail }
+      );
+      continue;
+    }
     out.push({ source, detail, reason: reason || "Not specified" });
   }
   return out;
@@ -156,10 +173,47 @@ function mergePlanningFields(
     updates.evidenceKept = [...(state.evidenceKept ?? []), ...incoming].slice(0, 50);
   }
   if (fields.evidence_discarded !== undefined) {
-    const incoming = parseEvidenceDecisions(fields.evidence_discarded);
+    const incoming = parseEvidenceDecisions(fields.evidence_discarded, { kind: "discarded" });
     updates.evidenceDiscarded = [...(state.evidenceDiscarded ?? []), ...incoming].slice(0, 50);
   }
+
+  // Slice S-E (Sr 31, 32): plan_blocks merge. Analyzer may deliver the full
+  // block set at once; each block carries a `confirmed: false` default.
+  if (fields.plan_blocks !== undefined && Array.isArray(fields.plan_blocks)) {
+    const parsed = parsePlanBlocks(fields.plan_blocks);
+    if (parsed.length > 0) updates.planBlocks = parsed;
+  }
+
+  // Slice S-H (Sr 28): shift_intent toggle. Once true, stays true for the session.
+  if (fields.shift_intent === true) updates.shiftIntent = true;
+
   return updates;
+}
+
+function isConfirmation(message: string | null | undefined): boolean {
+  if (!message) return false;
+  const t = message.toLowerCase().trim();
+  if (!t) return false;
+  const markers = ["yes", "yep", "yeah", "sure", "ok", "okay", "confirmed", "looks good", "agreed", "approve", "go ahead", "proceed", "sounds good", "lgtm"];
+  return markers.some((m) => t === m || t.startsWith(`${m},`) || t.startsWith(`${m} `) || t.includes(` ${m} `));
+}
+
+function parsePlanBlocks(raw: unknown): import("../state.js").PlanBlock[] {
+  if (!Array.isArray(raw)) return [];
+  const validIds: ReadonlyArray<string> = ["understanding", "path", "skills", "courses", "end_goal"];
+  const out: import("../state.js").PlanBlock[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const id = typeof o.id === "string" ? o.id : "";
+    if (!validIds.includes(id)) continue;
+    const label = typeof o.label === "string" ? o.label : id;
+    const content = typeof o.content === "string" ? o.content.trim() : "";
+    if (!content) continue;
+    const confirmed = o.confirmed === true;
+    out.push({ id: id as import("../state.js").PlanBlockId, label, content, confirmed });
+  }
+  return out;
 }
 
 function checkOrientationComplete(state: AgentStateType, updates: Partial<AgentStateType>): boolean {
@@ -433,14 +487,18 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
     effectiveRole &&
     effectiveSkills.length === 0
   ) {
-    try {
-      const skills = await retrieveSkillsForRole(effectiveRole);
-      if (skills.length > 0) {
-        updates.skills = skills;
-        console.log(`[StateUpdater] Pre-populated ${skills.length} skills for "${effectiveRole}"`);
-      }
-    } catch (e) {
-      console.warn("[StateUpdater] Skill retrieval failed:", (e as Error).message);
+    // G4: dispatch via the explicit tool executor instead of inline RAG.
+    // The orchestrator (this node) decides *whether* to call the tool;
+    // `runTool` owns *how* it executes and surfaces Skill 8 error codes.
+    const toolResult = await runTool({
+      name: "retrieve_skills_for_role",
+      args: { role: effectiveRole },
+    });
+    if (toolResult.ok && Array.isArray(toolResult.data) && toolResult.data.length > 0) {
+      updates.skills = toolResult.data;
+      console.log(`[StateUpdater] Pre-populated ${toolResult.data.length} skills for "${effectiveRole}" via tool executor`);
+    } else if (!toolResult.ok) {
+      console.warn(`[StateUpdater] Tool ${toolResult.tool} failed: ${toolResult.errorCode ?? "unknown"} ${toolResult.detail ?? ""}`);
     }
   }
 
@@ -469,6 +527,88 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
   // Clear error on successful processing
   if (!state.error) {
     updates.error = null;
+  }
+
+  // Slice S-F (Sr 12): safety strike tracking runs FIRST — offensive content
+  // short-circuits everything else, including off-topic handling.
+  if (isOffensive(state.userMessage)) {
+    const next = (state.safetyStrikes ?? 0) + 1;
+    updates.safetyStrikes = next;
+    if (next >= MAX_SAFETY_STRIKES) {
+      logAgentError(
+        new AgentError("SAFETY_BLOCK", `strikes=${next}`),
+        { sessionId: state.sessionId }
+      );
+      updates.error = "SAFETY_BLOCK";
+      updates.transitionDecision = "complete"; // block further turns
+    }
+  }
+
+  // Slice S-A (Sr 11 / 15B): off-topic strike tracking. Reset on any
+  // productive analyzer signal; increment when the topic guard flags the
+  // user's message. At the threshold, set `error = OFF_TOPIC_PERSISTENT`
+  // so the Speaker can short-circuit to the catalog message. Skipped if
+  // safety already fired.
+  if (updates.error !== "SAFETY_BLOCK") {
+    const analyzerHasSignal =
+      !!state.analyzerOutput &&
+      (Object.keys(state.analyzerOutput.extracted_fields ?? {}).length > 0 ||
+        (state.analyzerOutput.confidence ?? 0) >= 0.5);
+    if (analyzerHasSignal) {
+      updates.offTopicStrikes = 0;
+    } else if (isOffTopic(state.userMessage)) {
+      const next = (state.offTopicStrikes ?? 0) + 1;
+      updates.offTopicStrikes = next;
+      if (next >= MAX_OFF_TOPIC_STRIKES) {
+        logAgentError(
+          new AgentError("OFF_TOPIC_PERSISTENT", `strikes=${next}`),
+          { sessionId: state.sessionId }
+        );
+        updates.error = "OFF_TOPIC_PERSISTENT";
+      }
+    }
+  }
+
+  // Slice S-E (Sr 31, 32): block-by-block plan confirmation gate.
+  // If plan_blocks exist and the user's last message is a confirmation,
+  // mark the first unconfirmed block as confirmed. The planning speaker
+  // skill is responsible for surfacing only one unconfirmed block at a time.
+  const existingBlocks = updates.planBlocks ?? state.planBlocks ?? [];
+  if (state.currentPhase === "planning" && existingBlocks.length > 0) {
+    const firstPending = existingBlocks.findIndex((b) => !b.confirmed);
+    if (firstPending >= 0 && isConfirmation(state.userMessage)) {
+      const next = existingBlocks.map((b, i) =>
+        i === firstPending ? { ...b, confirmed: true } : b
+      );
+      updates.planBlocks = next;
+      // Only let reportGenerated flip once EVERY block is confirmed.
+      const allConfirmed = next.every((b) => b.confirmed);
+      if (!allConfirmed && updates.reportGenerated) {
+        updates.reportGenerated = false;
+      }
+    } else if (firstPending >= 0 && updates.reportGenerated) {
+      // Orchestrator guarantee: cannot complete plan until all blocks confirmed.
+      updates.reportGenerated = false;
+    }
+  }
+
+  // G5: orchestrator-approved profile / episodic hooks.
+  // Guarded by `userId`; no-op (and silent) when SQLite isn't available.
+  // These mirror what server.ts already does post-turn, but bring the
+  // contract inside the orchestrator so any caller of the graph (smoke
+  // tests, future API surfaces) gets the same behavior automatically.
+  if (state.userId) {
+    const finalDecision = updates.transitionDecision ?? state.transitionDecision;
+    saveProfileHook({
+      userId: state.userId,
+      sessionId: state.sessionId,
+      targetRole: updates.targetRole ?? state.targetRole,
+      jobTitle: (updates as Record<string, unknown>).jobTitle as string | null | undefined ?? state.jobTitle,
+      conversationSummary: state.conversationSummary || undefined,
+    });
+    if (finalDecision === "complete" && state.conversationSummary?.trim()) {
+      appendEpisodicHook(state.userId, state.sessionId, state.conversationSummary);
+    }
   }
 
   return updates;

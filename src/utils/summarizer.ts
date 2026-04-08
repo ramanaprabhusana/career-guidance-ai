@@ -1,6 +1,7 @@
 import type { AgentStateType } from "../state.js";
 import { config, createChatModel } from "../config.js";
 import { HumanMessage } from "@langchain/core/messages";
+import { loadPromptTemplate, populateTemplate } from "./prompt-loader.js";
 
 const MIN_TURNS_FOR_SUMMARY = 8;
 const MAX_HISTORY_LINES = 14;
@@ -9,6 +10,9 @@ const MAX_HISTORY_LINES = 14;
  * Rolling conversation summary for episodic memory and long threads.
  * Uses a single LLM call when GOOGLE_API_KEY is set and history is long enough;
  * otherwise returns a short deterministic digest (no API).
+ *
+ * Prompt body lives in `agent_config/prompts/summary_template.md` (Skill 7
+ * framework template) and is loaded via `prompt-loader` so config is the SSOT.
  */
 export async function maybeSummarize(state: AgentStateType): Promise<Partial<AgentStateType>> {
   const history = state.conversationHistory ?? [];
@@ -23,12 +27,15 @@ export async function maybeSummarize(state: AgentStateType): Promise<Partial<Age
 
   if (process.env.GOOGLE_API_KEY) {
     try {
+      const template = loadPromptTemplate("summary_template.md");
+      const prompt = populateTemplate(template, {
+        phase: state.currentPhase ?? "orientation",
+        target_role: state.targetRole ?? "n/a",
+        session_goal: state.sessionGoal ?? "n/a",
+        history: lines,
+      });
       const model = createChatModel("analyzer", config);
-      const response = await model.invoke([
-        new HumanMessage(
-          `Summarize this career coaching dialogue in 4-6 bullet points for future sessions. Focus on goals, target role, skills mentioned, and decisions.\n\n${lines}`
-        ),
-      ]);
+      const response = await model.invoke([new HumanMessage(prompt)]);
       const text =
         typeof response.content === "string" ? response.content : JSON.stringify(response.content);
       const summary = text.trim().slice(0, 4000);
@@ -36,7 +43,7 @@ export async function maybeSummarize(state: AgentStateType): Promise<Partial<Age
         return { conversationSummary: summary };
       }
     } catch {
-      /* fall through */
+      /* fall through to deterministic digest */
     }
   }
 

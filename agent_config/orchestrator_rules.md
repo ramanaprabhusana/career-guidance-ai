@@ -96,3 +96,44 @@ Minimum entities: 3
 ## Resumption
 - Enable resumption: yes
 - Resumption TTL: 86400 seconds (24 hours)
+
+## Profile / episodic memory hooks (skills extension)
+Long-term memory hooks live in `src/utils/profile-hooks.ts` and are invoked
+**from inside the state-updater**, not from `server.ts`. They are guarded by
+`state.userId` and no-op silently when SQLite is unavailable
+(`PROFILE_DB_UNAVAILABLE`, Skill 8).
+
+- `saveProfileHook` — fires every turn when `userId` is set; upserts
+  `last_session_id`, `target_role`, `job_title`, `conversation_summary`.
+- `appendEpisodicHook` — fires when `transitionDecision === "complete"` and
+  a non-empty `conversation_summary` exists.
+- `loadProfileHook` / `listEpisodicHook` — available for the orientation
+  phase to prefill returning users (Sr 17/20 in the user-story backlog).
+
+Server-side persistence in `server.ts` is retained as a redundant safety net
+during the transition; both call sites are idempotent.
+
+## Tool execution (skills extension)
+Side effects (RAG retrieval, O*NET / BLS / USAJOBS connectors, future
+web-search) MUST go through `src/nodes/tool-executor.ts` rather than being
+called inline from the state-updater. The state-updater is the orchestrator:
+it decides **whether** a tool runs and how the result is merged into state;
+the tool-executor owns **how** the call is made and which Skill 8 error code
+it surfaces on failure.
+
+- Current registered tools: `retrieve_skills_for_role`.
+- Tool failures NEVER abort the turn — they return `{ ok: false, errorCode }`
+  and the orchestrator continues with whatever data it already has.
+- New tools must be added to the `ToolName` union in `tool-executor.ts` and,
+  if user-visible failure messaging is needed, to `error_catalog.md`.
+
+## Error handling (Skill 8)
+All node-level error codes, severity, recovery strategy, and user-visible
+fallback messages live in [`error_catalog.md`](./error_catalog.md). Nodes
+must raise `AgentError(code)` from `src/utils/errors.ts` rather than
+sprinkling ad-hoc strings; `validate-config` enforces parity between the
+catalog and the `ErrorCode` union.
+
+- **recoverable** errors never abort a turn — fall through to a deterministic path.
+- **fatal** errors abort the current turn and surface to logs / LangSmith.
+- **policy** errors (off-topic, safety) always emit a Speaker message from the catalog.

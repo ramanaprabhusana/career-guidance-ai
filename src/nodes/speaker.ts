@@ -1,6 +1,7 @@
 import type { AgentStateType } from "../state.js";
 import { config, createChatModel } from "../config.js";
 import { HumanMessage } from "@langchain/core/messages";
+import { ERROR_REGISTRY, type ErrorCode } from "../utils/errors.js";
 
 function sanitizeOutput(text: string): string {
   return text
@@ -46,6 +47,21 @@ function validateSpeakerOutput(text: string): { valid: boolean; reason?: string 
 }
 
 export async function speaker(state: AgentStateType): Promise<Partial<AgentStateType>> {
+  // Slice S-A: short-circuit on policy errors from the Skill 8 catalog.
+  // The orchestrator sets `state.error` to an ErrorCode for off-topic /
+  // safety policy hits; we emit the canned message and skip the LLM call.
+  if (state.error && state.error in ERROR_REGISTRY) {
+    const entry = ERROR_REGISTRY[state.error as ErrorCode];
+    if (entry.severity === "policy" && entry.userMessage) {
+      return {
+        speakerOutput: entry.userMessage,
+        conversationHistory: [
+          { role: "assistant", content: entry.userMessage, timestamp: Date.now() },
+        ],
+      };
+    }
+  }
+
   // If speaker output already set (e.g., first_turn fallback), return it
   if (state.speakerOutput && !state.speakerPrompt) {
     return {

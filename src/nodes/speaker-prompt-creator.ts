@@ -80,9 +80,26 @@ function getTurnTypeInstructions(turnType: string): string {
 export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateType> {
   // Use fallback for first turn
   if (state.turnType === "first_turn") {
+    // Slice S-B (Sr 17, 20): if a returning user is detected (profile hook
+    // loaded data during session init), prepend a "Welcome back" line and a
+    // 1-2 sentence summary of the last session before the standard opener.
+    const opener = config.fallbackMessages.first_turn;
+    if (state.isReturningUser) {
+      const priorSummary = (state.priorSessionSummary ?? "").trim();
+      const roleNote = state.targetRole ? ` We last discussed your interest in ${state.targetRole}.` : "";
+      const summaryLine = priorSummary
+        ? ` Here's a quick recap of where we left off:\n${priorSummary}\n`
+        : "";
+      const resumePrompt = " Would you like to resume from that point, or start a fresh conversation?";
+      const welcome = `Welcome back!${roleNote}${summaryLine}${resumePrompt}`;
+      return {
+        speakerPrompt: "",
+        speakerOutput: welcome,
+      };
+    }
     return {
       speakerPrompt: "",
-      speakerOutput: config.fallbackMessages.first_turn,
+      speakerOutput: opener,
     };
   }
 

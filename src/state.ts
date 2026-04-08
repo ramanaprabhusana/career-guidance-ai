@@ -52,6 +52,16 @@ export interface ProgressItem {
   done: boolean;
 }
 
+// Slice S-E: one confirmable block in the block-by-block plan (Sr 31, 32).
+// Fixed set of labels per Sr 32: understanding, path, skills, courses, end_goal.
+export type PlanBlockId = "understanding" | "path" | "skills" | "courses" | "end_goal";
+export interface PlanBlock {
+  id: PlanBlockId;
+  label: string;
+  content: string;
+  confirmed: boolean;
+}
+
 export interface ConversationTurn {
   role: "user" | "assistant";
   content: string;
@@ -154,6 +164,33 @@ export const AgentState = Annotation.Root({
   consecutiveErrors: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
   clarificationCount: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
   clarificationTopic: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+
+  // Slice S-A: off-topic strike counter (Sr 11, 15B). Cross-phase, runtime-only.
+  // Reset to 0 on any productive turn; raises OFF_TOPIC_PERSISTENT at threshold.
+  offTopicStrikes: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+
+  // Slice S-B: returning-user flags (Sr 17, 20). Populated at session-init
+  // time by the profile hook; consumed by speaker-prompt-creator on first_turn.
+  isReturningUser: Annotation<boolean>({ reducer: (_, b) => b, default: () => false }),
+  priorSessionSummary: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
+  resumeChoice: Annotation<"resume" | "fresh" | null>({ reducer: (_, b) => b, default: () => null }),
+
+  // Slice S-F: safety strike counter (Sr 12). Raises SAFETY_BLOCK at threshold.
+  safetyStrikes: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+
+  // Slice S-C: resume upload extracted fields (Sr 19B, 24). Minimal only:
+  // name, years, prominent domain. Deliberately NOT ATS-style parsing.
+  resumeName: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+  resumeYears: Annotation<number | null>({ reducer: (_, b) => b, default: () => null }),
+  resumeDomain: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
+
+  // Slice S-H: career-shift intent (Sr 28). When true, planning phase uses
+  // the shift advisory variant (financial/emotional caveat, then re-evaluate).
+  shiftIntent: Annotation<boolean>({ reducer: (_, b) => b, default: () => false }),
+
+  // Slice S-E: block-by-block plan confirmation (Sr 31, 32). Each block is
+  // delivered and must be `confirmed` before the next is surfaced.
+  planBlocks: Annotation<PlanBlock[]>({ reducer: (_, b) => b, default: () => [] }),
 });
 
 export type AgentStateType = typeof AgentState.State;

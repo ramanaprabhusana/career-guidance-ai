@@ -13,8 +13,8 @@ import { buildEvidencePack, writeEvidencePackFile } from "./report/evidence-pack
 import { searchOccupations } from "./services/onet.js";
 import type { AgentStateType, ProgressItem } from "./state.js";
 import { categorizeSkillType } from "./utils/rag.js";
-import { maybeSummarize } from "./utils/summarizer.js";
 import { openProfileDb, getProfilePayload, upsertProfilePayload, appendEpisodicSummary, listRecentEpisodic } from "./db/profile-db.js";
+import { parseResumeText } from "./services/resume-parser.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -171,26 +171,40 @@ app.post("/api/session", async (req, res) => {
       : null;
 
   try {
+    // Slice S-B (Sr 17, 20): prefetch profile BEFORE graph.invoke so the
+    // speakerPromptCreator can emit the "Welcome back" opener on first_turn.
+    let isReturningUser = false;
+    let priorSessionSummary = "";
+    let priorTargetRole: string | null = null;
+    let priorJobTitle: string | null = null;
+    if (userId && profileDb) {
+      const prof = getProfilePayload(profileDb, userId);
+      if (prof) {
+        isReturningUser = true;
+        priorSessionSummary = (prof.conversation_summary ?? "").trim();
+        priorTargetRole = prof.target_role ?? null;
+        priorJobTitle = prof.job_title ?? null;
+      }
+    }
+
     let state = await graph.invoke({
       sessionId,
       userId,
       startedAt: Date.now(),
       userMessage: "",
       turnType: "first_turn",
+      isReturningUser,
+      priorSessionSummary,
+      conversationSummary: priorSessionSummary,
+      targetRole: priorTargetRole,
+      jobTitle: priorJobTitle,
     }, {
       runName: "career-guidance-session-start",
       tags: ["first_turn", "session_init"],
       metadata: { sessionId, userId: userId ?? undefined },
     });
 
-    if (userId && profileDb) {
-      const prof = getProfilePayload(profileDb, userId);
-      if (prof?.conversation_summary) {
-        state = { ...state, userId, conversationSummary: prof.conversation_summary };
-      } else {
-        state = { ...state, userId };
-      }
-    }
+    if (userId) state = { ...state, userId };
 
     saveSession(sessionId, state);
 
@@ -246,12 +260,8 @@ app.post("/api/chat", async (req, res) => {
       },
     });
 
-    if (newState.conversationHistory.length >= 8 && newState.turnNumber > 0 && newState.turnNumber % 5 === 0) {
-      const sumPatch = await maybeSummarize(newState);
-      if (sumPatch.conversationSummary) {
-        newState = { ...newState, ...sumPatch };
-      }
-    }
+    // Summarization now runs inside the graph as the `summarizer` node (G2),
+    // so server-side invocation is no longer needed.
 
     saveSession(sessionId, newState);
     persistUserProfile(newState, sessionId);
@@ -276,6 +286,31 @@ app.post("/api/chat", async (req, res) => {
     console.error("Chat error:", (e as Error).message);
     res.status(500).json({ error: (e as Error).message });
   }
+});
+
+// Slice S-C (Sr 19B, 24): resume upload — plain-text only, three fields.
+app.post("/api/upload", (req, res) => {
+  const { sessionId, text } = req.body ?? {};
+  if (!sessionId || typeof text !== "string") {
+    res.status(400).json({ error: "sessionId and text are required" });
+    return;
+  }
+  const state = loadSession(sessionId);
+  if (!state) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  const extract = parseResumeText(text);
+  const merged: AgentStateType = {
+    ...state,
+    resumeName: extract.name ?? state.resumeName ?? null,
+    resumeYears: extract.years ?? state.resumeYears ?? null,
+    resumeDomain: extract.domain ?? state.resumeDomain ?? null,
+    yearsExperience: state.yearsExperience ?? extract.years ?? null,
+    industry: state.industry ?? extract.domain ?? null,
+  };
+  saveSession(sessionId, merged);
+  res.json({ ok: true, extract });
 });
 
 // Export report

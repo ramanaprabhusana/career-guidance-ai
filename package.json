@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "validate-config": "tsx scripts/validate-config.ts",
     "eval-fixtures": "tsx scripts/eval-fixtures.ts",
+    "eval": "tsx scripts/eval-fixtures.ts",
     "check": "npm run typecheck && npm run validate-config && npm run smoke && npm run eval-fixtures"
   },
   "keywords": [

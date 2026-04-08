@@ -83,6 +83,25 @@ check(
   sharedSpeakerExists ? "Found" : "Missing (per-phase files may be used instead)"
 );
 
+// Skill 7: rolling-summary template (G1)
+const summaryTemplatePath = join(promptsDir, "summary_template.md");
+const summaryTemplateExists = existsSync(summaryTemplatePath);
+check(
+  "Skill 7 summary_template.md exists",
+  summaryTemplateExists,
+  summaryTemplateExists ? "Found" : `Missing: expected ${summaryTemplatePath}`
+);
+if (summaryTemplateExists) {
+  const body = readFileSync(summaryTemplatePath, "utf-8");
+  const requiredPlaceholders = ["{{phase}}", "{{target_role}}", "{{session_goal}}", "{{history}}"];
+  const missing = requiredPlaceholders.filter((p) => !body.includes(p));
+  check(
+    "summary_template.md has required placeholders",
+    missing.length === 0,
+    missing.length === 0 ? "All placeholders present" : `Missing: ${missing.join(", ")}`
+  );
+}
+
 // --- Check 3: State schema fields match state.ts exports ---
 
 // Extract field names from AgentState in state.ts
@@ -119,6 +138,69 @@ check(
   missingInTs.length === 0
     ? `All ${schemaFields.size} schema fields found in state.ts`
     : `Missing in state.ts: ${missingInTs.join(", ")}`
+);
+
+// --- Skill 8: error catalog parity (G3) ---
+
+const errorCatalogPath = join(ROOT, "agent_config", "error_catalog.md");
+const errorsTsPath = join(ROOT, "src", "utils", "errors.ts");
+const catalogExists = existsSync(errorCatalogPath);
+const errorsTsExists = existsSync(errorsTsPath);
+
+check(
+  "Skill 8 error_catalog.md exists",
+  catalogExists,
+  catalogExists ? "Found" : `Missing: ${errorCatalogPath}`
+);
+check(
+  "src/utils/errors.ts exists",
+  errorsTsExists,
+  errorsTsExists ? "Found" : `Missing: ${errorsTsPath}`
+);
+
+if (catalogExists && errorsTsExists) {
+  const catalogBody = readFileSync(errorCatalogPath, "utf-8");
+  const errorsBody = readFileSync(errorsTsPath, "utf-8");
+
+  // Pull codes from the markdown table (first column wrapped in backticks).
+  const catalogCodes = new Set<string>();
+  for (const m of catalogBody.matchAll(/^\|\s*`([A-Z_]+)`\s*\|/gm)) {
+    catalogCodes.add(m[1]);
+  }
+
+  // Pull codes from the ErrorCode union literals.
+  const tsCodes = new Set<string>();
+  const unionMatch = errorsBody.match(/export type ErrorCode\s*=([\s\S]*?);/);
+  if (unionMatch) {
+    for (const m of unionMatch[1].matchAll(/"([A-Z_]+)"/g)) {
+      tsCodes.add(m[1]);
+    }
+  }
+
+  const onlyInCatalog = [...catalogCodes].filter((c) => !tsCodes.has(c));
+  const onlyInTs = [...tsCodes].filter((c) => !catalogCodes.has(c));
+
+  check(
+    "error_catalog ↔ ErrorCode union parity",
+    onlyInCatalog.length === 0 && onlyInTs.length === 0,
+    onlyInCatalog.length === 0 && onlyInTs.length === 0
+      ? `${catalogCodes.size} codes match`
+      : `Catalog-only: [${onlyInCatalog.join(", ")}] | TS-only: [${onlyInTs.join(", ")}]`
+  );
+}
+
+// --- G7: evidence_discarded reason required ---
+
+const discardedSpec = stateSchema?.phases?.planning?.evidence_discarded;
+const requiredFields: string[] = Array.isArray(discardedSpec?.required_per_entity_fields)
+  ? discardedSpec.required_per_entity_fields
+  : [];
+check(
+  "evidence_discarded requires `reason` (G7)",
+  requiredFields.includes("reason") && requiredFields.includes("source") && requiredFields.includes("detail"),
+  requiredFields.length > 0
+    ? `required_per_entity_fields = [${requiredFields.join(", ")}]`
+    : "Missing required_per_entity_fields on evidence_discarded"
 );
 
 // --- Print Results ---

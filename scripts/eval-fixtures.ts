@@ -3,7 +3,7 @@
  * Run: npm run eval-fixtures
  */
 
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { buildEvidencePack } from "../src/report/evidence-pack.js";
@@ -139,6 +139,7 @@ async function main() {
 
   let ok = 0;
   const failures: string[] = [];
+  const perFixture: Array<{ sessionId: string; passed: boolean; reason?: string }> = [];
   const t0 = Date.now();
 
   for (const state of fixtures) {
@@ -148,20 +149,34 @@ async function main() {
       if (pack.session_id !== state.sessionId) throw new Error("session_id mismatch");
       if (!Array.isArray(pack.assumptions) || pack.assumptions.length === 0) throw new Error("assumptions");
       ok++;
+      perFixture.push({ sessionId: state.sessionId, passed: true });
     } catch (e) {
-      failures.push(`${state.sessionId}: ${(e as Error).message}`);
+      const reason = (e as Error).message;
+      failures.push(`${state.sessionId}: ${reason}`);
+      perFixture.push({ sessionId: state.sessionId, passed: false, reason });
     }
   }
 
   const elapsed = Date.now() - t0;
   const report = {
+    generated_at: new Date().toISOString(),
     total: fixtures.length,
     passed: ok,
     failed: failures.length,
+    pass_rate: fixtures.length > 0 ? +(ok / fixtures.length).toFixed(4) : 0,
     ms: elapsed,
     failures: failures.slice(0, 10),
+    per_fixture: perFixture,
   };
-  console.log(JSON.stringify(report, null, 2));
+  console.log(JSON.stringify({ ...report, per_fixture: undefined }, null, 2));
+
+  // G6: persist a metrics report so CI / reviewers can diff it.
+  const exportsDir = join(ROOT, "exports");
+  mkdirSync(exportsDir, { recursive: true });
+  const reportPath = join(exportsDir, "eval-report.json");
+  writeFileSync(reportPath, JSON.stringify(report, null, 2));
+  console.log(`Wrote ${reportPath}`);
+
   process.exit(failures.length ? 1 : 0);
 }
 

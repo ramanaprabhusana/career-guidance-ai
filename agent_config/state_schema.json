@@ -209,18 +209,43 @@
           "reason": { "type": "string", "description": "Why it supports the plan" }
         }
       },
+      "plan_blocks": {
+        "type": "object[]",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": [],
+        "display_name": "Plan Blocks",
+        "description": "Block-by-block plan confirmation (Sr 31, 32). Fixed ids: understanding, path, skills, courses, end_goal. Each must be confirmed before the next is surfaced.",
+        "entity_bearing": true,
+        "required_per_entity_fields": ["id", "label", "content", "confirmed"],
+        "per_entity_fields": {
+          "id": { "type": "string", "description": "One of: understanding | path | skills | courses | end_goal" },
+          "label": { "type": "string", "description": "Human-readable label" },
+          "content": { "type": "string", "description": "Block body delivered to user" },
+          "confirmed": { "type": "boolean", "description": "User explicitly confirmed this block" }
+        }
+      },
+      "shift_intent": {
+        "type": "boolean",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": false,
+        "display_name": "Career Shift Intent",
+        "description": "Sr 28: user wishes to completely shift career. Activates the shift advisory variant of planning (financial/emotional caveat first, then re-evaluate experience reuse)."
+      },
       "evidence_discarded": {
         "type": "object[]",
         "required": false,
         "update_policy": "overwrite",
         "default": [],
         "display_name": "Evidence Discarded",
-        "description": "Sources or claims set aside with reasons.",
+        "description": "Sources or claims set aside with reasons. A non-empty `reason` is REQUIRED on every entry (G7); the state-updater drops items missing it and logs STATE_SCHEMA_VIOLATION.",
         "entity_bearing": true,
+        "required_per_entity_fields": ["source", "detail", "reason"],
         "per_entity_fields": {
           "source": { "type": "string", "description": "e.g. anecdote, unverifiable claim" },
           "detail": { "type": "string", "description": "What was discarded" },
-          "reason": { "type": "string", "description": "Why it was not used" }
+          "reason": { "type": "string", "description": "Why it was not used (REQUIRED, non-empty)" }
         }
       }
     }

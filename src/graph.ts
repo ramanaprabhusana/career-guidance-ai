@@ -6,6 +6,7 @@ import { analyzer } from "./nodes/analyzer.js";
 import { stateUpdater } from "./nodes/state-updater.js";
 import { speakerPromptCreator } from "./nodes/speaker-prompt-creator.js";
 import { speaker } from "./nodes/speaker.js";
+import { summarizerNode } from "./nodes/summarizer-node.js";
 
 function routeAfterAnalyzer(state: AgentStateType): string {
   // If the analyzer suggests a phase change and we haven't exceeded redirect limit
@@ -26,6 +27,7 @@ export function buildGraph() {
     .addNode("stateUpdater", stateUpdater)
     .addNode("speakerPromptCreator", speakerPromptCreator)
     .addNode("speaker", speaker)
+    .addNode("summarizer", summarizerNode)
 
     // Entry: always start with analyzer prompt creator
     .addEdge("__start__", "analyzerPromptCreator")
@@ -45,8 +47,9 @@ export function buildGraph() {
     // Speaker prompt creator → speaker
     .addEdge("speakerPromptCreator", "speaker")
 
-    // Speaker → end (one turn complete)
-    .addEdge("speaker", END);
+    // Speaker → summarizer (Skill 7, threshold-gated) → end
+    .addEdge("speaker", "summarizer")
+    .addEdge("summarizer", END);
 
   return graph.compile();
 }
