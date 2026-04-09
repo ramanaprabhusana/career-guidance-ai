@@ -9,6 +9,23 @@
 
 export type ErrorSeverity = "recoverable" | "fatal" | "policy";
 
+/**
+ * C7: Skill 8 recovery strategy.
+ *
+ * Explicit decision per code so node authors aren't inventing policy in
+ * try/catch. `retry` = the same op may be attempted again (bounded);
+ * `fallback` = use a cached / deterministic alternative and keep going;
+ * `escalate` = stop the current turn and surface to the operator;
+ * `user_message_only` = tell the user (via ERROR_REGISTRY.userMessage) and
+ * do not retry. `silent` = swallow and keep going, no user text.
+ */
+export type RecoveryStrategy =
+  | "retry"
+  | "fallback"
+  | "escalate"
+  | "user_message_only"
+  | "silent";
+
 export type ErrorCode =
   | "LLM_TIMEOUT"
   | "LLM_JSON_PARSE"
@@ -24,22 +41,30 @@ export type ErrorCode =
 export interface ErrorEntry {
   code: ErrorCode;
   severity: ErrorSeverity;
+  /** C7: recovery strategy (matches the Recovery column in error_catalog.md). */
+  recovery: RecoveryStrategy;
   /** Speaker fallback message; null means the error is silent to the user. */
   userMessage: string | null;
 }
 
 export const ERROR_REGISTRY: Record<ErrorCode, ErrorEntry> = {
-  LLM_TIMEOUT: { code: "LLM_TIMEOUT", severity: "recoverable", userMessage: "Just a moment — let me try that again." },
-  LLM_JSON_PARSE: { code: "LLM_JSON_PARSE", severity: "recoverable", userMessage: null },
-  LLM_RATE_LIMIT: { code: "LLM_RATE_LIMIT", severity: "recoverable", userMessage: "I'm being rate-limited by the model — give me a second." },
-  CONFIG_MISSING: { code: "CONFIG_MISSING", severity: "fatal", userMessage: "Something's off on my side — please refresh and try again." },
-  STATE_SCHEMA_VIOLATION: { code: "STATE_SCHEMA_VIOLATION", severity: "recoverable", userMessage: null },
-  RAG_RETRIEVAL_EMPTY: { code: "RAG_RETRIEVAL_EMPTY", severity: "recoverable", userMessage: null },
-  RAG_SOURCE_DOWN: { code: "RAG_SOURCE_DOWN", severity: "recoverable", userMessage: "Live job-market data isn't reachable right now — using cached figures." },
-  PROFILE_DB_UNAVAILABLE: { code: "PROFILE_DB_UNAVAILABLE", severity: "recoverable", userMessage: null },
-  OFF_TOPIC_PERSISTENT: { code: "OFF_TOPIC_PERSISTENT", severity: "policy", userMessage: "I can only help with career guidance — let's get back to your goals." },
-  SAFETY_BLOCK: { code: "SAFETY_BLOCK", severity: "policy", userMessage: "I can't continue this conversation. Please reach out to a human advisor." },
+  LLM_TIMEOUT:            { code: "LLM_TIMEOUT",            severity: "recoverable", recovery: "retry",             userMessage: "Just a moment — let me try that again." },
+  LLM_JSON_PARSE:         { code: "LLM_JSON_PARSE",         severity: "recoverable", recovery: "retry",             userMessage: null },
+  LLM_RATE_LIMIT:         { code: "LLM_RATE_LIMIT",         severity: "recoverable", recovery: "retry",             userMessage: "I'm being rate-limited by the model — give me a second." },
+  CONFIG_MISSING:         { code: "CONFIG_MISSING",         severity: "fatal",       recovery: "escalate",          userMessage: "Something's off on my side — please refresh and try again." },
+  STATE_SCHEMA_VIOLATION: { code: "STATE_SCHEMA_VIOLATION", severity: "recoverable", recovery: "silent",            userMessage: null },
+  RAG_RETRIEVAL_EMPTY:    { code: "RAG_RETRIEVAL_EMPTY",    severity: "recoverable", recovery: "fallback",          userMessage: null },
+  RAG_SOURCE_DOWN:        { code: "RAG_SOURCE_DOWN",        severity: "recoverable", recovery: "fallback",          userMessage: "Live job-market data isn't reachable right now — using cached figures." },
+  PROFILE_DB_UNAVAILABLE: { code: "PROFILE_DB_UNAVAILABLE", severity: "recoverable", recovery: "silent",            userMessage: null },
+  OFF_TOPIC_PERSISTENT:   { code: "OFF_TOPIC_PERSISTENT",   severity: "policy",      recovery: "user_message_only", userMessage: "I can only help with career guidance — let's get back to your goals." },
+  SAFETY_BLOCK:           { code: "SAFETY_BLOCK",           severity: "policy",      recovery: "user_message_only", userMessage: "I can't continue this conversation. Please reach out to a human advisor." },
 };
+
+/** C7: look up the recovery strategy for a code. Node authors should call
+ * this instead of branching on severity, so policy changes live in one table. */
+export function recoveryFor(code: ErrorCode): RecoveryStrategy {
+  return ERROR_REGISTRY[code].recovery;
+}
 
 export class AgentError extends Error {
   readonly code: ErrorCode;
