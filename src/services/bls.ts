@@ -3,6 +3,9 @@
  * Docs: https://www.bls.gov/developers/
  */
 
+// C5: normalized cross-connector wage type re-exported from `./common-schema.ts`.
+export type { WageStats } from "./common-schema.js";
+
 const BLS_BASE = "https://api.bls.gov/publicAPI/v2";
 
 interface BlsSeries {

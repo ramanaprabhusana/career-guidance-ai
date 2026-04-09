@@ -5,6 +5,10 @@
  * Base: https://api-v2.onetcenter.org
  */
 
+// C5: normalized cross-connector types live in `./common-schema.ts`.
+// Re-exported here so callers keep a single import path per service.
+export type { OccupationRecord, OccupationId, SkillRecord, SkillId } from "./common-schema.js";
+
 const ONET_BASE = "https://api-v2.onetcenter.org";
 
 function getApiKey(): string {

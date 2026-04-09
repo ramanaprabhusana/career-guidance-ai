@@ -3,6 +3,9 @@
  * Docs: https://developer.usajobs.gov/API-Reference
  */
 
+// C5: normalized job-count type re-exported from `./common-schema.ts`.
+export type { JobCounts } from "./common-schema.js";
+
 const USAJOBS_BASE = "https://data.usajobs.gov/api";
 
 interface UsajobsHeaders {
