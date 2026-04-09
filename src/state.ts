@@ -173,6 +173,11 @@ export const AgentState = Annotation.Root({
   // time by the profile hook; consumed by speaker-prompt-creator on first_turn.
   isReturningUser: Annotation<boolean>({ reducer: (_, b) => b, default: () => false }),
   priorSessionSummary: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
+  // C3: up to 3 recent episodic summaries, most-recent-first. Seeded by
+  // server.ts /api/session prefetch via listRecentEpisodic(); consumed by
+  // speaker-prompt-creator in the first_turn + isReturningUser branch so the
+  // welcome-back opener can recall multi-session context, not just the last summary.
+  priorEpisodicSummaries: Annotation<string[]>({ reducer: (_, b) => b, default: () => [] }),
   resumeChoice: Annotation<"resume" | "fresh" | null>({ reducer: (_, b) => b, default: () => null }),
 
   // Slice S-F: safety strike counter (Sr 12). Raises SAFETY_BLOCK at threshold.

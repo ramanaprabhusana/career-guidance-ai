@@ -175,6 +175,7 @@ app.post("/api/session", async (req, res) => {
     // speakerPromptCreator can emit the "Welcome back" opener on first_turn.
     let isReturningUser = false;
     let priorSessionSummary = "";
+    let priorEpisodicSummaries: string[] = [];
     let priorTargetRole: string | null = null;
     let priorJobTitle: string | null = null;
     if (userId && profileDb) {
@@ -184,6 +185,15 @@ app.post("/api/session", async (req, res) => {
         priorSessionSummary = (prof.conversation_summary ?? "").trim();
         priorTargetRole = prof.target_role ?? null;
         priorJobTitle = prof.job_title ?? null;
+      }
+      // C3: pull up to 3 episodic summaries for multi-session recall. This is
+      // separate from the single `conversation_summary` on the profile row;
+      // listRecentEpisodic returns a list ordered most-recent-first.
+      try {
+        priorEpisodicSummaries = listRecentEpisodic(profileDb, userId, 3);
+        if (priorEpisodicSummaries.length > 0) isReturningUser = true;
+      } catch (e) {
+        console.warn("listRecentEpisodic failed:", (e as Error).message);
       }
     }
 
@@ -195,6 +205,7 @@ app.post("/api/session", async (req, res) => {
       turnType: "first_turn",
       isReturningUser,
       priorSessionSummary,
+      priorEpisodicSummaries,
       conversationSummary: priorSessionSummary,
       targetRole: priorTargetRole,
       jobTitle: priorJobTitle,
