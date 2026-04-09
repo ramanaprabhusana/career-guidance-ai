@@ -29,6 +29,8 @@ function getPhaseCollectedData(state: AgentStateType): Record<string, unknown> {
       skill_development_agenda: state.skillDevelopmentAgenda,
       immediate_next_steps: state.immediateNextSteps,
       plan_rationale: state.planRationale,
+      shift_intent: state.shiftIntent,
+      plan_blocks: state.planBlocks,
     },
   };
 
@@ -60,6 +62,31 @@ function getCrossPhaseContext(state: AgentStateType): string {
     if (strengths.length > 0) {
       lines.push(`Strong skills: ${strengths.map((s) => s.skill_name).join(", ")}`);
     }
+    // C2: surface shift_intent and the next unconfirmed plan block so the
+    // planning speaker can actually branch on them (previously the orchestrator
+    // tracked both but the speaker never saw them).
+    if (state.shiftIntent) {
+      lines.push(
+        "Career shift variant: ACTIVE — lead with an honest financial/emotional caveat, then re-evaluate which prior experience transfers, THEN present the standard plan blocks."
+      );
+    }
+    if (Array.isArray(state.planBlocks) && state.planBlocks.length > 0) {
+      const nextBlock = state.planBlocks.find((b) => !b.confirmed) ?? null;
+      const totalConfirmed = state.planBlocks.filter((b) => b.confirmed).length;
+      lines.push(`Plan block progress: ${totalConfirmed}/${state.planBlocks.length} confirmed`);
+      if (nextBlock) {
+        lines.push(
+          `Next plan block to present: [${nextBlock.id}] ${nextBlock.label} — ${nextBlock.content}`
+        );
+        lines.push(
+          "Present ONLY this block this turn. End by asking the user to confirm or adjust it before moving on."
+        );
+      } else {
+        lines.push(
+          "All plan blocks confirmed — offer the export / PDF report as the final step."
+        );
+      }
+    }
   }
 
   return lines.length > 0 ? lines.join("\n") : "(no cross-phase context)";
@@ -87,9 +114,18 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
     if (state.isReturningUser) {
       const priorSummary = (state.priorSessionSummary ?? "").trim();
       const roleNote = state.targetRole ? ` We last discussed your interest in ${state.targetRole}.` : "";
-      const summaryLine = priorSummary
-        ? ` Here's a quick recap of where we left off:\n${priorSummary}\n`
-        : "";
+      // C3: if we have multi-session episodic memory, lead with the most
+      // recent episodic summary (short) and note how many earlier sessions
+      // we also have on file. Fall back to the single priorSessionSummary.
+      const episodic = (state.priorEpisodicSummaries ?? []).filter((s) => s && s.trim().length > 0);
+      let summaryLine = "";
+      if (episodic.length > 0) {
+        const mostRecent = episodic[0].trim();
+        const extra = episodic.length > 1 ? ` (plus ${episodic.length - 1} earlier session${episodic.length - 1 === 1 ? "" : "s"} on file)` : "";
+        summaryLine = ` Here's a quick recap of our most recent session${extra}:\n${mostRecent}\n`;
+      } else if (priorSummary) {
+        summaryLine = ` Here's a quick recap of where we left off:\n${priorSummary}\n`;
+      }
       const resumePrompt = " Would you like to resume from that point, or start a fresh conversation?";
       const welcome = `Welcome back!${roleNote}${summaryLine}${resumePrompt}`;
       return {
