@@ -121,7 +121,7 @@ it decides **whether** a tool runs and how the result is merged into state;
 the tool-executor owns **how** the call is made and which Skill 8 error code
 it surfaces on failure.
 
-- Current registered tools: `retrieve_skills_for_role`.
+- Current registered tools: `retrieve_skills_for_role`, `web_search`, `find_courses`, `get_wage_data`, `get_job_counts`. BLS wage data and USAJOBS job counts MUST be fetched via `runTool("get_wage_data", …)` / `runTool("get_job_counts", …)`; do not import the service helpers directly from nodes (C4).
 - Tool failures NEVER abort the turn — they return `{ ok: false, errorCode }`
   and the orchestrator continues with whatever data it already has.
 - New tools must be added to the `ToolName` union in `tool-executor.ts` and,

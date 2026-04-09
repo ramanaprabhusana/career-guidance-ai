@@ -17,8 +17,11 @@ export function categorizeSkillType(skillName: string): SkillType {
   return SOFT_SKILLS.has(skillName.toLowerCase().trim()) ? "soft" : "technical";
 }
 import { getSkillsForRole as liveOnetSkills } from "../services/onet.js";
-import { getWageData } from "../services/bls.js";
-import { searchJobs } from "../services/usajobs.js";
+// C4: BLS wage data + USAJOBS counts are now routed through the Skill 6 tool
+// dispatcher so error classification and recovery stay consistent. The service
+// helpers are imported by `tool-executor.ts` directly; `enrichRoleContext`
+// below dispatches via `runTool` instead of calling them inline.
+import { runTool } from "../nodes/tool-executor.js";
 
 interface OccupationProfile {
   soc_code: string;
@@ -229,21 +232,20 @@ async function getLiveMarketData(targetRole: string): Promise<{
       growth_rate: "N/A",
     };
 
-    // Try BLS wage data
-    if (process.env.BLS_API_KEY) {
-      try {
-        const wageData = await getWageData(onetResult.socCode);
-        if (wageData.medianWage) result.median_wage = `$${Number(wageData.medianWage).toLocaleString()}/yr`;
-        if (wageData.employment) result.employment = `${Number(wageData.employment).toLocaleString()} employed`;
-      } catch { /* BLS unavailable */ }
+    // C4: dispatch BLS wage + USAJOBS counts through the Skill 6 tool executor
+    // instead of calling the service helpers inline. The dispatcher handles
+    // missing env vars and error classification uniformly.
+    const wageResult = await runTool({ name: "get_wage_data", args: { socCode: onetResult.socCode } });
+    if (wageResult.ok && wageResult.data) {
+      const wageData = wageResult.data as { medianWage: string | null; employment: string | null };
+      if (wageData.medianWage) result.median_wage = `$${Number(wageData.medianWage).toLocaleString()}/yr`;
+      if (wageData.employment) result.employment = `${Number(wageData.employment).toLocaleString()} employed`;
     }
 
-    // Try USAJOBS count
-    if (process.env.USAJOBS_API_KEY) {
-      try {
-        const jobs = await searchJobs(targetRole, 1);
-        result.usajobs_count = jobs.length > 0 ? jobs.length : 0;
-      } catch { /* USAJOBS unavailable */ }
+    const jobsResult = await runTool({ name: "get_job_counts", args: { keyword: targetRole } });
+    if (jobsResult.ok && jobsResult.data) {
+      const jobData = jobsResult.data as { count: number };
+      result.usajobs_count = jobData.count;
     }
 
     console.log(`[RAG] Live market data for ${onetResult.title}: wage=${result.median_wage}`);
