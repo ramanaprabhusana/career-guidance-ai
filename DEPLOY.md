@@ -50,4 +50,24 @@ Render will redeploy if auto-deploy is on. Otherwise use **Manual Deploy → Dep
 
 Optional: connect the repo to Render Blueprint and use `render.yaml`. Sync **secret** vars in the dashboard (`sync: false` placeholders).
 
+## 7. Keep warm on free tier (P8)
+
+Render's **free** plan spins the service down after ~15 minutes of inactivity. The next visitor pays the full cold start (even with the P1 multi-stage image, that's still ~5–8 s). For demo / review sessions, add one external ping:
+
+- **cron-job.org** (free): create a job that GETs `https://career-guidance-ai.onrender.com/api/health` every **14 minutes**.
+- **UptimeRobot** (free, alt): HTTP monitor against the same URL at 5 min interval.
+
+Verify in Render logs that the pings arrive and return `{"ok": true}`. Remove the ping if you upgrade to a paid plan (which keeps the service hot by default).
+
+## 8. Performance notes
+
+Latest cold-start + per-turn pass (commit `perf:`):
+- Multi-stage Docker build — `node dist/server.js` replaces `npx tsx src/server.ts` at runtime (~7 s off cold start).
+- Prompt template + skill file in-memory cache (~40 ms off every turn).
+- Async session writes — `/api/chat` responds before the JSON lands on disk (~50–200 ms).
+- Summarizer routed via conditional edge — only runs when history + turn cadence trigger it.
+- RAG embeddings warmed via `setImmediate` after `app.listen`.
+- BLS wage + USAJOBS count calls parallelized (~1–2 s off role-targeting turns).
+- Small LRU (50 entries) on query embeddings.
+
 After each architecture or deploy change, record date, time, and version in your technical changelog if you maintain one.

@@ -39,6 +39,24 @@ let cachedChunks: string[] | null = null;
 let cachedEmbeddings: number[][] | null = null;
 let cachedOccupations: OccupationProfile[] | null = null;
 
+// P7: tiny LRU for query embeddings. Same query string (e.g. a target role
+// repeated across retrieval calls in one turn) reuses the vector instead of
+// re-issuing a ~500 ms HTTP round-trip to the embedding service.
+const EMBED_CACHE_MAX = 50;
+const embedCache = new Map<string, number[]>();
+
+/**
+ * P6: warm caches at boot so the first role-targeting turn doesn't pay the
+ * 759 KB `data/embeddings.json` parse cost inside the request path.
+ */
+export function warmup(): void {
+  try {
+    loadData();
+  } catch (e) {
+    console.warn("[RAG] warmup failed:", (e as Error).message);
+  }
+}
+
 function loadData(): void {
   if (cachedChunks) return;
 
@@ -73,6 +91,17 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 async function embedQuery(query: string): Promise<number[]> {
+  // P7: LRU hit path. Normalize whitespace so minor formatting differences
+  // still collide.
+  const key = query.trim().toLowerCase();
+  const hit = embedCache.get(key);
+  if (hit) {
+    // Re-insert to mark as most recently used (Map preserves insertion order).
+    embedCache.delete(key);
+    embedCache.set(key, hit);
+    return hit;
+  }
+
   const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
   const response = await fetch(`${ollamaUrl}/api/embeddings`, {
     method: "POST",
@@ -85,6 +114,12 @@ async function embedQuery(query: string): Promise<number[]> {
   }
 
   const data = (await response.json()) as { embedding: number[] };
+  embedCache.set(key, data.embedding);
+  if (embedCache.size > EMBED_CACHE_MAX) {
+    // Evict oldest (first inserted) entry.
+    const oldest = embedCache.keys().next().value;
+    if (oldest !== undefined) embedCache.delete(oldest);
+  }
   return data.embedding;
 }
 
@@ -235,14 +270,17 @@ async function getLiveMarketData(targetRole: string): Promise<{
     // C4: dispatch BLS wage + USAJOBS counts through the Skill 6 tool executor
     // instead of calling the service helpers inline. The dispatcher handles
     // missing env vars and error classification uniformly.
-    const wageResult = await runTool({ name: "get_wage_data", args: { socCode: onetResult.socCode } });
+    // P2: the two calls are independent after the O*NET SOC lookup, so run
+    // them in parallel. Saves ~1–2 s on role-targeting turns.
+    const [wageResult, jobsResult] = await Promise.all([
+      runTool({ name: "get_wage_data", args: { socCode: onetResult.socCode } }),
+      runTool({ name: "get_job_counts", args: { keyword: targetRole } }),
+    ]);
     if (wageResult.ok && wageResult.data) {
       const wageData = wageResult.data as { medianWage: string | null; employment: string | null };
       if (wageData.medianWage) result.median_wage = `$${Number(wageData.medianWage).toLocaleString()}/yr`;
       if (wageData.employment) result.employment = `${Number(wageData.employment).toLocaleString()} employed`;
     }
-
-    const jobsResult = await runTool({ name: "get_job_counts", args: { keyword: targetRole } });
     if (jobsResult.ok && jobsResult.data) {
       const jobData = jobsResult.data as { count: number };
       result.usajobs_count = jobData.count;

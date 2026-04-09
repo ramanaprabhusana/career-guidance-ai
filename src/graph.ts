@@ -6,7 +6,7 @@ import { analyzer } from "./nodes/analyzer.js";
 import { stateUpdater } from "./nodes/state-updater.js";
 import { speakerPromptCreator } from "./nodes/speaker-prompt-creator.js";
 import { speaker } from "./nodes/speaker.js";
-import { summarizerNode } from "./nodes/summarizer-node.js";
+import { summarizerNode, shouldSummarize } from "./nodes/summarizer-node.js";
 
 function routeAfterAnalyzer(state: AgentStateType): string {
   // If the analyzer suggests a phase change and we haven't exceeded redirect limit
@@ -47,8 +47,11 @@ export function buildGraph() {
     // Speaker prompt creator → speaker
     .addEdge("speakerPromptCreator", "speaker")
 
-    // Speaker → summarizer (Skill 7, threshold-gated) → end
-    .addEdge("speaker", "summarizer")
+    // Speaker → conditional: summarizer only when threshold met, else END (P5).
+    .addConditionalEdges("speaker", shouldSummarize, {
+      yes: "summarizer",
+      no: END,
+    })
     .addEdge("summarizer", END);
 
   return graph.compile();

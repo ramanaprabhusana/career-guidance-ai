@@ -3,7 +3,8 @@ import cors from "cors";
 import compression from "compression";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, existsSync, mkdirSync } from "fs";
+import { writeFile } from "fs/promises";
 import { v4 as uuidv4 } from "uuid";
 import { buildGraph } from "./graph.js";
 import { config } from "./config.js";
@@ -12,7 +13,7 @@ import { generateHTMLReport } from "./report/html-generator.js";
 import { buildEvidencePack, writeEvidencePackFile } from "./report/evidence-pack.js";
 import { searchOccupations } from "./services/onet.js";
 import type { AgentStateType, ProgressItem } from "./state.js";
-import { categorizeSkillType } from "./utils/rag.js";
+import { categorizeSkillType, warmup as warmupRag } from "./utils/rag.js";
 import { openProfileDb, getProfilePayload, upsertProfilePayload, appendEpisodicSummary, listRecentEpisodic } from "./db/profile-db.js";
 import { parseResumeText } from "./services/resume-parser.js";
 
@@ -55,12 +56,12 @@ try {
 }
 
 function saveSession(id: string, state: AgentStateType): void {
+  // In-memory is the source of truth for the current request path. Disk
+  // writes are async (P4) so /api/chat can return before the JSON lands.
   sessions.set(id, state);
-  try {
-    writeFileSync(join(SESSION_DIR, `${id}.json`), JSON.stringify(state));
-  } catch (e) {
+  void writeFile(join(SESSION_DIR, `${id}.json`), JSON.stringify(state)).catch((e) => {
     console.warn("Failed to persist session:", (e as Error).message);
-  }
+  });
 }
 
 function migrateSession(state: any): AgentStateType {
@@ -693,4 +694,15 @@ app.listen(PORT, () => {
   console.log(`  BLS API: ${process.env.BLS_API_KEY ? "configured" : "not set"}`);
   console.log(`  USAJOBS API: ${process.env.USAJOBS_API_KEY ? "configured" : "not set"}`);
   console.log(`  Press Ctrl+C to stop\n`);
+
+  // P6: warm RAG caches (embeddings.json parse, occupations.json load) out of
+  // band so the first role-targeting turn doesn't eat the ~500–1000 ms parse
+  // cost inside the request path.
+  setImmediate(() => {
+    try {
+      warmupRag();
+    } catch (e) {
+      console.warn("RAG warmup failed:", (e as Error).message);
+    }
+  });
 });
