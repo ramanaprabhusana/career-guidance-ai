@@ -61,6 +61,26 @@ Collect the user's professional background: job title, industry, experience leve
   - User says: "I'm thinking about switching careers" → Extract: "explore_options", confidence: 0.7
 - **Do NOT extract if:** Truly ambiguous — ask a clarifying question
 
+### location (optional)
+- **What to look for:** Where the user lives or wants to work. City, region, state, country, or "remote".
+- **Type:** string
+- **Interpretation:** Extract the shortest unambiguous form ("Boston", "Bay Area", "remote", "NYC metro"). Do NOT invent a location from context (e.g., company HQ).
+- **Examples:**
+  - User says: "I'm based in Chicago" → Extract: "Chicago"
+  - User says: "I'm open to remote roles" → Extract: "remote"
+  - User says: "moving to Austin next year" → Extract: "Austin"
+- **Do NOT extract if:** User only mentions a country of origin without a work-location signal.
+
+### preferred_timeline (optional)
+- **What to look for:** The user's stated horizon for a career transition. Months, quarters, years, or an explicit "undecided".
+- **Type:** string
+- **Interpretation:** Keep the user's phrasing when short ("6 months", "1 year", "ASAP", "no rush"). Normalize obvious paraphrases ("half a year" → "6 months").
+- **Examples:**
+  - User says: "I'd like to make the move within a year" → Extract: "1 year"
+  - User says: "no rush, maybe 2–3 years out" → Extract: "2-3 years"
+  - User says: "I need something soon" → Extract: "ASAP"
+- **Do NOT extract if:** The user only mentions age / how long they've been in their current role without stating a transition horizon.
+
 ### target_role (optional)
 - **What to look for:** A specific role the user wants to transition to or pursue
 - **Type:** string

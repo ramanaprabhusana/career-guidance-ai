@@ -41,6 +41,22 @@
         "default": null,
         "display_name": "Session Goal",
         "description": "Whether the user wants to explore career options broadly or pursue a specific target role."
+      },
+      "location": {
+        "type": "string",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Location",
+        "description": "City / region / remote preference. Plan calls for explicit location capture so downstream research can filter regional wage and job-count signals. (C1)"
+      },
+      "preferred_timeline": {
+        "type": "string",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Preferred Timeline",
+        "description": "User-stated transition horizon — months, quarters, or 'undecided'. Feeds the planning timeline without being overwritten by it. (C1)"
       }
     },
     "exploration_career": {
