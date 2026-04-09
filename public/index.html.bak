@@ -1,0 +1,2859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Career Guidance Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0A66C2;
+      --primary-light: #378FE9;
+      --primary-dark: #004182;
+      --primary-bg: rgba(10, 102, 194, 0.08);
+      --accent: #E16745;
+      --accent-light: #FF8A65;
+      --success: #2E7D32;
+      --success-light: #4CAF50;
+      --success-bg: rgba(76, 175, 80, 0.1);
+      --warning: #ED6C02;
+      --warning-bg: rgba(237, 108, 2, 0.1);
+      --gap-red: #D32F2F;
+      --gap-red-bg: rgba(211, 47, 47, 0.08);
+      --bg: #F3F2EF;
+      --bg-white: #FFFFFF;
+      --bg-warm: #FFF8F0;
+      --text: #191919;
+      --text-secondary: #666666;
+      --text-muted: #767676;
+      --border: #E0E0E0;
+      --border-light: #EBEBEB;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+      --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+      --radius: 12px;
+      --radius-lg: 16px;
+      --bg-section: #FAFAFA;
+      --trust-bg: rgba(10, 102, 194, 0.04);
+      --card-hover-border: var(--primary-light);
+      --space-section: 56px;
+      --space-card-gap: 20px;
+      --space-inner: 24px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ========== FOCUS-VISIBLE GLOBAL ========== */
+    *:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+    *:focus:not(:focus-visible) {
+      outline: none;
+    }
+    .start-cta:focus-visible {
+      box-shadow: 0 0 0 3px var(--primary-bg);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ========== SIDEBAR ========== */
+    .sidebar {
+      width: 260px;
+      background: var(--bg-white);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 18px;
+    }
+
+    .sidebar-logo h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+
+    .sidebar-logo-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: 46px;
+      margin-top: -2px;
+    }
+
+    /* Nav Items */
+    .sidebar-nav {
+      padding: 12px 8px;
+      flex: 1;
+    }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      padding: 12px 12px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .nav-item:hover { background: var(--bg); color: var(--text); }
+    .nav-item.active { background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+
+    .nav-item-icon {
+      width: 20px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      background: var(--primary);
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    /* Progress Card */
+    .sidebar-progress {
+      padding: 16px;
+      margin: 0 12px 12px;
+      background: linear-gradient(135deg, var(--primary), #1B4F9B);
+      border-radius: var(--radius);
+      color: white;
+    }
+
+    .progress-title {
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0.85;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar-container {
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+      height: 6px;
+      margin-bottom: 6px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: white;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .progress-label {
+      font-size: 11px;
+      opacity: 0.75;
+    }
+
+    /* Data Sources */
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .data-sources-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .data-source {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .data-source-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--success-light);
+    }
+
+    /* ========== MAIN AREA ========== */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    /* Top bar */
+    .topbar {
+      background: var(--bg-white);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .topbar-phase {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .phase-step {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .phase-step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.35s;
+    }
+
+    .phase-step-num.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+
+    .phase-step-num.completed {
+      border-color: var(--success-light);
+      background: var(--success-light);
+      color: white;
+    }
+
+    .phase-step-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      transition: color 0.3s;
+    }
+
+    .phase-step.active .phase-step-text { color: var(--primary); font-weight: 600; }
+    .phase-step.completed .phase-step-text { color: var(--success); }
+
+    .phase-line {
+      width: 32px;
+      height: 2px;
+      background: var(--border);
+      transition: background 0.4s;
+    }
+
+    .phase-line.completed { background: var(--success-light); }
+
+    .topbar-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+    .btn-outline:hover { background: var(--primary-bg); }
+    .btn-success { background: var(--success-light); color: white; }
+    .btn-success:hover { background: var(--success); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn svg { width: 16px; height: 16px; }
+
+    /* ========== CHAT AREA ========== */
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .chat-area::-webkit-scrollbar { width: 5px; }
+    .chat-area::-webkit-scrollbar-track { background: transparent; }
+    .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Messages */
+    .msg {
+      display: flex;
+      gap: 12px;
+      max-width: 680px;
+      animation: msgSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes msgSlide {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg.bot { align-self: flex-start; }
+
+    .msg-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+      font-weight: 600;
+    }
+
+    .msg.bot .msg-avatar {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white;
+    }
+
+    .msg.user .msg-avatar {
+      background: var(--accent);
+      color: white;
+    }
+
+    .msg-body { display: flex; flex-direction: column; gap: 3px; }
+
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 2px;
+    }
+
+    .msg-sender { font-size: 12px; font-weight: 600; color: var(--text); }
+    .msg-time { font-size: 11px; color: var(--text-muted); }
+    .msg.user .msg-meta { flex-direction: row-reverse; }
+
+    .msg-bubble {
+      padding: 14px 18px;
+      border-radius: var(--radius-lg);
+      line-height: 1.65;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.bot .msg-bubble {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-top-left-radius: 4px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .msg.user .msg-bubble {
+      background: var(--primary);
+      color: white;
+      border-top-right-radius: 4px;
+    }
+
+    /* Suggested Replies */
+    .suggestions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 4px 0 4px 48px;
+      animation: msgSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .suggestion-chip {
+      padding: 8px 14px;
+      background: var(--bg-white);
+      border: 1.5px solid var(--primary);
+      color: var(--primary);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .suggestion-chip:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Typing */
+    .typing-dots {
+      display: flex;
+      gap: 4px;
+      padding: 6px 0;
+      align-items: center;
+    }
+
+    .typing-dots span {
+      width: 7px;
+      height: 7px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      animation: dotPulse 1.4s infinite ease-in-out;
+    }
+
+    .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes dotPulse {
+      0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ========== INPUT AREA ========== */
+    .input-bar {
+      padding: 16px 24px;
+      background: var(--bg-white);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .input-wrap {
+      flex: 1;
+      background: var(--bg);
+      border-radius: 24px;
+      border: 1.5px solid var(--border);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      display: flex;
+      align-items: flex-end;
+      padding: 4px 6px;
+    }
+
+    .input-wrap:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-bg);
+    }
+
+    #msgInput {
+      flex: 1;
+      padding: 10px 12px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      resize: none;
+      max-height: 100px;
+      line-height: 1.5;
+    }
+
+    #msgInput::placeholder { color: var(--text-muted); }
+
+    .send-btn {
+      width: 42px;
+      height: 42px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .send-btn:hover { background: var(--primary-dark); }
+    .send-btn:active { transform: scale(0.93); }
+    .send-btn:disabled { background: var(--border); cursor: not-allowed; }
+    .send-btn svg { width: 18px; height: 18px; }
+
+    .input-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      padding-top: 6px;
+    }
+
+    /* ========== WELCOME ========== */
+    .welcome {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 40px;
+      text-align: center;
+      animation: fadeUp 0.5s ease;
+      overflow-y: auto;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .welcome-hero {
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(10, 102, 194, 0.2);
+    }
+
+    .welcome h2 {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.8px;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .welcome > p {
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.6;
+      max-width: 460px;
+      margin-bottom: 32px;
+    }
+
+    .features-row {
+      display: flex;
+      gap: var(--space-card-gap);
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .feat-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-inner);
+      width: 210px;
+      text-align: left;
+      transition: all 0.2s;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .feat-card:hover { border-color: var(--card-hover-border); transform: translateY(-4px); box-shadow: var(--shadow-md); }
+
+    .feat-card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 12px;
+    }
+
+    .feat-card:nth-child(1) .feat-card-icon { background: var(--primary-bg); }
+    .feat-card:nth-child(2) .feat-card-icon { background: var(--warning-bg); }
+    .feat-card:nth-child(3) .feat-card-icon { background: var(--success-bg); }
+    .feat-card:nth-child(4) .feat-card-icon { background: var(--gap-red-bg); }
+
+    .feat-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .feat-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+    .start-cta {
+      padding: 14px 36px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 24px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(10, 102, 194, 0.3);
+    }
+
+    .start-cta:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(10, 102, 194, 0.35); }
+
+    .welcome-note {
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .welcome-note a { color: var(--primary); text-decoration: none; }
+
+    /* ========== PRIVACY BANNER ========== */
+    .privacy-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--success-bg);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--success);
+      margin-bottom: 12px;
+      align-self: center;
+      animation: msgSlide 0.3s ease;
+    }
+
+    .privacy-banner svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* ========== TOAST ========== */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: var(--text);
+      color: white;
+      padding: 10px 22px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ========== SKIP LINK ========== */
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      background: var(--primary);
+      color: white;
+      padding: 8px 16px;
+      z-index: 200;
+      font-size: 13px;
+      border-radius: 0 0 8px 0;
+    }
+    .skip-link:focus { left: 0; }
+
+    /* ========== SESSION STATS BAR ========== */
+    .stats-bar {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border-light);
+      padding: 6px 24px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: none;
+      align-items: center;
+      gap: 16px;
+    }
+    .stats-bar.visible { display: flex; }
+    .stats-bar .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .stats-bar .stat-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    /* ========== BOT MESSAGE LEFT BORDER ========== */
+    .msg.bot .msg-bubble {
+      border-left: 3px solid var(--primary-light);
+    }
+
+    /* ========== SCROLL TO BOTTOM ========== */
+    .scroll-bottom-btn {
+      position: sticky;
+      bottom: 16px;
+      align-self: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+      z-index: 10;
+      transition: all 0.2s;
+    }
+    .scroll-bottom-btn:hover { background: var(--primary-dark); transform: scale(1.1); }
+    .scroll-bottom-btn svg { width: 20px; height: 20px; }
+
+    /* ========== KEYBOARD HINT ========== */
+    .kb-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      padding-top: 4px;
+      transition: opacity 1s ease;
+    }
+    .kb-hint.hidden { opacity: 0; pointer-events: none; }
+
+    /* ========== HOW IT WORKS ========== */
+    .how-it-works {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 0;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .how-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      flex: 1;
+      padding: 12px 8px;
+    }
+    .how-step-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .how-step h4 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .how-step p { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+    .how-arrow {
+      color: var(--primary);
+      font-size: 18px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: -20px;
+    }
+
+    /* ========== TRUST BAR ========== */
+    .trust-bar {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      align-items: stretch;
+      background: var(--trust-bg);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 20px 32px;
+      margin-bottom: var(--space-section);
+      max-width: 560px;
+      width: 100%;
+    }
+    .trust-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      flex: 1;
+      gap: 4px;
+    }
+    .trust-stat-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+    .trust-stat-icon.blue { background: var(--primary-bg); }
+    .trust-stat-icon.green { background: var(--success-bg); }
+    .trust-stat-icon.orange { background: var(--warning-bg); }
+    .trust-stat-number {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+    .trust-stat-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* ========== SECTION TITLE ========== */
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text);
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    /* ========== LANDING SECTIONS ========== */
+    .landing-section {
+      width: 100%;
+      max-width: 740px;
+      padding-top: var(--space-section);
+    }
+    .landing-section--alt {
+      background: var(--bg-section);
+      border-radius: var(--radius-lg);
+      padding: var(--space-section) 32px 40px;
+      margin-left: -32px;
+      margin-right: -32px;
+      max-width: calc(740px + 64px);
+    }
+
+    /* ========== DATA SOURCES SECTION ========== */
+    .data-sources-section {
+      display: flex;
+      gap: var(--space-card-gap);
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .ds-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-inner);
+      width: 210px;
+      text-align: left;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s;
+    }
+    .ds-card:hover { border-color: var(--card-hover-border); transform: translateY(-4px); box-shadow: var(--shadow-md); }
+    .ds-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .ds-card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+    .ds-card-dot.green { background: var(--success-light); }
+    .ds-card-dot.yellow { background: var(--warning); }
+    .ds-card-dot.red { background: var(--gap-red); }
+    .ds-card h4 { font-size: 13px; font-weight: 600; }
+    .ds-card p { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+
+    /* ========== TECH STACK BADGES ========== */
+    .tech-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .tech-badge {
+      padding: 4px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* ========== PROJECT FOOTER ========== */
+    .project-footer {
+      width: 100%;
+      max-width: 740px;
+      border-top: 1px solid var(--border-light);
+      padding-top: 24px;
+      margin-top: var(--space-section);
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.8;
+      text-align: center;
+    }
+
+    /* ========== HERO DUAL CTA ========== */
+    .hero-cta-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .secondary-cta {
+      display: inline-block;
+      padding: 12px 24px;
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .secondary-cta:hover {
+      border-color: var(--primary-light);
+      color: var(--primary);
+      background: var(--primary-bg);
+    }
+
+    /* ========== FAQ / LIMITATIONS ========== */
+    .faq-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-card-gap);
+      max-width: 680px;
+      margin: 0 auto;
+      text-align: left;
+    }
+    .faq-item {
+      padding: var(--space-inner);
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+    .faq-item h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .faq-item p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    /* ========== AI DISCLAIMER ========== */
+    .disclaimer-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      background: var(--warning-bg);
+      border: 1px solid rgba(237, 108, 2, 0.2);
+      border-radius: var(--radius);
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      text-align: left;
+    }
+    .disclaimer-icon {
+      font-size: 22px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .disclaimer-text { margin: 0; }
+
+    /* ========== 2-COL FOOTER ========== */
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 32px;
+      text-align: left;
+    }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .footer-logo-icon { font-size: 20px; }
+    .footer-col p { margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .footer-col h4 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .footer-links {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px 0;
+    }
+    .footer-links li { margin-bottom: 4px; }
+    .footer-links a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 12px;
+    }
+    .footer-links a:hover { text-decoration: underline; }
+    .footer-legal { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+    .footer-bottom {
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-light);
+      font-size: 11px;
+    }
+
+    /* ========== FEATURE CARD BADGES ========== */
+    .feat-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+    .feat-badge.blue { background: var(--primary-bg); color: var(--primary); }
+    .feat-badge.orange { background: var(--warning-bg); color: var(--warning); }
+    .feat-badge.green { background: var(--success-bg); color: var(--success); }
+    .feat-badge.red { background: var(--gap-red-bg); color: var(--gap-red); }
+
+    /* ========== EXPORT COMPLETION CARD ========== */
+    .completion-card {
+      background: var(--bg-white);
+      border: 2px solid var(--success-light);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      text-align: center;
+      max-width: 480px;
+      align-self: center;
+      animation: msgSlide 0.4s ease;
+      box-shadow: var(--shadow-md);
+    }
+    .completion-card h3 { font-size: 18px; font-weight: 700; color: var(--success); margin-bottom: 8px; }
+    .completion-card .summary { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+    .completion-card .card-btns { display: flex; gap: 10px; justify-content: center; margin-bottom: 12px; }
+    .completion-card .privacy-note { font-size: 11px; color: var(--text-muted); }
+
+    /* ========== SIDEBAR COMING SOON ========== */
+    .nav-item.coming-soon {
+      opacity: 0.65;
+      cursor: default;
+      position: relative;
+    }
+    .nav-item.coming-soon .nav-item-icon { filter: grayscale(0.6); }
+    .nav-item.coming-soon:hover {
+      background: var(--bg);
+      color: var(--text-secondary);
+    }
+    .nav-soon-badge {
+      margin-left: auto;
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 8px;
+      background: var(--primary-bg);
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    /* Coming Soon Tooltip */
+    .nav-soon-tooltip {
+      display: none;
+      position: absolute;
+      left: calc(100% + 8px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--text);
+      color: white;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      line-height: 1.5;
+      width: 220px;
+      box-shadow: var(--shadow-lg);
+      z-index: 50;
+      pointer-events: none;
+    }
+    .nav-soon-tooltip::before {
+      content: '';
+      position: absolute;
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 6px solid transparent;
+      border-right-color: var(--text);
+    }
+    .nav-item.coming-soon:hover .nav-soon-tooltip,
+    .nav-item.coming-soon:focus-within .nav-soon-tooltip {
+      display: block;
+    }
+    .nav-soon-tooltip strong {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 3px;
+      font-size: 12px;
+    }
+    .nav-soon-tooltip .tooltip-cta {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary-light);
+    }
+
+    /* ========== PHASE STEP PULSE ========== */
+    @keyframes stepPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(10, 102, 194, 0.3); }
+      50% { box-shadow: 0 0 0 6px rgba(10, 102, 194, 0); }
+    }
+    .phase-step-num.active { animation: stepPulse 2s infinite; }
+
+    /* ========== EXPORT SPINNER ========== */
+    .btn-exporting::after {
+      content: '';
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-left: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ========== MARKDOWN IN BOT MESSAGES ========== */
+    .msg-bubble ul, .msg-bubble ol { margin: 6px 0 6px 18px; }
+    .msg-bubble li { margin-bottom: 2px; }
+    .msg-bubble strong { font-weight: 600; }
+
+    /* ========== VIEW PANELS (Dashboard, Explore, Resources) ========== */
+    .view-panel {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 28px;
+      animation: fadeUp 0.3s ease;
+    }
+    .view-panel.active { display: block; }
+    .view-panel-header {
+      margin-bottom: 24px;
+    }
+    .view-panel-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .view-panel-header p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-secondary);
+    }
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.6;
+    }
+    .empty-state h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .empty-state p {
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 400px;
+      margin: 0 auto 20px;
+    }
+    .empty-state .btn { margin: 0 auto; }
+
+    /* ---- Skills Dashboard ---- */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .metric-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+    .metric-card .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: -0.5px;
+    }
+    .metric-card .metric-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    .metric-card.warning .metric-value { color: var(--warning); }
+    .metric-card.danger .metric-value { color: var(--gap-red); }
+
+    .skills-table-wrap {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .skills-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .skills-table thead { background: var(--bg); }
+    .skills-table th {
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .skills-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-light);
+      color: var(--text);
+    }
+    .skills-table tr:last-child td { border-bottom: none; }
+    .skills-table tr:hover { background: var(--bg); }
+    .gap-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .gap-badge.absent { background: var(--gap-red-bg); color: var(--gap-red); }
+    .gap-badge.underdeveloped { background: var(--warning-bg); color: var(--warning); }
+    .gap-badge.adequate { background: var(--success-bg); color: var(--success); }
+    .gap-badge.strong { background: var(--primary-bg); color: var(--primary); }
+
+    .top-gaps-section {
+      margin-top: 24px;
+    }
+    .top-gaps-section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .gap-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--gap-red);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .gap-card .gap-skill { font-weight: 600; }
+    .gap-card .gap-detail { color: var(--text-secondary); font-size: 12px; }
+
+    /* ---- Explore Careers ---- */
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .search-bar input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--bg-white);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-bar input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-bg); }
+    .search-bar input::placeholder { color: var(--text-muted); }
+
+    .career-results {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .career-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.15s;
+    }
+    .career-card:hover { border-color: var(--card-hover-border); box-shadow: var(--shadow-md); }
+    .career-card-info h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .career-card-info .career-code {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: monospace;
+      margin-bottom: 4px;
+    }
+    .career-card-info p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .career-card-actions {
+      flex-shrink: 0;
+    }
+    .source-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-top: 6px;
+    }
+    .source-tag.live { background: var(--success-bg); color: var(--success); }
+    .source-tag.cache { background: var(--warning-bg); color: var(--warning); }
+    .results-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* ---- Resources ---- */
+    .resource-filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .filter-chip {
+      padding: 6px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      background: var(--bg-white);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-chip:hover { border-color: var(--primary-light); color: var(--primary); }
+    .filter-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .resource-group-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 24px 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .resource-group-title:first-of-type { margin-top: 0; }
+    .resource-group-count {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+    .resource-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .resource-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+    }
+    .resource-card:hover { border-color: var(--card-hover-border); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .resource-card h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .resource-card .resource-source {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .resource-card p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      flex: 1;
+      margin-bottom: 12px;
+    }
+    .resource-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .resource-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .resource-tag {
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 500;
+      background: var(--bg);
+      color: var(--text-secondary);
+    }
+    .resource-type-badge {
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .resource-type-badge.free { background: var(--success-bg); color: var(--success); }
+    .resource-type-badge.paid { background: var(--warning-bg); color: var(--warning); }
+    .cert-badge {
+      font-size: 10px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .resource-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .resource-link:hover { text-decoration: underline; }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .features-row { flex-direction: column; align-items: center; }
+      .feat-card { width: 100%; max-width: 340px; }
+      .how-it-works { flex-direction: column; gap: 4px; }
+      .how-arrow { transform: rotate(90deg); margin-top: 0; }
+      .data-sources-section { flex-direction: column; align-items: center; }
+      .ds-card { width: 100%; max-width: 340px; }
+      .faq-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .metrics-row { grid-template-columns: 1fr; }
+      .resource-grid { grid-template-columns: 1fr; }
+      .view-panel { padding: 24px 16px; }
+      .trust-bar { gap: 16px; padding: 16px 20px; }
+      .trust-stat-number { font-size: 18px; }
+      .landing-section--alt { margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; }
+      .welcome { padding: 32px 20px; }
+    }
+
+    @media (max-width: 600px) {
+      .msg { max-width: 95%; }
+      .topbar { padding: 10px 16px; }
+      .phase-step-text { display: none; }
+      .phase-line { width: 16px; }
+      .chat-area { padding: 16px; }
+      .input-bar { padding: 12px 16px; }
+      .welcome h2 { font-size: 24px; }
+      .stats-bar { padding: 6px 16px; font-size: 11px; }
+      .trust-bar { flex-direction: row; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 12px; padding: 14px 16px; }
+      .trust-stat { min-width: 90px; }
+      .hero-cta-group { flex-direction: column; gap: 8px; }
+      .section-title { font-size: 18px; }
+      .landing-section { padding-top: 36px; }
+      .landing-section--alt { padding-top: 36px; padding-bottom: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#heroSection" class="skip-link">Skip to main content</a>
+  <a href="#msgInput" class="skip-link" style="left: -9999px;">Skip to chat input</a>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">&#x1F3AF;</div>
+        <h1>CareerGuide AI</h1>
+      </div>
+      <div class="sidebar-logo-sub">Intelligent Career Planning</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Navigation</div>
+      <div class="nav-item active" data-view="chat" onclick="switchView('chat')" tabindex="0" role="link" aria-label="Career Coach">
+        <span class="nav-item-icon">&#x1F4AC;</span> Career Coach
+      </div>
+      <div class="nav-item" data-view="dashboard" onclick="switchView('dashboard')" tabindex="0" role="link" aria-label="Skills Dashboard">
+        <span class="nav-item-icon">&#x1F4CA;</span> Skills Dashboard
+      </div>
+      <div class="nav-item" data-view="explore" onclick="switchView('explore')" tabindex="0" role="link" aria-label="Explore Careers">
+        <span class="nav-item-icon">&#x1F50D;</span> Explore Careers
+      </div>
+      <div class="nav-item" data-view="resources" onclick="switchView('resources')" tabindex="0" role="link" aria-label="Learning Resources">
+        <span class="nav-item-icon">&#x1F4DA;</span> Resources
+      </div>
+
+      <div class="nav-section-label" style="margin-top: 16px;">Tools</div>
+      <div class="nav-item" onclick="exportReport()">
+        <span class="nav-item-icon">&#x1F4C4;</span> Export Report
+      </div>
+    </nav>
+
+    <div class="sidebar-progress" id="sidebarProgress">
+      <div class="progress-title">Journey Progress</div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progressFill" style="width: 0%" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Session progress"></div>
+      </div>
+      <div class="progress-label" id="progressLabel">Getting started...</div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="data-sources-label">Data Sources</div>
+      <div class="data-source"><span class="data-source-dot" id="dotOnet"></span> O*NET - Skills & Occupations</div>
+      <div class="data-source"><span class="data-source-dot" id="dotBls"></span> BLS - Wage & Employment Data</div>
+      <div class="data-source"><span class="data-source-dot" id="dotUsajobs"></span> USAJOBS - Federal Positions</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- Top Bar -->
+    <div class="topbar">
+      <div class="topbar-phase" id="topbarPhase" role="group" aria-label="Session progress">
+        <div class="phase-step active" data-phase="orientation">
+          <div class="phase-step-num active" id="step1">1</div>
+          <span class="phase-step-text">Profile</span>
+        </div>
+        <div class="phase-line" id="line1"></div>
+        <div class="phase-step" data-phase="exploration">
+          <div class="phase-step-num" id="step2">2</div>
+          <span class="phase-step-text">Explore</span>
+        </div>
+        <div class="phase-line" id="line2"></div>
+        <div class="phase-step" data-phase="skills">
+          <div class="phase-step-num" id="step3">3</div>
+          <span class="phase-step-text">Skills</span>
+        </div>
+        <div class="phase-line" id="line3"></div>
+        <div class="phase-step" data-phase="planning">
+          <div class="phase-step-num" id="step4">4</div>
+          <span class="phase-step-text">Action Plan</span>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn btn-outline" id="exportBtnTop" onclick="exportReport()" aria-label="Export career plan report" title="Complete your session to export">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span id="exportBtnText">Export</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Session Stats Bar -->
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-item"><span class="stat-dot"></span> <span id="statTurn">Turn 0</span></div>
+      <div class="stat-item"><span id="statPhase">Phase: Profile</span></div>
+      <div class="stat-item" id="statSkillsWrap" style="display:none"><span id="statSkills">Skills: 0/0</span></div>
+    </div>
+
+    <!-- Chat / Welcome -->
+    <div class="chat-area" id="chatArea" aria-live="polite" aria-relevant="additions">
+      <div class="welcome" id="welcomeScreen">
+
+        <!-- HERO SECTION -->
+        <section id="heroSection" aria-labelledby="heroHeading">
+          <div class="welcome-hero">&#x1F3AF;</div>
+          <h2 id="heroHeading">Navigate Your Career With Real Data</h2>
+          <p>Explore 1,000+ occupations, assess your skills against O*NET benchmarks, and get a personalized action plan -- all through a guided conversation.</p>
+
+          <div class="hero-cta-group">
+            <button class="start-cta" onclick="startSession()">Start Your Career Journey</button>
+            <a href="#howItWorksHeading" class="secondary-cta" aria-label="See how it works">See How It Works &#x2193;</a>
+          </div>
+          <div class="welcome-note" style="margin-top: 16px; margin-bottom: 32px;">No account needed. Your conversation stays private.</div>
+        </section>
+
+        <!-- TRUST BAR -->
+        <div class="trust-bar" role="list" aria-label="Key statistics">
+          <div class="trust-stat" role="listitem">
+            <div class="trust-stat-icon blue">&#x1F4CA;</div>
+            <span class="trust-stat-number">1,000+</span>
+            <span class="trust-stat-label">Occupations in Database</span>
+          </div>
+          <div class="trust-stat" role="listitem">
+            <div class="trust-stat-icon green">&#x1F310;</div>
+            <span class="trust-stat-number">3</span>
+            <span class="trust-stat-label">Federal Data APIs</span>
+          </div>
+          <div class="trust-stat" role="listitem">
+            <div class="trust-stat-icon orange">&#x1F3AF;</div>
+            <span class="trust-stat-number">4-Phase</span>
+            <span class="trust-stat-label">Guided Coaching</span>
+          </div>
+        </div>
+
+        <!-- HOW IT WORKS -->
+        <section class="landing-section" aria-labelledby="howItWorksHeading">
+          <h3 class="section-title" id="howItWorksHeading">How It Works</h3>
+          <div class="how-it-works">
+            <div class="how-step">
+              <div class="how-step-num">1</div>
+              <h4>Tell Us About You</h4>
+              <p>Share your background, skills, and goals</p>
+            </div>
+            <div class="how-arrow">&#x2192;</div>
+            <div class="how-step">
+              <div class="how-step-num">2</div>
+              <h4>Explore Paths</h4>
+              <p>Discover careers that match your profile</p>
+            </div>
+            <div class="how-arrow">&#x2192;</div>
+            <div class="how-step">
+              <div class="how-step-num">3</div>
+              <h4>Assess the Gap</h4>
+              <p>See where your skills stand vs. requirements</p>
+            </div>
+            <div class="how-arrow">&#x2192;</div>
+            <div class="how-step">
+              <div class="how-step-num">4</div>
+              <h4>Get Your Plan</h4>
+              <p>Export a personalized career action plan</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- FEATURE CARDS -->
+        <section class="landing-section landing-section--alt" aria-labelledby="whatYouGetHeading">
+          <h3 class="section-title" id="whatYouGetHeading">What You Get</h3>
+          <div class="features-row">
+            <div class="feat-card" role="article">
+              <div class="feat-card-icon">&#x1F464;</div>
+              <h3>Build Your Profile</h3>
+              <p>Share your background through a natural conversation</p>
+              <span class="feat-badge blue">AI-Driven</span>
+            </div>
+            <div class="feat-card" role="article">
+              <div class="feat-card-icon">&#x1F50D;</div>
+              <h3>Discover Careers</h3>
+              <p>Explore paths matched to your interests and experience</p>
+              <span class="feat-badge orange">1,000+ Occupations</span>
+            </div>
+            <div class="feat-card" role="article">
+              <div class="feat-card-icon">&#x1F4CA;</div>
+              <h3>Assess Your Skills</h3>
+              <p>Compare your skills against real O*NET occupation data</p>
+              <span class="feat-badge green">Data-Powered</span>
+            </div>
+            <div class="feat-card" role="article">
+              <div class="feat-card-icon">&#x1F4CB;</div>
+              <h3>Get Your Plan</h3>
+              <p>Receive a timeline, next steps, and exportable PDF report</p>
+              <span class="feat-badge red">PDF Export</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- DATA SOURCES -->
+        <section class="landing-section" aria-labelledby="dataSourcesHeading">
+          <h3 class="section-title" id="dataSourcesHeading">Powered By Real Data</h3>
+          <div class="data-sources-section" id="dsSection">
+            <div class="ds-card" role="article">
+              <div class="ds-card-header">
+                <span class="ds-card-dot" id="dsDotOnet"></span>
+                <h4>O*NET</h4>
+              </div>
+              <p>Skills, knowledge, and task data for 1,000+ occupations from the U.S. Department of Labor</p>
+            </div>
+            <div class="ds-card" role="article">
+              <div class="ds-card-header">
+                <span class="ds-card-dot" id="dsDotBls"></span>
+                <h4>BLS</h4>
+              </div>
+              <p>Salary ranges, employment counts, and growth projections from the Bureau of Labor Statistics</p>
+            </div>
+            <div class="ds-card" role="article">
+              <div class="ds-card-header">
+                <span class="ds-card-dot" id="dsDotUsajobs"></span>
+                <h4>USAJOBS</h4>
+              </div>
+              <p>Federal job listings, requirements, and salary grades from the U.S. government jobs portal</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- FAQ / LIMITATIONS -->
+        <section class="landing-section landing-section--alt" aria-labelledby="faqHeading">
+          <h3 class="section-title" id="faqHeading">Good to Know</h3>
+          <div class="faq-grid">
+            <div class="faq-item" role="article">
+              <h4>Is this real career counseling?</h4>
+              <p>No. This tool provides data-driven suggestions based on federal labor databases. It does not replace professional career counseling.</p>
+            </div>
+            <div class="faq-item" role="article">
+              <h4>Where does the data come from?</h4>
+              <p>All occupation data comes from O*NET, salary data from the Bureau of Labor Statistics, and federal job listings from USAJOBS.</p>
+            </div>
+            <div class="faq-item" role="article">
+              <h4>Is my conversation saved?</h4>
+              <p>Conversations are stored temporarily during your session. No permanent account is created and no data is retained after you leave.</p>
+            </div>
+            <div class="faq-item" role="article">
+              <h4>What are the limitations?</h4>
+              <p>Data may lag behind real-time market changes. The AI can make mistakes. Skills matching uses standardized O*NET taxonomies which may not cover every niche role.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI DISCLAIMER -->
+        <section class="landing-section" aria-labelledby="disclaimerHeading">
+          <div class="disclaimer-box">
+            <span class="disclaimer-icon">&#x2139;&#xFE0F;</span>
+            <div>
+              <h3 id="disclaimerHeading" style="font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text);">Important Note</h3>
+              <p class="disclaimer-text">AI-generated career advice is informational only and does not constitute professional counseling. Always consult qualified career professionals for major career decisions. Data sourced from O*NET, BLS, and USAJOBS may not reflect the very latest labor market changes.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- BOTTOM CTA -->
+        <section class="landing-section" aria-labelledby="bottomCtaHeading" style="text-align: center;">
+          <h3 class="section-title" id="bottomCtaHeading">Ready to Explore Your Career Path?</h3>
+          <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Start a guided conversation backed by real labor market data.</p>
+          <button class="start-cta" onclick="startSession()">Start Your Career Journey</button>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="project-footer">
+          <div class="footer-grid">
+            <div class="footer-col">
+              <div class="footer-brand">
+                <span class="footer-logo-icon">&#x1F3AF;</span>
+                <strong>CareerGuide AI</strong>
+              </div>
+              <p>AI-powered career coaching backed by federal labor market data. Built for MGMT 59000 at Purdue University, Spring 2026.</p>
+              <div class="tech-badges">
+                <span class="tech-badge">LangGraph</span>
+                <span class="tech-badge">Gemini</span>
+                <span class="tech-badge">FAISS</span>
+                <span class="tech-badge">LangSmith</span>
+                <span class="tech-badge">TypeScript</span>
+              </div>
+            </div>
+            <div class="footer-col">
+              <h4>Data Sources</h4>
+              <ul class="footer-links">
+                <li><a href="https://www.onetonline.org/" target="_blank" rel="noopener">O*NET Online</a></li>
+                <li><a href="https://www.bls.gov/" target="_blank" rel="noopener">Bureau of Labor Statistics</a></li>
+                <li><a href="https://www.usajobs.gov/" target="_blank" rel="noopener">USAJOBS</a></li>
+              </ul>
+              <div class="footer-legal">
+                Your conversation stays private. No account required. No data stored permanently.
+              </div>
+            </div>
+          </div>
+          <div class="footer-bottom">
+            MGMT 59000 Final Project &middot; Purdue University &middot; Spring 2026
+          </div>
+        </footer>
+
+      </div>
+    </div>
+
+    <!-- ========== SKILLS DASHBOARD VIEW ========== -->
+    <div class="view-panel" id="viewDashboard" role="region" aria-label="Skills Dashboard">
+      <div class="view-panel-header">
+        <h2>Skills Dashboard</h2>
+        <p id="dashboardSubtitle">See how your skills compare to occupation requirements.</p>
+      </div>
+      <div id="dashboardContent">
+        <div class="empty-state" id="dashboardEmpty">
+          <div class="empty-state-icon">&#x1F4CA;</div>
+          <h3>No Skills Data Yet</h3>
+          <p>Start a career coaching session and progress to the skills assessment phase to see your dashboard.</p>
+          <button class="btn btn-primary" onclick="switchView('chat')">Go to Career Coach</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== EXPLORE CAREERS VIEW ========== -->
+    <div class="view-panel" id="viewExplore" role="region" aria-label="Explore Careers">
+      <div class="view-panel-header">
+        <h2>Explore Careers</h2>
+        <p>Search 1,000+ occupations from O*NET. Find roles that match your interests.</p>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="careerSearchInput" placeholder="Search occupations (e.g. software developer, nurse, accountant...)" aria-label="Search occupations" onkeydown="if(event.key==='Enter')searchCareers()">
+        <button class="btn btn-primary" onclick="searchCareers()">Search</button>
+      </div>
+      <div id="careerResultsMeta" class="results-meta" style="display:none;"></div>
+      <div class="career-results" id="careerResults">
+        <div class="empty-state" id="exploreEmpty">
+          <div class="empty-state-icon">&#x1F50D;</div>
+          <h3>Search for Occupations</h3>
+          <p>Type a job title, keyword, or SOC code above to browse careers from the O*NET database.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== RESOURCES VIEW ========== -->
+    <div class="view-panel" id="viewResources" role="region" aria-label="Learning Resources">
+      <div class="view-panel-header">
+        <h2>Learning Resources</h2>
+        <p id="resourcesSubtitle">Curated courses and materials to help you build the skills you need.</p>
+      </div>
+      <div class="resource-filters" id="resourceFilters">
+        <button class="filter-chip active" data-filter="all" onclick="filterResources('all')">All</button>
+        <button class="filter-chip" data-filter="free" onclick="filterResources('free')">Free</button>
+        <button class="filter-chip" data-filter="paid" onclick="filterResources('paid')">Paid</button>
+      </div>
+      <div id="resourcesContent">
+        <div class="empty-state" id="resourcesLoading">
+          <div class="empty-state-icon">&#x1F4DA;</div>
+          <h3>Loading Resources...</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Bar -->
+    <div class="input-bar" id="inputBar" style="display: none;">
+      <div class="input-wrap">
+        <textarea id="msgInput" placeholder="Tell me about your professional background..." rows="1" onkeydown="handleKey(event)" aria-label="Type your message"></textarea>
+      </div>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send" aria-label="Send message">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+    <div class="kb-hint" id="kbHint">Press Enter to send, Shift+Enter for new line</div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const API = window.location.origin;
+    let sessionId = null;
+    let currentPhaseForChips = null;
+    let isWaiting = false;
+    let currentPhase = 'orientation';
+    let turnNumber = 0;
+    let firstMessageSent = false;
+
+    const phaseMap = { orientation: 0, exploration_career: 1, exploration_role_targeting: 2, planning: 3 };
+    const phaseDisplayNames = { orientation: 'Profile', exploration_career: 'Explore', exploration_role_targeting: 'Skills', planning: 'Action Plan' };
+    let lastSkillsMeta = { totalSkills: 0, ratedCount: 0, skillsAssessed: false, assessmentStatus: 'not_started' };
+    const placeholders = {
+      orientation: 'Tell me about your professional background...',
+      exploration_career: 'What kind of work excites you?',
+      exploration_role_targeting: 'How would you rate your experience with this skill?',
+      planning: 'Any preferences for your career timeline?',
+    };
+    const typingMessages = {
+      orientation: 'Learning about your background',
+      exploration_career: 'Exploring career possibilities',
+      exploration_role_targeting: 'Analyzing your skills',
+      planning: 'Building your action plan',
+    };
+
+    // Fetch live API status on page load
+    async function fetchDataSourceStatus() {
+      try {
+        const res = await fetch(`${API}/api/data-sources`);
+        if (!res.ok) return;
+        const data = await res.json();
+        // Welcome page dots
+        setDotStatus('dsDotOnet', data.onet?.connected, data.localData?.connected);
+        setDotStatus('dsDotBls', data.bls?.connected);
+        setDotStatus('dsDotUsajobs', data.usajobs?.connected);
+        // Sidebar dots
+        setDotStatus('dotOnet', data.onet?.connected, data.localData?.connected);
+        setDotStatus('dotBls', data.bls?.connected);
+        setDotStatus('dotUsajobs', data.usajobs?.connected);
+      } catch { /* silent */ }
+    }
+
+    function setDotStatus(id, connected, hasCache) {
+      const dot = document.getElementById(id);
+      if (!dot) return;
+      dot.style.background = connected ? 'var(--success-light)' : (hasCache ? 'var(--warning)' : 'var(--gap-red)');
+    }
+
+    fetchDataSourceStatus();
+
+    // --- Returning User Detection ---
+    function checkReturningUser() {
+      const savedId = localStorage.getItem('careerbot_session_id');
+      if (savedId) {
+        showResumeDialog(savedId);
+      }
+    }
+
+    function showResumeDialog(savedId) {
+      const overlay = document.createElement('div');
+      overlay.id = 'resumeOverlay';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;';
+      const dialog = document.createElement('div');
+      dialog.setAttribute('role', 'dialog');
+      dialog.setAttribute('aria-modal', 'true');
+      dialog.setAttribute('aria-labelledby', 'resumeHeading');
+      dialog.style.cssText = 'background:white;border-radius:16px;padding:32px;max-width:420px;width:90%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
+      dialog.innerHTML = `
+        <div style="font-size:40px;margin-bottom:12px;">&#128075;</div>
+        <h2 id="resumeHeading" style="font-size:20px;margin-bottom:8px;color:#191919;">Welcome Back!</h2>
+        <p style="color:#666;margin-bottom:24px;font-size:14px;line-height:1.5;">You have a previous career guidance session. Would you like to continue where you left off?</p>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button id="resumeBtn" onclick="resumeSession('${savedId}')" style="padding:10px 24px;background:#0A66C2;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Resume Session</button>
+          <button id="freshBtn" onclick="startFreshSession()" style="padding:10px 24px;background:white;color:#191919;border:1px solid #E0E0E0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Start Fresh</button>
+        </div>
+      `;
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+      // Focus trap + Escape
+      document.getElementById('resumeBtn').focus();
+      overlay.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { startFreshSession(); return; }
+        if (e.key === 'Tab') {
+          const btns = [document.getElementById('resumeBtn'), document.getElementById('freshBtn')];
+          const idx = btns.indexOf(document.activeElement);
+          if (e.shiftKey) { e.preventDefault(); btns[idx <= 0 ? 1 : 0].focus(); }
+          else { e.preventDefault(); btns[idx >= 1 ? 0 : 1].focus(); }
+        }
+      });
+    }
+
+    function removeResumeDialog() {
+      const overlay = document.getElementById('resumeOverlay');
+      if (overlay) overlay.remove();
+    }
+
+    async function resumeSession(savedId) {
+      removeResumeDialog();
+      document.getElementById('welcomeScreen').style.display = 'none';
+      document.getElementById('inputBar').style.display = 'flex';
+
+      const area = document.getElementById('chatArea');
+      showTyping();
+
+      try {
+        const res = await fetch(`${API}/api/session/${savedId}/history`);
+        if (!res.ok) throw new Error('Session expired');
+        const data = await res.json();
+
+        sessionId = savedId;
+        turnNumber = data.turnNumber || 0;
+        removeTyping();
+        document.getElementById('statsBar').classList.add('visible');
+
+        // Restore conversation history
+        if (data.conversationHistory && data.conversationHistory.length > 0) {
+          for (const msg of data.conversationHistory) {
+            if (msg.role === 'user') {
+              addMessage('user', msg.content);
+            } else if (msg.role === 'assistant' || msg.role === 'bot') {
+              addMessage('bot', msg.content);
+            }
+          }
+          addMessage('bot', 'Welcome back! I remember our conversation. Let\'s continue where we left off. What would you like to discuss next?');
+        } else {
+          addMessage('bot', 'Welcome back! It looks like we were just getting started. How can I help with your career guidance today?');
+        }
+
+        updatePhase(data.phase, data.skillsMeta || null);
+        document.getElementById('msgInput').focus();
+      } catch (e) {
+        removeTyping();
+        localStorage.removeItem('careerbot_session_id');
+        addMessage('bot', 'Your previous session has expired. Let\'s start a new conversation.');
+        startNewSession();
+      }
+    }
+
+    function startFreshSession() {
+      removeResumeDialog();
+      localStorage.removeItem('careerbot_session_id');
+      startSession();
+    }
+
+    async function startSession() {
+      document.getElementById('welcomeScreen').style.display = 'none';
+      document.getElementById('inputBar').style.display = 'flex';
+
+      // Privacy banner
+      const area = document.getElementById('chatArea');
+      const banner = document.createElement('div');
+      banner.className = 'privacy-banner';
+      banner.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Your conversation is private and not stored permanently.';
+      area.appendChild(banner);
+
+      showTyping();
+      await startNewSession();
+    }
+
+    async function startNewSession() {
+      try {
+        if (!navigator.onLine) { removeTyping(); showToast('You appear to be offline. Please check your internet connection.'); return; }
+        const res = await fetch(`${API}/api/session`, { method: 'POST' });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        sessionId = data.sessionId;
+        turnNumber = 0;
+        localStorage.setItem('careerbot_session_id', sessionId);
+        removeTyping();
+        addMessage('bot', data.message);
+        showSuggestions(['I\'m a software engineer', 'I recently graduated', 'I\'m returning to work', 'I\'m exploring options']);
+        updatePhase(data.phase, data.skillsMeta || null);
+        document.getElementById('statsBar').classList.add('visible');
+        document.getElementById('msgInput').focus();
+      } catch (e) {
+        removeTyping();
+        addMessage('bot', 'We\'re having trouble reaching the server. Please check your connection and refresh the page.');
+        showToast('Connection error', true);
+      }
+    }
+
+    // Check for returning user on page load
+    window.addEventListener('DOMContentLoaded', checkReturningUser);
+
+    async function sendMessage(text) {
+      const input = document.getElementById('msgInput');
+      const msg = text || input.value.trim();
+      if (!msg || isWaiting || !sessionId) return;
+
+      // Hide keyboard hint after first message
+      if (!firstMessageSent) {
+        firstMessageSent = true;
+        const hint = document.getElementById('kbHint');
+        if (hint) hint.classList.add('hidden');
+      }
+
+      input.value = '';
+      input.style.height = 'auto';
+      removeSuggestions();
+      addMessage('user', msg);
+      setWaiting(true);
+      showTyping();
+
+      if (!navigator.onLine) {
+        removeTyping();
+        showToast('You appear to be offline. Please check your internet connection.', true);
+        setWaiting(false);
+        return;
+      }
+
+      // Retry logic for timeouts
+      let data = null;
+      let lastError = null;
+      let is404 = false;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 55000);
+          const res = await fetch(`${API}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, message: msg }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (res.status === 404) { is404 = true; throw new Error('Session not found'); }
+          data = await res.json();
+          if (data.error) throw new Error(data.error);
+          lastError = null;
+          break;
+        } catch (e) {
+          lastError = e;
+          if (is404) break;
+          if (attempt === 0) {
+            showToast('This is taking longer than usual. Retrying automatically...');
+          }
+        }
+      }
+
+      removeTyping();
+
+      if (is404) {
+        addMessage('bot', 'Your session may have expired. Let\'s start a new conversation.');
+        localStorage.removeItem('careerbot_session_id');
+        sessionId = null;
+        setTimeout(() => { location.reload(); }, 3000);
+      } else if (data && !lastError) {
+        // Guard against empty bot reply
+        const botMsg = (data.message || '').trim();
+        if (!botMsg) {
+          addMessage('bot', 'I need a moment to organize my thoughts. Could you rephrase your last message?');
+        } else {
+          addMessage('bot', botMsg);
+        }
+
+        turnNumber = data.turnNumber || (turnNumber + 1);
+        updatePhase(data.phase, data.skillsMeta || null);
+        updateStatsBar(data);
+
+        // Show contextual suggestions only on phase transitions
+        if (data.phase !== currentPhaseForChips) {
+          currentPhaseForChips = data.phase;
+          if (data.phase === 'exploration_career') {
+            showSuggestions(['Technology & AI', 'Healthcare', 'Business & Finance', 'Creative fields']);
+          } else if (data.phase === 'exploration_role_targeting') {
+            showSuggestions(['Very comfortable', 'Some experience', 'Fairly new to me']);
+          } else if (data.phase === 'planning') {
+            showSuggestions(['Generate my action plan', 'I have more to add']);
+          }
+        } else {
+          removeSuggestions();
+        }
+
+        if (data.isComplete) {
+          showCompletionCard(data.profile);
+          // Upgrade export button
+          const exportBtn = document.getElementById('exportBtnTop');
+          exportBtn.className = 'btn btn-success';
+          document.getElementById('exportBtnText').textContent = 'Export Plan';
+          exportBtn.title = '';
+        }
+      } else {
+        addMessage('bot', 'The response took longer than expected. This can happen with complex questions. Please try sending your message again.');
+        showToast('Please try again', true);
+      }
+
+      setWaiting(false);
+      input.focus();
+    }
+
+    async function exportReport() {
+      if (!sessionId) { showToast('Complete a career guidance conversation first to generate your report.'); return; }
+      const btn = document.getElementById('exportBtnTop');
+      const btnText = document.getElementById('exportBtnText');
+      const origText = btnText.textContent;
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btnText.textContent = 'Exporting...';
+      btn.classList.add('btn-exporting');
+
+      try {
+        const res = await fetch(`${API}/api/export`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        window.open(`${API}${data.html}`, '_blank');
+        showToast('Report opened in a new tab. You can also print it as a PDF.');
+      } catch (e) {
+        showToast('We could not generate your report right now. Please try again in a moment.', true);
+      }
+
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      btnText.textContent = origText;
+      btn.classList.remove('btn-exporting');
+    }
+
+    function addMessage(role, text) {
+      const area = document.getElementById('chatArea');
+      const msg = document.createElement('div');
+      msg.className = `msg ${role}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = 'msg-avatar';
+      avatar.textContent = role === 'bot' ? '\u{1F3AF}' : '\u{1F464}';
+
+      const body = document.createElement('div');
+      body.className = 'msg-body';
+
+      const meta = document.createElement('div');
+      meta.className = 'msg-meta';
+      const sender = document.createElement('span');
+      sender.className = 'msg-sender';
+      sender.textContent = role === 'bot' ? 'Career Coach' : 'You';
+      const time = document.createElement('span');
+      time.className = 'msg-time';
+      time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      meta.appendChild(sender);
+      meta.appendChild(time);
+
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      if (role === 'bot') {
+        bubble.innerHTML = renderMarkdown(text);
+      } else {
+        bubble.textContent = text;
+      }
+
+      body.appendChild(meta);
+      body.appendChild(bubble);
+      msg.appendChild(avatar);
+      msg.appendChild(body);
+      area.appendChild(msg);
+      area.scrollTop = area.scrollHeight;
+    }
+
+    function renderMarkdown(text) {
+      // Escape HTML first
+      let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      // Bold: **text**
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      // Numbered lists: lines starting with "1. ", "2. " etc
+      html = html.replace(/(?:^|\n)(\d+\.\s.+(?:\n\d+\.\s.+)*)/g, function(match) {
+        const items = match.trim().split('\n').map(l => '<li>' + l.replace(/^\d+\.\s/, '') + '</li>').join('');
+        return '\n<ol>' + items + '</ol>';
+      });
+      // Bullet lists: lines starting with "- " or "* "
+      html = html.replace(/(?:^|\n)([-*]\s.+(?:\n[-*]\s.+)*)/g, function(match) {
+        const items = match.trim().split('\n').map(l => '<li>' + l.replace(/^[-*]\s/, '') + '</li>').join('');
+        return '\n<ul>' + items + '</ul>';
+      });
+      // Line breaks
+      html = html.replace(/\n/g, '<br>');
+      // Clean up <br> before/after lists
+      html = html.replace(/<br><(ul|ol)/g, '<$1').replace(/<\/(ul|ol)><br>/g, '</$1>');
+      return html;
+    }
+
+    function showSuggestions(options) {
+      removeSuggestions();
+      const area = document.getElementById('chatArea');
+      const wrap = document.createElement('div');
+      wrap.className = 'suggestions';
+      wrap.id = 'suggestionsWrap';
+      for (const opt of options) {
+        const chip = document.createElement('button');
+        chip.className = 'suggestion-chip';
+        chip.textContent = opt;
+        chip.onclick = () => sendMessage(opt);
+        wrap.appendChild(chip);
+      }
+      area.appendChild(wrap);
+      area.scrollTop = area.scrollHeight;
+    }
+
+    function removeSuggestions() {
+      const el = document.getElementById('suggestionsWrap');
+      if (el) el.remove();
+    }
+
+    function showTyping() {
+      const area = document.getElementById('chatArea');
+      const msg = document.createElement('div');
+      msg.className = 'msg bot';
+      msg.id = 'typingMsg';
+      const avatar = document.createElement('div');
+      avatar.className = 'msg-avatar';
+      avatar.textContent = '\u{1F3AF}';
+      const body = document.createElement('div');
+      body.className = 'msg-body';
+      const meta = document.createElement('div');
+      meta.className = 'msg-meta';
+      const sender = document.createElement('span');
+      sender.className = 'msg-sender';
+      sender.textContent = 'Career Coach';
+      meta.appendChild(sender);
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      const typingText = typingMessages[currentPhase] || 'Thinking';
+      bubble.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-muted);">' + typingText + '</span><div class="typing-dots"><span></span><span></span><span></span></div></div>';
+      body.appendChild(meta);
+      body.appendChild(bubble);
+      msg.appendChild(avatar);
+      msg.appendChild(body);
+      area.appendChild(msg);
+      area.scrollTop = area.scrollHeight;
+    }
+
+    function removeTyping() {
+      const el = document.getElementById('typingMsg');
+      if (el) el.remove();
+    }
+
+    function updatePhase(phase, skillsMeta) {
+      currentPhase = phase;
+      if (skillsMeta) lastSkillsMeta = skillsMeta;
+      const idx = phaseMap[phase] ?? 0;
+
+      // Update stepper
+      const steps = [
+        { num: document.getElementById('step1'), step: document.querySelector('[data-phase="orientation"]') },
+        { num: document.getElementById('step2'), step: document.querySelector('[data-phase="exploration"]') },
+        { num: document.getElementById('step3'), step: document.querySelector('[data-phase="skills"]') },
+        { num: document.getElementById('step4'), step: document.querySelector('[data-phase="planning"]') },
+      ];
+
+      const lines = [document.getElementById('line1'), document.getElementById('line2'), document.getElementById('line3')];
+
+      const stepNames = ['Profile', 'Explore', 'Skills', 'Action Plan'];
+      steps.forEach(({ num, step }, i) => {
+        num.classList.remove('active', 'completed');
+        step.classList.remove('active', 'completed');
+        num.removeAttribute('aria-current');
+        if (i < idx) {
+          // Skills step (index 2): only mark completed if skills were actually assessed
+          if (i === 2 && !lastSkillsMeta.skillsAssessed) {
+            num.textContent = '!';
+            num.classList.add('completed');
+            step.classList.add('completed');
+            num.setAttribute('aria-label', `Step ${i+1}: ${stepNames[i]}, incomplete`);
+          } else {
+            num.classList.add('completed');
+            step.classList.add('completed');
+            num.innerHTML = '\u2713';
+            num.setAttribute('aria-label', `Step ${i+1}: ${stepNames[i]}, completed`);
+          }
+        } else if (i === idx) {
+          num.classList.add('active');
+          step.classList.add('active');
+          num.textContent = i + 1;
+          num.setAttribute('aria-current', 'step');
+          num.setAttribute('aria-label', `Step ${i+1}: ${stepNames[i]}, current step`);
+        } else {
+          num.textContent = i + 1;
+          num.setAttribute('aria-label', `Step ${i+1}: ${stepNames[i]}, upcoming`);
+        }
+      });
+
+      lines.forEach((line, i) => {
+        line.classList.toggle('completed', i < idx);
+      });
+
+      // Update progress bar
+      const pct = Math.round(((idx + 1) / 4) * 100);
+      const progressEl = document.getElementById('progressFill');
+      progressEl.style.width = pct + '%';
+      progressEl.setAttribute('aria-valuenow', pct);
+      const labels = ['Building your profile...', 'Exploring career directions...', 'Assessing your skills...', 'Creating your action plan...'];
+      document.getElementById('progressLabel').textContent = labels[idx] || labels[0];
+
+      // Update placeholder
+      const input = document.getElementById('msgInput');
+      if (input) input.placeholder = placeholders[phase] || placeholders.orientation;
+    }
+
+    function setWaiting(v) {
+      isWaiting = v;
+      document.getElementById('sendBtn').disabled = v;
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    }
+
+    function showToast(msg, isError) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      const duration = isError ? 5000 : 3500;
+      setTimeout(() => t.classList.remove('show'), duration);
+    }
+
+    function showComingSoonToast(featureName) {
+      showToast(featureName + ' is coming in a future update. Use Career Coach to get started now.');
+    }
+
+    function updateStatsBar(data) {
+      document.getElementById('statTurn').textContent = 'Turn ' + (data.turnNumber || turnNumber);
+      document.getElementById('statPhase').textContent = 'Phase: ' + (phaseDisplayNames[data.phase] || data.phaseDisplay || data.phase);
+      const skillsWrap = document.getElementById('statSkillsWrap');
+      if (data.phase === 'exploration_role_targeting' && data.profile) {
+        skillsWrap.style.display = 'flex';
+        // Show skills count if available
+        document.getElementById('statSkills').textContent = 'Skills assessment';
+      } else {
+        skillsWrap.style.display = 'none';
+      }
+    }
+
+    function showCompletionCard(profile) {
+      const area = document.getElementById('chatArea');
+      const card = document.createElement('div');
+      card.className = 'completion-card';
+      const summary = profile?.targetRole
+        ? (profile.jobTitle || 'Professional') + ' exploring ' + profile.targetRole
+        : 'Exploring career directions';
+      card.innerHTML = `
+        <div style="font-size:32px;margin-bottom:8px;">&#127942;</div>
+        <h3>Your Career Plan is Ready</h3>
+        <div class="summary">${summary}</div>
+        <div class="card-btns">
+          <button class="btn btn-success" onclick="exportReport()">View Full Report</button>
+          <button class="btn btn-outline" onclick="this.closest('.completion-card').remove()">Continue Conversation</button>
+        </div>
+        <div class="privacy-note">Your report contains personal career information. Save it to a secure location.</div>
+      `;
+      area.appendChild(card);
+      area.scrollTop = area.scrollHeight;
+    }
+
+    // Scroll-to-bottom button
+    function setupScrollButton() {
+      const area = document.getElementById('chatArea');
+      const btn = document.createElement('button');
+      btn.className = 'scroll-bottom-btn';
+      btn.id = 'scrollBtn';
+      btn.setAttribute('aria-label', 'Scroll to latest message');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+      btn.onclick = () => { area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' }); };
+      area.parentElement.appendChild(btn);
+
+      area.addEventListener('scroll', () => {
+        const distFromBottom = area.scrollHeight - area.scrollTop - area.clientHeight;
+        btn.style.display = distFromBottom > 200 ? 'flex' : 'none';
+      });
+    }
+    setupScrollButton();
+
+    document.getElementById('msgInput')?.addEventListener('input', function () {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+    });
+
+    // ========== VIEW ROUTING ==========
+    let currentView = 'chat';
+    let dashboardLoaded = false;
+    let resourcesLoaded = false;
+
+    function switchView(view) {
+      currentView = view;
+      // Update nav active state
+      document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+        item.classList.toggle('active', item.dataset.view === view);
+      });
+
+      // Hide all views
+      document.getElementById('chatArea').style.display = view === 'chat' ? 'flex' : 'none';
+      document.getElementById('viewDashboard').classList.toggle('active', view === 'dashboard');
+      document.getElementById('viewExplore').classList.toggle('active', view === 'explore');
+      document.getElementById('viewResources').classList.toggle('active', view === 'resources');
+
+      // Input bar only for chat
+      const inputBar = document.getElementById('inputBar');
+      const kbHint = document.getElementById('kbHint');
+      if (view === 'chat') {
+        if (sessionId) { inputBar.style.display = 'flex'; }
+        if (kbHint) kbHint.style.display = '';
+      } else {
+        inputBar.style.display = 'none';
+        if (kbHint) kbHint.style.display = 'none';
+      }
+
+      // Load data on first visit
+      if (view === 'dashboard' && !dashboardLoaded) loadDashboard();
+      if (view === 'explore') document.getElementById('careerSearchInput')?.focus();
+      if (view === 'resources' && !resourcesLoaded) loadResources();
+    }
+
+    // Keyboard nav for sidebar items
+    document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          switchView(item.dataset.view);
+        }
+      });
+    });
+
+    // ========== SKILLS DASHBOARD ==========
+    async function loadDashboard() {
+      if (!sessionId) {
+        document.getElementById('dashboardEmpty').style.display = '';
+        return;
+      }
+
+      const container = document.getElementById('dashboardContent');
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x23F3;</div><h3>Loading dashboard...</h3></div>';
+
+      try {
+        const res = await fetch(`${API}/api/session/${sessionId}/summary`);
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        dashboardLoaded = true;
+
+        if (!data.skills || data.skills.length === 0) {
+          let emptyMsg = '';
+          if (data.assessmentStatus === 'skipped') {
+            emptyMsg = 'The skills assessment was skipped in your session. Start a new session and complete the skills assessment to see your skill gaps and strengths.';
+          } else if (data.phase === 'planning') {
+            emptyMsg = 'Your session reached the planning phase without completing skills assessment. Start a new session to get a full skills analysis.';
+          } else {
+            emptyMsg = 'Continue your career coaching conversation to reach the skills assessment phase. Your skill gaps and strengths will appear here.';
+          }
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">&#x1F4CA;</div>
+              <h3>No Skills Assessed Yet</h3>
+              <p>${emptyMsg}</p>
+              <button class="btn btn-primary" onclick="switchView('chat')">Go to Career Coach</button>
+            </div>`;
+          return;
+        }
+
+        // Update subtitle with target role
+        if (data.profile?.targetRole) {
+          document.getElementById('dashboardSubtitle').textContent =
+            'Skills analysis for ' + data.profile.targetRole;
+        }
+
+        const metrics = data.metrics;
+        let html = `
+          <div class="metrics-row">
+            <div class="metric-card">
+              <div class="metric-value">${metrics.totalSkills}</div>
+              <div class="metric-label">Total Skills</div>
+            </div>
+            <div class="metric-card warning">
+              <div class="metric-value">${metrics.assessed}</div>
+              <div class="metric-label">Assessed</div>
+            </div>
+            <div class="metric-card danger">
+              <div class="metric-value">${metrics.gaps}</div>
+              <div class="metric-label">Gaps Found</div>
+            </div>
+          </div>`;
+
+        // Skills table
+        html += `<div class="skills-table-wrap"><table class="skills-table">
+          <thead><tr>
+            <th>Skill</th><th>Source</th><th>Required</th><th>Your Level</th><th>Gap</th>
+          </tr></thead><tbody>`;
+
+        for (const s of data.skills) {
+          const gapClass = s.gapCategory || 'adequate';
+          html += `<tr>
+            <td><strong>${escapeHtml(s.name)}</strong></td>
+            <td>${s.onetSource ? '<span class="source-tag live">O*NET</span>' : '-'}</td>
+            <td>${s.requiredProficiency ?? '-'}</td>
+            <td>${s.userRating ?? '-'}</td>
+            <td>${s.gapCategory ? '<span class="gap-badge ' + gapClass + '">' + s.gapCategory + '</span>' : '-'}</td>
+          </tr>`;
+        }
+        html += '</tbody></table></div>';
+
+        // Top gaps
+        if (metrics.topGaps && metrics.topGaps.length > 0) {
+          html += '<div class="top-gaps-section"><h3>Priority Gaps</h3>';
+          for (const g of metrics.topGaps) {
+            html += `<div class="gap-card">
+              <div><span class="gap-skill">${escapeHtml(g.skill)}</span></div>
+              <div class="gap-detail">Required: Level ${g.required ?? '?'} &middot; <span class="gap-badge ${g.gap}">${g.gap}</span></div>
+            </div>`;
+          }
+          html += '</div>';
+        }
+
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x26A0;&#xFE0F;</div>
+            <h3>Could Not Load Dashboard</h3>
+            <p>${sessionId ? 'There was an error loading your session data.' : 'Start a career coaching session first.'}</p>
+            <button class="btn btn-primary" onclick="switchView('chat')">Go to Career Coach</button>
+          </div>`;
+      }
+    }
+
+    // ========== EXPLORE CAREERS ==========
+    let searchTimeout = null;
+
+    async function searchCareers() {
+      const input = document.getElementById('careerSearchInput');
+      const q = input.value.trim();
+      const container = document.getElementById('careerResults');
+      const meta = document.getElementById('careerResultsMeta');
+
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x23F3;</div><h3>Searching...</h3></div>';
+      meta.style.display = 'none';
+
+      try {
+        const url = q ? `${API}/api/careers/search?q=${encodeURIComponent(q)}` : `${API}/api/careers/search`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
+
+        if (!data.results || data.results.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">&#x1F50D;</div>
+              <h3>No Results Found</h3>
+              <p>Try a different search term or browse all occupations by clearing the search.</p>
+            </div>`;
+          return;
+        }
+
+        meta.style.display = 'block';
+        meta.textContent = data.results.length + ' occupation' + (data.results.length !== 1 ? 's' : '') + ' found' +
+          (data.source === 'onet_live' ? ' (live O*NET data)' : ' (local cache)');
+
+        let html = '';
+        for (const occ of data.results) {
+          const sourceClass = occ.source === 'onet_live' ? 'live' : 'cache';
+          const sourceLabel = occ.source === 'onet_live' ? 'Live' : 'Cached';
+          html += `<div class="career-card">
+            <div class="career-card-info">
+              <h4>${escapeHtml(occ.title)}</h4>
+              <div class="career-code">${escapeHtml(occ.code)}</div>
+              <p>${escapeHtml(occ.description || 'No description available.')}</p>
+              <span class="source-tag ${sourceClass}">${sourceLabel}</span>
+              ${occ.skillCount ? '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">' + occ.skillCount + ' skills</span>' : ''}
+            </div>
+            <div class="career-card-actions">
+              <button class="btn btn-outline" onclick="setTargetRole('${escapeHtml(occ.title).replace(/'/g, "\\'")}', '${escapeHtml(occ.code)}')" title="Use this as your target career role">
+                Use as Target
+              </button>
+            </div>
+          </div>`;
+        }
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x26A0;&#xFE0F;</div>
+            <h3>Search Error</h3>
+            <p>Could not reach the career search API. Please try again.</p>
+          </div>`;
+      }
+    }
+
+    async function setTargetRole(title, code) {
+      if (!sessionId) {
+        showToast('Start a career coaching session first to set a target role.');
+        return;
+      }
+      try {
+        const res = await fetch(`${API}/api/session/${sessionId}/target-role`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, code }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Target role set to: ' + title);
+          dashboardLoaded = false; // force refresh on next dashboard visit
+        } else {
+          showToast('Could not set target role.', true);
+        }
+      } catch {
+        showToast('Could not set target role. Please try again.', true);
+      }
+    }
+
+    // ========== RESOURCES ==========
+    let allResources = [];
+    let activeResourceFilter = 'all';
+
+    async function loadResources() {
+      const container = document.getElementById('resourcesContent');
+
+      try {
+        // Build query params from session profile if available
+        let queryParams = '';
+        if (sessionId) {
+          try {
+            const sumRes = await fetch(`${API}/api/session/${sessionId}/summary`);
+            if (sumRes.ok) {
+              const sumData = await sumRes.json();
+              const parts = [];
+              if (sumData.profile?.targetRole) parts.push('role=' + encodeURIComponent(sumData.profile.targetRole));
+              const skillNames = (sumData.skills || []).map(s => s.name).filter(Boolean).slice(0, 5);
+              if (skillNames.length) parts.push('skills=' + encodeURIComponent(skillNames.join(',')));
+              if (parts.length) queryParams = '?' + parts.join('&');
+
+              if (sumData.profile?.targetRole) {
+                document.getElementById('resourcesSubtitle').textContent =
+                  'Resources matched to your target role: ' + sumData.profile.targetRole;
+              }
+            }
+          } catch { /* continue without personalization */ }
+        }
+
+        const res = await fetch(`${API}/api/resources${queryParams}`);
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        allResources = data.results || [];
+        resourcesLoaded = true;
+        renderResources(allResources);
+      } catch (e) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x26A0;&#xFE0F;</div>
+            <h3>Could Not Load Resources</h3>
+            <p>Please check your connection and try again.</p>
+          </div>`;
+      }
+    }
+
+    function filterResources(type) {
+      activeResourceFilter = type;
+      document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.filter === type);
+      });
+      const filtered = type === 'all' ? allResources : allResources.filter(r => r.type === type);
+      renderResources(filtered);
+    }
+
+    function renderResources(resources) {
+      const container = document.getElementById('resourcesContent');
+
+      if (!resources || resources.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F4DA;</div>
+            <h3>No Resources Found</h3>
+            <p>Try changing your filter or check back later for new resources.</p>
+          </div>`;
+        return;
+      }
+
+      const free = resources.filter(r => r.type === 'free');
+      const paid = resources.filter(r => r.type === 'paid');
+      let html = '';
+
+      if (free.length > 0) {
+        html += `<div class="resource-group-title">Free Resources <span class="resource-group-count">(${free.length})</span></div>`;
+        html += '<div class="resource-grid">';
+        for (const r of free) html += renderResourceCard(r);
+        html += '</div>';
+      }
+
+      if (paid.length > 0) {
+        html += `<div class="resource-group-title">Paid / Certificate Programs <span class="resource-group-count">(${paid.length})</span></div>`;
+        html += '<div class="resource-grid">';
+        for (const r of paid) html += renderResourceCard(r);
+        html += '</div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function renderResourceCard(r) {
+      const typeClass = r.type === 'free' ? 'free' : 'paid';
+      const skills = (r.skills || []).slice(0, 3);
+      return `<div class="resource-card">
+        <h4>${escapeHtml(r.title)}</h4>
+        <div class="resource-source">${escapeHtml(r.source)}${r.certification ? ' &middot; <span class="cert-badge">Certificate</span>' : ''}</div>
+        <p>${escapeHtml(r.description || '')}</p>
+        <div class="resource-card-footer">
+          <div class="resource-tags">
+            ${skills.map(s => '<span class="resource-tag">' + escapeHtml(s) + '</span>').join('')}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="resource-type-badge ${typeClass}">${r.type}</span>
+            <a href="${escapeHtml(r.url)}" target="_blank" rel="noopener" class="resource-link">Visit &rarr;</a>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

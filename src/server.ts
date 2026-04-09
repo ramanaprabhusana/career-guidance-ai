@@ -680,6 +680,14 @@ app.get("/api/resources", (req, res) => {
   });
 });
 
+// P6b: warm RAG synchronously BEFORE accepting traffic so the first /api/chat
+// can't race the embeddings.json parse and bounce off Render's edge proxy.
+try {
+  warmupRag();
+} catch (e) {
+  console.warn("RAG warmup failed:", (e as Error).message);
+}
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   const tracingEnabled = process.env.LANGCHAIN_TRACING_V2 === "true" && !!process.env.LANGCHAIN_API_KEY;
@@ -695,14 +703,4 @@ app.listen(PORT, () => {
   console.log(`  USAJOBS API: ${process.env.USAJOBS_API_KEY ? "configured" : "not set"}`);
   console.log(`  Press Ctrl+C to stop\n`);
 
-  // P6: warm RAG caches (embeddings.json parse, occupations.json load) out of
-  // band so the first role-targeting turn doesn't eat the ~500–1000 ms parse
-  // cost inside the request path.
-  setImmediate(() => {
-    try {
-      warmupRag();
-    } catch (e) {
-      console.warn("RAG warmup failed:", (e as Error).message);
-    }
-  });
 });
