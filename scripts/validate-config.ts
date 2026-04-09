@@ -4,7 +4,7 @@
  * Run with: npx tsx scripts/validate-config.ts
  */
 
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -202,6 +202,121 @@ check(
     ? `required_per_entity_fields = [${requiredFields.join(", ")}]`
     : "Missing required_per_entity_fields on evidence_discarded"
 );
+
+// --- C6: Skill 9 cross-artifact drift checks ---
+
+// C6.1: every phase in phase_registry has agent_config/skills/<phase>/analyzer.md AND speaker.md
+const skillsDir = join(ROOT, "agent_config", "skills");
+{
+  const missing: string[] = [];
+  for (const phase of phaseNames) {
+    const phaseDir = join(skillsDir, phase);
+    const analyzerMd = join(phaseDir, "analyzer.md");
+    const speakerMd = join(phaseDir, "speaker.md");
+    if (!existsSync(analyzerMd)) missing.push(`${phase}/analyzer.md`);
+    if (!existsSync(speakerMd)) missing.push(`${phase}/speaker.md`);
+  }
+  check(
+    "Every phase_registry phase has skills/<phase>/{analyzer,speaker}.md (C6)",
+    missing.length === 0,
+    missing.length === 0 ? `${phaseNames.length} phases checked` : `Missing: ${missing.join(", ")}`
+  );
+}
+
+// C6.2: no orphan folders under agent_config/skills/ without a phase_registry entry
+{
+  const orphans: string[] = [];
+  if (existsSync(skillsDir)) {
+    for (const entry of readdirSync(skillsDir)) {
+      const entryPath = join(skillsDir, entry);
+      if (!statSync(entryPath).isDirectory()) continue;
+      if (!phaseNames.includes(entry)) orphans.push(entry);
+    }
+  }
+  check(
+    "No orphan skills/<folder> without phase_registry entry (C6)",
+    orphans.length === 0,
+    orphans.length === 0 ? "none" : `Orphan folders: ${orphans.join(", ")}`
+  );
+}
+
+// C6.3: every backticked field name in orchestrator_rules.md that looks like a
+// schema field (snake_case, not a code symbol) exists either in state_schema.json
+// or is a documented runtime-only annotation in state.ts. This is a soft scan —
+// we skip obvious code / file / tool names.
+{
+  const rulesPath = join(ROOT, "agent_config", "orchestrator_rules.md");
+  if (existsSync(rulesPath)) {
+    const rulesBody = readFileSync(rulesPath, "utf-8");
+    const snakeCaseFieldRe = /`([a-z][a-z0-9_]*[a-z0-9])`/g;
+    // Known non-field tokens that happen to be snake_case/lowercase in backticks.
+    const IGNORE = new Set<string>([
+      "state-updater.ts", "tool-executor.ts", "error_catalog.md", "errors.ts",
+      "runtool", "agenterror", "ok", "errorcode", "tool-executor",
+      "retrieve_skills_for_role", "web_search", "find_courses", "get_wage_data", "get_job_counts",
+      "onet_username", "bls_api_key", "usajobs_api_key", "usajobs_email",
+      "validate-config", "first_turn", "phase_transition", "standard",
+      "skill_assessment", "low_confidence", "entity_transition",
+      "user_rating", "required_complete", "phase_suggestion",
+      "clarification_needed",
+    ]);
+    const runtimeOnly = new Set<string>([
+      "off_topic_strikes", "safety_strikes", "plan_blocks", "shift_intent",
+      "prior_session_summary", "prior_episodic_summaries", "is_returning_user",
+      "resume_choice", "resume_name", "resume_years", "resume_domain",
+      "conversation_summary", "conversation_history", "turn_number",
+      "phase_turn_number", "current_phase", "new_phase", "turn_type",
+      "user_message", "analyzer_prompt", "analyzer_output", "speaker_prompt",
+      "speaker_output", "error", "user_id", "session_id", "started_at",
+      "user_changed_phase", "max_phase_redirects", "transition_decision",
+      "skills_assessment_status", "candidate_skills",
+      // Profile DB columns referenced from orchestrator_rules.md but stored
+      // outside state_schema (they live in SQLite via profile-hooks.ts).
+      "last_session_id", "target_role", "job_title",
+    ]);
+    const schemaFieldSet = new Set<string>();
+    for (const phase of Object.keys(stateSchema.phases)) {
+      for (const field of Object.keys(stateSchema.phases[phase])) {
+        schemaFieldSet.add(field);
+      }
+    }
+    const unknown: string[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = snakeCaseFieldRe.exec(rulesBody)) !== null) {
+      const token = m[1];
+      if (!/_/.test(token)) continue; // require at least one underscore to filter out simple words
+      if (IGNORE.has(token)) continue;
+      if (runtimeOnly.has(token)) continue;
+      if (schemaFieldSet.has(token)) continue;
+      unknown.push(token);
+    }
+    const uniqueUnknown = [...new Set(unknown)];
+    check(
+      "orchestrator_rules.md field references resolve to schema or runtime-only (C6)",
+      uniqueUnknown.length === 0,
+      uniqueUnknown.length === 0
+        ? "all backticked field tokens resolve"
+        : `Unresolved: ${uniqueUnknown.join(", ")}`
+    );
+  }
+}
+
+// --- C7: Skill 8 recovery column parity ---
+
+if (catalogExists && errorsTsExists) {
+  const catalogBody = readFileSync(errorCatalogPath, "utf-8");
+  const errorsBody = readFileSync(errorsTsPath, "utf-8");
+  // Catalog table header should include a Recovery column after C7.
+  const headerMatch = catalogBody.match(/^\|[^\n]*Recovery[^\n]*\|/m);
+  const errorsHasRecovery = /recovery\s*:/i.test(errorsBody) && /recoveryFor/.test(errorsBody);
+  check(
+    "error_catalog.md has Recovery column and errors.ts exports recoveryFor (C7)",
+    !!headerMatch && errorsHasRecovery,
+    !!headerMatch && errorsHasRecovery
+      ? "recovery matrix present in catalog + errors.ts"
+      : `catalog_has_column=${!!headerMatch} errors_has_recovery=${errorsHasRecovery}`
+  );
+}
 
 // --- Print Results ---
 
