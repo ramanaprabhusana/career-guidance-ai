@@ -115,6 +115,14 @@ function persistUserProfile(state: AgentStateType, sessionId: string): void {
   }
 }
 
+function parseSuggestions(output: string): { message: string; suggestions: string[] } {
+  const match = output.match(/\[SUGGESTIONS:\s*(.+?)\]\s*$/);
+  if (!match) return { message: output, suggestions: [] };
+  const message = output.slice(0, match.index).trimEnd();
+  const suggestions = match[1].split("|").map((s) => s.trim()).filter(Boolean);
+  return { message, suggestions };
+}
+
 function buildSkillsMeta(state: AgentStateType) {
   const skills = state.skills ?? [];
   const ratedCount = skills.filter((s: any) => s.user_rating !== null).length;
@@ -220,11 +228,13 @@ app.post("/api/session", async (req, res) => {
 
     saveSession(sessionId, state);
 
+    const sessionParsed = parseSuggestions(state.speakerOutput ?? "");
     res.json({
       sessionId,
-      message: state.speakerOutput,
+      message: sessionParsed.message,
       phase: state.currentPhase,
       userId: state.userId,
+      suggestions: sessionParsed.suggestions,
     });
   } catch (e) {
     res.status(500).json({ error: (e as Error).message });
@@ -278,8 +288,9 @@ app.post("/api/chat", async (req, res) => {
     saveSession(sessionId, newState);
     persistUserProfile(newState, sessionId);
 
+    const chatParsed = parseSuggestions(newState.speakerOutput ?? "");
     res.json({
-      message: newState.speakerOutput,
+      message: chatParsed.message,
       phase: newState.currentPhase,
       phaseDisplay: config.phaseRegistry.phases[newState.currentPhase]?.display_name ?? newState.currentPhase,
       isComplete: newState.transitionDecision === "complete",
@@ -293,6 +304,7 @@ app.post("/api/chat", async (req, res) => {
       },
       skillsMeta: buildSkillsMeta(newState),
       progressItems: newState.progressItems ?? [],
+      suggestions: chatParsed.suggestions,
     });
   } catch (e) {
     console.error("Chat error:", (e as Error).message);

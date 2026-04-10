@@ -104,10 +104,25 @@ TASK
 
 ---
 
+SUGGESTION CHIPS
+After your message, if there are 2-5 natural options the user might pick from
+based on your question, append them on a FINAL line in this exact format:
+[SUGGESTIONS: option1 | option2 | option3]
+The options MUST directly correspond to your question. For example:
+- If you ask about work activities: [SUGGESTIONS: Creative work | Analytical work | Working with people | Strategic planning]
+- If you ask for a skill rating: [SUGGESTIONS: Beginner | Intermediate | Advanced | Expert]
+- If you ask about session goal: [SUGGESTIONS: Explore different career options | I have a specific role in mind]
+- If you offer to generate a plan: [SUGGESTIONS: Generate my action plan | I have more to add]
+Do NOT always include suggestions. Only include them when you are asking a
+question that has a finite, predictable set of likely answers.
+Do NOT include suggestions when asking open-ended questions (e.g. "Tell me about your background").
+
+---
+
 CONSTRAINTS
 - No extracted data, metadata, or analysis in output
 - No "required" or "optional" language
 - No field names, phase names, or JSON
 - No decisions on transitions
-- Output ONLY the message to send to user
+- Output ONLY the message to send to user (plus optional [SUGGESTIONS] line)
 - No preamble or sign-off
