@@ -1,7 +1,6 @@
     const API = window.location.origin;
     let sessionId = null;
     let cachedProgressItems = [];
-    let currentPhaseForChips = null;
     let isWaiting = false;
     let currentPhase = 'orientation';
     let turnNumber = 0;
@@ -175,7 +174,11 @@
         localStorage.setItem('careerbot_session_id', sessionId);
         removeTyping();
         addMessage('bot', data.message);
-        showSuggestions(['I\'m a software engineer', 'I recently graduated', 'I\'m returning to work', 'I\'m exploring options']);
+        if (data.suggestions && data.suggestions.length > 0) {
+          showSuggestions(data.suggestions);
+        } else {
+          showSuggestions(['I\'m a software engineer', 'I recently graduated', 'I\'m returning to work', 'I\'m exploring options']);
+        }
         updatePhase(data.phase, data.skillsMeta || null);
         document.getElementById('statsBar').classList.add('visible');
         document.getElementById('msgInput').focus();
@@ -267,16 +270,9 @@
           cachedProgressItems = data.progressItems;
         }
 
-        // Show contextual suggestions only on phase transitions
-        if (data.phase !== currentPhaseForChips) {
-          currentPhaseForChips = data.phase;
-          if (data.phase === 'exploration_career') {
-            showSuggestions(['Technology & AI', 'Healthcare', 'Business & Finance', 'Creative fields']);
-          } else if (data.phase === 'exploration_role_targeting') {
-            showSuggestions(['Very comfortable', 'Some experience', 'Fairly new to me']);
-          } else if (data.phase === 'planning') {
-            showSuggestions(['Generate my action plan', 'I have more to add']);
-          }
+        // Show contextual suggestions from backend
+        if (data.suggestions && data.suggestions.length > 0) {
+          showSuggestions(data.suggestions);
         } else {
           removeSuggestions();
         }
