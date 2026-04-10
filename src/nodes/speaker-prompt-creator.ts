@@ -75,6 +75,12 @@ function getCrossPhaseContext(state: AgentStateType): string {
     if (state.learningNeeds.length > 0) {
       lines.push(`Priority learning areas: ${state.learningNeeds.join(", ")}`);
     }
+    // Emit PREREQUISITE WARNING when any gate is unmet — planning speaker/analyzer
+    // prompts check for this exact string to block plan generation.
+    const allRated = totalSkills > 0 && ratedSkills === totalSkills;
+    if (!allRated || !state.learningNeedsComplete || !state.userConfirmedEvaluation) {
+      lines.push("PREREQUISITE WARNING: Skills assessment is incomplete. Do NOT generate a plan. Redirect the user back to complete skills assessment, learning preferences, and confirmation.");
+    }
     // C2: surface shift_intent and the next unconfirmed plan block so the
     // planning speaker can actually branch on them (previously the orchestrator
     // tracked both but the speaker never saw them).

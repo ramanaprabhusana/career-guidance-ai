@@ -119,6 +119,15 @@ function migrateSession(state: any): AgentStateType {
   if (state.skillsEvaluationSummary === undefined) state.skillsEvaluationSummary = null;
   if (state.userConfirmedEvaluation === undefined) state.userConfirmedEvaluation = false;
 
+  // Runtime fields that pre-Change-3 sessions may be missing. These are
+  // consumed by speaker-prompt-creator and state-updater, so leaving them
+  // undefined crashes older sessions on load.
+  if (!Array.isArray(state.planBlocks)) state.planBlocks = [];
+  if (state.shiftIntent === undefined) state.shiftIntent = false;
+  if (state.safetyStrikes === undefined) state.safetyStrikes = 0;
+  if (state.offTopicStrikes === undefined) state.offTopicStrikes = 0;
+  if (state.resumeChoice === undefined) state.resumeChoice = null;
+
   return state as AgentStateType;
 }
 
@@ -133,6 +142,66 @@ function persistUserProfile(state: AgentStateType, sessionId: string): void {
   if (state.transitionDecision === "complete" && state.conversationSummary?.trim()) {
     appendEpisodicSummary(profileDb, state.userId, sessionId, state.conversationSummary);
   }
+}
+
+// Detect the returning user's choice between resuming prior context and
+// starting fresh. Runs ONLY on the first user turn of a returning-user
+// session (before the graph sees the message), in response to the hardcoded
+// "Would you like to resume or start fresh?" prompt in speaker-prompt-creator.
+function detectResumeIntent(msg: string): "resume" | "fresh" | null {
+  const t = (msg ?? "").toLowerCase().trim();
+  if (!t) return null;
+  const freshMarkers = ["fresh", "start over", "start new", "new conversation", "from scratch", "restart", "begin again", "reset"];
+  const resumeMarkers = ["resume", "continue", "pick up", "carry on", "keep going", "where we left", "where i left"];
+  if (freshMarkers.some((m) => t.includes(m))) return "fresh";
+  if (resumeMarkers.some((m) => t.includes(m))) return "resume";
+  return null;
+}
+
+// Wipe all profile-derived context so a returning user can start a clean
+// orientation. Preserves identity (userId, sessionId) and audit trail
+// (conversationHistory). Sets resumeChoice="fresh" so we don't re-prompt.
+function applyFreshStart(state: AgentStateType): AgentStateType {
+  return {
+    ...state,
+    resumeChoice: "fresh",
+    isReturningUser: false,
+    priorSessionSummary: "",
+    priorEpisodicSummaries: [],
+    conversationSummary: "",
+    // Reset profile fields so orientation starts clean
+    jobTitle: null,
+    industry: null,
+    yearsExperience: null,
+    educationLevel: null,
+    sessionGoal: null,
+    location: null,
+    preferredTimeline: null,
+    // Reset exploration + role targeting
+    track: null,
+    interests: [],
+    constraints: [],
+    candidateDirections: [],
+    targetRole: null,
+    skills: [],
+    skillsAssessmentStatus: "not_started",
+    candidateSkills: {},
+    learningNeeds: [],
+    learningNeedsComplete: false,
+    skillsEvaluationSummary: null,
+    userConfirmedEvaluation: false,
+    // Reset planning
+    recommendedPath: null,
+    timeline: null,
+    skillDevelopmentAgenda: [],
+    immediateNextSteps: [],
+    planRationale: null,
+    reportGenerated: false,
+    planBlocks: [],
+    shiftIntent: false,
+    currentPhase: "orientation",
+    phaseTurnNumber: 0,
+  };
 }
 
 function parseSuggestions(output: string): { message: string; suggestions: string[] } {
@@ -270,10 +339,26 @@ app.post("/api/chat", async (req, res) => {
     return;
   }
 
-  const state = loadSession(sessionId);
+  let state = loadSession(sessionId);
   if (!state) {
     res.status(404).json({ error: "Session not found. Please start a new session." });
     return;
+  }
+
+  // Returning-user resume/fresh intercept. Runs only on the very first user
+  // turn of a returning session (before any graph invoke this session), in
+  // response to the "resume or start fresh?" prompt emitted by the welcome-back
+  // message in speaker-prompt-creator.ts.
+  if (state.isReturningUser && state.resumeChoice === null && state.turnNumber === 0) {
+    const intent = detectResumeIntent(message);
+    if (intent === "fresh") {
+      state = applyFreshStart(state);
+      saveSession(sessionId, state);
+    } else if (intent === "resume") {
+      state = { ...state, resumeChoice: "resume" };
+      saveSession(sessionId, state);
+    }
+    // If intent === null, let the graph clarify naturally.
   }
 
   try {
