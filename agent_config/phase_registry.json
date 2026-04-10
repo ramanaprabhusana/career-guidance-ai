@@ -17,10 +17,9 @@
     "exploration_career": {
       "display_name": "Exploring Career Directions",
       "purpose": "Discover the user's interests and surface 2-4 candidate career directions.",
-      "allowed_targets": ["exploration_role_targeting", "planning"],
+      "allowed_targets": ["exploration_role_targeting"],
       "conditions": {
-        "exploration_role_targeting": "user_names_specific_target",
-        "planning": "candidate_directions.length >= 2 AND user_requests_advance"
+        "exploration_role_targeting": "user_names_specific_target OR candidate_directions.length >= 2"
       },
       "max_turns": 15,
       "auto_advance": false,
@@ -31,9 +30,9 @@
       "purpose": "Confirm the target role and collect skill self-assessments against O*NET requirements.",
       "allowed_targets": ["planning"],
       "conditions": {
-        "planning": "skills_assessed_percentage >= 60"
+        "planning": "skills_assessed_percentage == 100 AND learning_needs_complete AND evaluation_confirmed"
       },
-      "max_turns": 20,
+      "max_turns": 30,
       "auto_advance": true,
       "order": 3
     },

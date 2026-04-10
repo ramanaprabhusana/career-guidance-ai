@@ -5,7 +5,7 @@ Do not transition between phases unless the Analyzer's confidence is at least 0.
 
 ## Default Phase Flow
 - After orientation → go to exploration_career OR exploration_role_targeting (based on session_goal)
-- After exploration_career → go to exploration_role_targeting OR planning
+- After exploration_career → go to exploration_role_targeting ONLY (never directly to planning)
 - After exploration_role_targeting → go to planning
 - planning is terminal (no outgoing transitions)
 
@@ -39,8 +39,10 @@ If a user in exploration_career names a specific target role:
 - Pre-populate target_role with the named role
 
 ### BR-4: Skill Assessment Threshold
-Block transition from exploration_role_targeting to planning unless:
-  assessments cover >= 60% of identified skills (user_rating is non-null)
+Block transition from exploration_role_targeting to planning unless ALL of:
+  - assessments cover 100% of identified skills (ALL user_rating values are non-null)
+  - user_confirmed_evaluation is true (user confirmed the gap summary)
+  - learning_needs_complete is true (learning priorities and timeframe discussed)
 
 ### BR-5: Off-Topic Handling
 If user input is unrelated to career guidance:
@@ -52,6 +54,13 @@ If user input is unrelated to career guidance:
 After 3 failed clarification attempts on the SAME topic:
 - Trigger human escalation pathway
 - Generate handoff summary with context
+
+### BR-8: Mandatory Skills Assessment
+Block transition from exploration_career directly to planning.
+Users who chose career exploration MUST go through exploration_role_targeting
+before entering planning. The only valid exit from exploration_career is
+exploration_role_targeting. Planning phase MUST NEVER begin without a completed
+skills assessment (100% rated), confirmed evaluation, and discussed learning needs.
 
 ### BR-7: Protected Characteristics — Zero Tolerance
 If user volunteers age, race, gender, disability, pregnancy, religion, or other protected characteristics:
@@ -65,7 +74,7 @@ If user volunteers age, race, gender, disability, pregnancy, religion, or other 
 ### exploration_role_targeting (entity: skills)
 Rotation trigger: After user rates current skill, present next unrated skill
 Cross-entity context: skill_name, onet_source, required_proficiency (pre-populated from RAG)
-Exit condition: All identified skills have user_rating OR user requests to move forward
+Exit condition: All identified skills have user_rating (100% must be rated — do not allow early exit)
 Minimum entities: 3
 
 ## Conversation Limits

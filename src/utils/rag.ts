@@ -16,6 +16,21 @@ const SOFT_SKILLS = new Set([
 export function categorizeSkillType(skillName: string): SkillType {
   return SOFT_SKILLS.has(skillName.toLowerCase().trim()) ? "soft" : "technical";
 }
+
+/**
+ * Limit skills to top N per category (technical + soft), sorted by required proficiency.
+ * Ensures assessment stays manageable (max 2*maxPerCategory skills total).
+ */
+function limitSkillsPerCategory(skills: SkillAssessment[], maxPerCategory: number = 4): SkillAssessment[] {
+  const profOrder: Record<string, number> = { Advanced: 3, Intermediate: 2, Basic: 1 };
+  const sortByProf = (a: SkillAssessment, b: SkillAssessment) =>
+    (profOrder[b.required_proficiency] ?? 0) - (profOrder[a.required_proficiency] ?? 0);
+
+  const technical = skills.filter(s => s.skill_type === "technical").sort(sortByProf);
+  const soft = skills.filter(s => s.skill_type === "soft").sort(sortByProf);
+
+  return [...technical.slice(0, maxPerCategory), ...soft.slice(0, maxPerCategory)];
+}
 import { getSkillsForRole as liveOnetSkills } from "../services/onet.js";
 // C4: BLS wage data + USAJOBS counts are now routed through the Skill 6 tool
 // dispatcher so error classification and recovery stay consistent. The service
@@ -170,7 +185,7 @@ export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAs
       const result = await liveOnetSkills(targetRole);
       if (result && result.skills.length > 0) {
         console.log(`[RAG] Live O*NET hit: ${result.title} (${result.socCode})`);
-        return result.skills.map((skill) => ({
+        const allSkills = result.skills.map((skill) => ({
           skill_name: skill.name,
           onet_source: `${result.socCode} - ${result.title} (O*NET Live)`,
           required_proficiency: skill.score && parseFloat(skill.score.value) >= 4 ? "Advanced"
@@ -179,6 +194,7 @@ export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAs
           gap_category: null,
           skill_type: categorizeSkillType(skill.name),
         }));
+        return limitSkillsPerCategory(allSkills);
       }
     } catch (e) {
       console.warn("[RAG] Live O*NET failed, falling back to local data:", (e as Error).message);
@@ -220,7 +236,7 @@ function retrieveSkillsFromLocal(targetRole: string): SkillAssessment[] {
 
   if (!bestMatch || bestScore < 0.2) return [];
 
-  return bestMatch.skills.map((skill) => ({
+  const allSkills = bestMatch.skills.map((skill) => ({
     skill_name: skill.name,
     onet_source: `${bestMatch!.soc_code} - ${bestMatch!.title}`,
     required_proficiency: skill.importance >= 80 ? "Advanced" : skill.importance >= 60 ? "Intermediate" : "Basic",
@@ -228,6 +244,7 @@ function retrieveSkillsFromLocal(targetRole: string): SkillAssessment[] {
     gap_category: null,
     skill_type: categorizeSkillType(skill.name),
   }));
+  return limitSkillsPerCategory(allSkills);
 }
 
 /**

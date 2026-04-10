@@ -71,7 +71,7 @@ function migrateSession(state: any): AgentStateType {
     const rated = skills.filter((s: any) => s.user_rating !== null).length;
     if (skills.length === 0 || rated === 0) {
       state.skillsAssessmentStatus = "not_started";
-    } else if (rated / skills.length >= 0.6) {
+    } else if (rated === skills.length) {
       state.skillsAssessmentStatus = "complete";
     } else {
       state.skillsAssessmentStatus = "in_progress";
@@ -99,6 +99,26 @@ function migrateSession(state: any): AgentStateType {
   if (!Array.isArray(state.evidenceDiscarded)) state.evidenceDiscarded = [];
   if (!Array.isArray(state.progressItems)) state.progressItems = [];
 
+  // Change 3: migrate old 3-level ratings to new 4-level scale
+  if (Array.isArray(state.skills)) {
+    const ratingMigration: Record<string, string> = {
+      not_yet_familiar: "beginner",
+      working_knowledge: "intermediate",
+      strong_proficiency: "advanced",
+    };
+    for (const skill of state.skills) {
+      if (skill.user_rating && ratingMigration[skill.user_rating]) {
+        skill.user_rating = ratingMigration[skill.user_rating];
+      }
+    }
+  }
+
+  // Change 3: default new post-assessment fields
+  if (state.learningNeeds === undefined) state.learningNeeds = [];
+  if (state.learningNeedsComplete === undefined) state.learningNeedsComplete = false;
+  if (state.skillsEvaluationSummary === undefined) state.skillsEvaluationSummary = null;
+  if (state.userConfirmedEvaluation === undefined) state.userConfirmedEvaluation = false;
+
   return state as AgentStateType;
 }
 
@@ -113,6 +133,14 @@ function persistUserProfile(state: AgentStateType, sessionId: string): void {
   if (state.transitionDecision === "complete" && state.conversationSummary?.trim()) {
     appendEpisodicSummary(profileDb, state.userId, sessionId, state.conversationSummary);
   }
+}
+
+function parseSuggestions(output: string): { message: string; suggestions: string[] } {
+  const match = output.match(/\[SUGGESTIONS:\s*(.+?)\]\s*$/);
+  if (!match) return { message: output, suggestions: [] };
+  const message = output.slice(0, match.index).trimEnd();
+  const suggestions = match[1].split("|").map((s) => s.trim()).filter(Boolean);
+  return { message, suggestions };
 }
 
 function buildSkillsMeta(state: AgentStateType) {
@@ -220,11 +248,13 @@ app.post("/api/session", async (req, res) => {
 
     saveSession(sessionId, state);
 
+    const sessionParsed = parseSuggestions(state.speakerOutput ?? "");
     res.json({
       sessionId,
-      message: state.speakerOutput,
+      message: sessionParsed.message,
       phase: state.currentPhase,
       userId: state.userId,
+      suggestions: sessionParsed.suggestions,
     });
   } catch (e) {
     res.status(500).json({ error: (e as Error).message });
@@ -278,8 +308,9 @@ app.post("/api/chat", async (req, res) => {
     saveSession(sessionId, newState);
     persistUserProfile(newState, sessionId);
 
+    const chatParsed = parseSuggestions(newState.speakerOutput ?? "");
     res.json({
-      message: newState.speakerOutput,
+      message: chatParsed.message,
       phase: newState.currentPhase,
       phaseDisplay: config.phaseRegistry.phases[newState.currentPhase]?.display_name ?? newState.currentPhase,
       isComplete: newState.transitionDecision === "complete",
@@ -293,6 +324,7 @@ app.post("/api/chat", async (req, res) => {
       },
       skillsMeta: buildSkillsMeta(newState),
       progressItems: newState.progressItems ?? [],
+      suggestions: chatParsed.suggestions,
     });
   } catch (e) {
     console.error("Chat error:", (e as Error).message);

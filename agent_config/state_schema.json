@@ -135,8 +135,8 @@
             "description": "Level of proficiency typically required for the target role."
           },
           "user_rating": {
-            "type": "enum: not_yet_familiar | working_knowledge | strong_proficiency",
-            "description": "User's self-assessed proficiency level.",
+            "type": "enum: beginner | intermediate | advanced | expert",
+            "description": "User's self-assessed proficiency level on a 4-point scale.",
             "default": null
           },
           "gap_category": {
@@ -145,6 +145,38 @@
             "default": null
           }
         }
+      },
+      "learning_needs": {
+        "type": "string[]",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": [],
+        "display_name": "Learning Needs",
+        "description": "User-identified priority areas for skill development, captured post-assessment."
+      },
+      "learning_needs_complete": {
+        "type": "boolean",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": false,
+        "display_name": "Learning Needs Complete",
+        "description": "True once learning needs and timeframe have been discussed post-assessment."
+      },
+      "skills_evaluation_summary": {
+        "type": "string",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": null,
+        "display_name": "Skills Evaluation Summary",
+        "description": "Brief textual summary of the gap analysis presented to the user for confirmation."
+      },
+      "user_confirmed_evaluation": {
+        "type": "boolean",
+        "required": false,
+        "update_policy": "overwrite",
+        "default": false,
+        "display_name": "User Confirmed Evaluation",
+        "description": "True once the user explicitly confirms the skills evaluation summary is accurate."
       }
     },
     "planning": {

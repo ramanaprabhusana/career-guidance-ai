@@ -702,6 +702,11 @@ function fmtEdu(level: string | null): string {
 
 function fmtRatingBadge(r: string | null): string {
   const m: Record<string, [string, string]> = {
+    beginner: ["Beginner", "#e74c3c"],
+    intermediate: ["Intermediate", "#f39c12"],
+    advanced: ["Advanced", "#2ecc71"],
+    expert: ["Expert", "#27ae60"],
+    // backward compat for old sessions:
     not_yet_familiar: ["New", "#e74c3c"],
     working_knowledge: ["Intermediate", "#f39c12"],
     strong_proficiency: ["Strong", "#27ae60"],

@@ -590,6 +590,11 @@ function formatEducation(level: string | null): string {
 
 function formatRating(rating: string | null): string {
   const map: Record<string, string> = {
+    beginner: "Beginner",
+    intermediate: "Intermediate",
+    advanced: "Advanced",
+    expert: "Expert",
+    // backward compat for old sessions:
     not_yet_familiar: "New",
     working_knowledge: "Intermediate",
     strong_proficiency: "Strong",

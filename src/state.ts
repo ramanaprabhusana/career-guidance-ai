@@ -5,7 +5,7 @@ import { Annotation } from "@langchain/langgraph";
 export type EducationLevel = "high_school" | "associate" | "bachelor" | "master" | "doctoral" | "other";
 export type SessionGoal = "explore_options" | "pursue_specific_role";
 export type Track = "career_exploration" | "role_targeting";
-export type UserRating = "not_yet_familiar" | "working_knowledge" | "strong_proficiency";
+export type UserRating = "beginner" | "intermediate" | "advanced" | "expert";
 export type GapCategory = "absent" | "underdeveloped" | "strong";
 export type TurnType = "first_turn" | "standard" | "phase_transition" | "clarification" | "entity_transition" | "termination";
 export type SkillsAssessmentStatus = "not_started" | "in_progress" | "complete" | "skipped";
@@ -130,6 +130,24 @@ export const AgentState = Annotation.Root({
   candidateSkills: Annotation<Record<string, SkillAssessment[]>>({
     reducer: (_, b) => b,
     default: () => ({}),
+  }),
+
+  // Post-assessment fields (Change 3: mandatory skills assessment)
+  learningNeeds: Annotation<string[]>({
+    reducer: (_, b) => b,
+    default: () => [],
+  }),
+  learningNeedsComplete: Annotation<boolean>({
+    reducer: (_, b) => b,
+    default: () => false,
+  }),
+  skillsEvaluationSummary: Annotation<string | null>({
+    reducer: (_, b) => b,
+    default: () => null,
+  }),
+  userConfirmedEvaluation: Annotation<boolean>({
+    reducer: (_, b) => b,
+    default: () => false,
   }),
 
   // Planning fields

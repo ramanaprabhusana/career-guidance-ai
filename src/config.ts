@@ -64,8 +64,8 @@ export function loadConfig(): AppConfig {
 
   return {
     provider: "google",
-    analyzerModel: "gemini-2.5-flash-lite",
-    speakerModel: "gemini-2.5-flash-lite",
+    analyzerModel: "gemini-2.5-pro",
+    speakerModel: "gemini-2.5-pro",
     analyzerTemperature: 0,
     speakerTemperature: 0.7,
     maxRetries: 2,

@@ -22,6 +22,10 @@ function getPhaseCollectedData(state: AgentStateType): Record<string, unknown> {
     exploration_role_targeting: {
       target_role: state.targetRole,
       skills: state.skills,
+      learning_needs: state.learningNeeds,
+      learning_needs_complete: state.learningNeedsComplete,
+      skills_evaluation_summary: state.skillsEvaluationSummary,
+      user_confirmed_evaluation: state.userConfirmedEvaluation,
     },
     planning: {
       recommended_path: state.recommendedPath,
@@ -61,6 +65,15 @@ function getCrossPhaseContext(state: AgentStateType): string {
     const strengths = state.skills.filter((s) => s.gap_category === "strong");
     if (strengths.length > 0) {
       lines.push(`Strong skills: ${strengths.map((s) => s.skill_name).join(", ")}`);
+    }
+    // Change 3: prerequisite status for planning phase
+    const totalSkills = state.skills.length;
+    const ratedSkills = state.skills.filter(s => s.user_rating !== null).length;
+    lines.push(`Skills assessment: ${ratedSkills}/${totalSkills} rated`);
+    lines.push(`Evaluation confirmed: ${state.userConfirmedEvaluation ? "yes" : "no"}`);
+    lines.push(`Learning needs discussed: ${state.learningNeedsComplete ? "yes" : "no"}`);
+    if (state.learningNeeds.length > 0) {
+      lines.push(`Priority learning areas: ${state.learningNeeds.join(", ")}`);
     }
     // C2: surface shift_intent and the next unconfirmed plan block so the
     // planning speaker can actually branch on them (previously the orchestrator
@@ -164,8 +177,8 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
         additionalContext = "\nIMPORTANT: The skills assessment has not started because no target role has been set. Guide the user to name a specific role so skills can be loaded.";
       } else if (rated === 0) {
         additionalContext = "\nIMPORTANT: Skills have been loaded but none have been rated yet. Focus on getting the user to rate at least a few skills before we can build their career plan.";
-      } else if (rated / skills.length < 0.6) {
-        additionalContext = `\nIMPORTANT: Only ${rated} of ${skills.length} skills have been assessed (need 60%). Encourage the user to assess a few more so we can build an accurate plan.`;
+      } else if (rated < skills.length) {
+        additionalContext = `\nIMPORTANT: Only ${rated} of ${skills.length} skills have been assessed (need 100%). Encourage the user to assess the remaining skills so we can build an accurate plan.`;
       }
     }
   }

@@ -18,15 +18,23 @@ import { isOffensive, MAX_SAFETY_STRIKES } from "../utils/safety-guard.js";
 
 function deriveGapCategory(userRating: UserRating | null, requiredProficiency: string): GapCategory | null {
   if (!userRating) return null;
-  if (userRating === "not_yet_familiar") return "absent";
-  if (userRating === "working_knowledge") {
-    // If high proficiency required, it's underdeveloped
-    const highRequired = ["expert", "advanced", "high", "extensive"].some(
-      (w) => requiredProficiency.toLowerCase().includes(w)
-    );
+
+  const lowerReq = requiredProficiency.toLowerCase();
+  const highRequired = ["expert", "advanced", "high", "extensive"].some(
+    (w) => lowerReq.includes(w)
+  );
+  const expertRequired = ["expert", "extensive"].some(
+    (w) => lowerReq.includes(w)
+  );
+
+  if (userRating === "beginner") return "absent";
+  if (userRating === "intermediate") {
     return highRequired ? "underdeveloped" : "strong";
   }
-  return "strong"; // strong_proficiency
+  if (userRating === "advanced") {
+    return expertRequired ? "underdeveloped" : "strong";
+  }
+  return "strong"; // expert
 }
 
 function mergeOrientationFields(
@@ -94,6 +102,20 @@ function mergeRoleTargetingFields(
       }
     }
     updates.skills = updatedSkills;
+  }
+
+  // Change 3: post-assessment fields
+  if (fields.learning_needs !== undefined && Array.isArray(fields.learning_needs)) {
+    updates.learningNeeds = fields.learning_needs as string[];
+  }
+  if (fields.learning_needs_complete === true) {
+    updates.learningNeedsComplete = true;
+  }
+  if (fields.skills_evaluation_summary !== undefined) {
+    updates.skillsEvaluationSummary = fields.skills_evaluation_summary as string;
+  }
+  if (fields.user_confirmed_evaluation === true) {
+    updates.userConfirmedEvaluation = true;
   }
 
   return updates;
@@ -252,14 +274,17 @@ function determineTransition(
     }
 
     if (phase === "exploration_career") {
-      return { nextPhase: "planning", transitionDecision: "transition" };
+      return { nextPhase: "exploration_role_targeting", transitionDecision: "transition" };
     }
 
     if (phase === "exploration_role_targeting") {
-      // Check 60% skill assessment threshold
+      // Check 100% skill assessment + post-assessment prerequisites
       const skills = fieldUpdates.skills ?? state.skills;
       const assessed = skills.filter((s) => s.user_rating !== null).length;
-      if (skills.length > 0 && assessed / skills.length >= 0.6) {
+      const allAssessed = skills.length > 0 && assessed === skills.length;
+      const learningDone = fieldUpdates.learningNeedsComplete ?? state.learningNeedsComplete;
+      const evalConfirmed = fieldUpdates.userConfirmedEvaluation ?? state.userConfirmedEvaluation;
+      if (allAssessed && learningDone && evalConfirmed) {
         return { nextPhase: "planning", transitionDecision: "transition" };
       }
     }
@@ -272,11 +297,14 @@ function determineTransition(
 
   // Check max turns for phase
   if (state.phaseTurnNumber >= registry.max_turns) {
-    // For exploration_role_targeting, block transition if no skills have been rated
+    // For exploration_role_targeting, block transition unless all prerequisites met
     if (phase === "exploration_role_targeting") {
       const skills = fieldUpdates.skills ?? state.skills;
       const ratedCount = skills.filter((s) => s.user_rating !== null).length;
-      if (skills.length === 0 || ratedCount === 0) {
+      const allAssessed = skills.length > 0 && ratedCount === skills.length;
+      const learningDone = state.learningNeedsComplete;
+      const evalConfirmed = state.userConfirmedEvaluation;
+      if (!allAssessed || !learningDone || !evalConfirmed) {
         return { nextPhase: null, transitionDecision: "continue" };
       }
     }
@@ -423,7 +451,8 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
       const underdeveloped = skills.filter((s) => s.gap_category === "underdeveloped");
       const agenda: string[] = [];
       for (const s of [...absent, ...underdeveloped]) {
-        agenda.push(`Develop ${s.skill_name} (currently: ${s.user_rating === "not_yet_familiar" ? "new area" : "working knowledge"}, required: ${s.required_proficiency})`);
+        const ratingLabel = s.user_rating === "beginner" ? "beginner" : s.user_rating === "intermediate" ? "intermediate" : s.user_rating ?? "unrated";
+        agenda.push(`Develop ${s.skill_name} (currently: ${ratingLabel}, required: ${s.required_proficiency})`);
       }
       if (agenda.length > 0) updates.skillDevelopmentAgenda = agenda;
     }
@@ -509,7 +538,7 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
   if (effectivePhaseForStatus === "exploration_role_targeting" || effectivePhaseForStatus === "planning") {
     if (currentSkills.length === 0 || ratedSkills === 0) {
       updates.skillsAssessmentStatus = "not_started";
-    } else if (currentSkills.length > 0 && ratedSkills / currentSkills.length >= 0.6) {
+    } else if (currentSkills.length > 0 && ratedSkills === currentSkills.length) {
       updates.skillsAssessmentStatus = "complete";
     } else {
       updates.skillsAssessmentStatus = "in_progress";

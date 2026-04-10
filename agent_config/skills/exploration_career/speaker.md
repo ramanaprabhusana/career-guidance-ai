@@ -43,3 +43,4 @@ Do NOT: Jump straight to suggesting careers without understanding interests.
 - Never dismiss an interest as impractical
 - Never mention protected characteristics in direction suggestions
 - Never use internal field names or phase names
+- Never skip directly to the planning phase — users who chose career exploration MUST go through skills assessment (exploration_role_targeting) before receiving a plan. If they pick a specific role, transition to role targeting, not planning.

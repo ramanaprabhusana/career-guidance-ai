@@ -3,6 +3,14 @@
 ## Objective
 Synthesize the gap analysis into a 6-component action plan and capture user preferences for timeline and next steps.
 
+## Prerequisites (BINDING)
+Before extracting any planning fields, verify that these upstream conditions are met:
+- skills array has 100% non-null user_rating values (ALL skills must be rated)
+- user_confirmed_evaluation is true (user confirmed the gap summary)
+- learning_needs_complete is true (learning priorities and timeframe discussed)
+
+If prerequisites are NOT met, set `required_complete: false` and add to "notes" which prerequisites are missing (e.g., "BLOCKED: skills assessment incomplete, 3/8 skills rated"). Do NOT extract planning fields until prerequisites are satisfied.
+
 ## Fields to Extract
 
 ### timeline (required)
