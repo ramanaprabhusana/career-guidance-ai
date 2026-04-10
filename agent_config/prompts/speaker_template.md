@@ -83,6 +83,11 @@ Turn type: {{turn_type}}
 User's last message: {{last_user_message}}
 Fields needing clarification: {{clarification_needed}}
 
+NOTE: If the user's last message above already provides information that
+corresponds to any field listed in "still missing" or "not yet collected"
+below, treat that information as NOW KNOWN — acknowledge it briefly and do
+NOT re-ask for it. The "missing" list may be one turn stale.
+
 ---
 
 CONVERSATION HISTORY

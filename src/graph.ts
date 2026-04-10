@@ -1,54 +1,24 @@
 import { StateGraph, END } from "@langchain/langgraph";
 import { AgentState } from "./state.js";
-import type { AgentStateType } from "./state.js";
-import { analyzerPromptCreator } from "./nodes/analyzer-prompt-creator.js";
-import { analyzer } from "./nodes/analyzer.js";
 import { stateUpdater } from "./nodes/state-updater.js";
-import { speakerPromptCreator } from "./nodes/speaker-prompt-creator.js";
-import { speaker } from "./nodes/speaker.js";
+import { parallelTurn } from "./nodes/parallel-turn.js";
 import { summarizerNode, shouldSummarize } from "./nodes/summarizer-node.js";
 
-function routeAfterAnalyzer(state: AgentStateType): string {
-  // If the analyzer suggests a phase change and we haven't exceeded redirect limit
-  if (
-    state.newPhase &&
-    state.newPhase !== state.currentPhase &&
-    state.userChangedPhase < state.maxPhaseRedirects
-  ) {
-    return "analyzerPromptCreator";
-  }
-  return "stateUpdater";
-}
-
 export function buildGraph() {
+  // P9: analyzer + speaker LLMs now run concurrently inside the `parallelTurn`
+  // node (with inline phase-redirect handling), so the old 4-node sequential
+  // chain (analyzerPromptCreator → analyzer → speakerPromptCreator → speaker)
+  // collapses into a single combined node. `stateUpdater` still runs
+  // downstream to merge analyzer.extracted_fields into canonical state for
+  // the NEXT turn, and `summarizer` still gates on `shouldSummarize`.
   const graph = new StateGraph(AgentState)
-    .addNode("analyzerPromptCreator", analyzerPromptCreator)
-    .addNode("analyzer", analyzer)
+    .addNode("parallelTurn", parallelTurn)
     .addNode("stateUpdater", stateUpdater)
-    .addNode("speakerPromptCreator", speakerPromptCreator)
-    .addNode("speaker", speaker)
     .addNode("summarizer", summarizerNode)
 
-    // Entry: always start with analyzer prompt creator
-    .addEdge("__start__", "analyzerPromptCreator")
-
-    // Analyzer prompt creator → analyzer
-    .addEdge("analyzerPromptCreator", "analyzer")
-
-    // Analyzer → conditional: redirect or proceed to state updater
-    .addConditionalEdges("analyzer", routeAfterAnalyzer, {
-      analyzerPromptCreator: "analyzerPromptCreator",
-      stateUpdater: "stateUpdater",
-    })
-
-    // State updater → always proceed to speaker (speaker handles termination messages)
-    .addEdge("stateUpdater", "speakerPromptCreator")
-
-    // Speaker prompt creator → speaker
-    .addEdge("speakerPromptCreator", "speaker")
-
-    // Speaker → conditional: summarizer only when threshold met, else END (P5).
-    .addConditionalEdges("speaker", shouldSummarize, {
+    .addEdge("__start__", "parallelTurn")
+    .addEdge("parallelTurn", "stateUpdater")
+    .addConditionalEdges("stateUpdater", shouldSummarize, {
       yes: "summarizer",
       no: END,
     })
