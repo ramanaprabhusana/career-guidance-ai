@@ -87,13 +87,13 @@ function getCrossPhaseContext(state: AgentStateType): string {
     if (state.educationLevel) lines.push(`Education: ${state.educationLevel}`);
   }
 
-  if (state.currentPhase === "exploration_role_targeting" || state.currentPhase === "planning") {
+  if (state.currentPhase !== "orientation") {
     if (state.interests.length > 0) lines.push(`Interests: ${state.interests.join(", ")}`);
     if (state.constraints.length > 0) lines.push(`Constraints: ${state.constraints.join(", ")}`);
+    if (state.targetRole) lines.push(`Target role: ${state.targetRole}`);
   }
 
   if (state.currentPhase === "planning") {
-    if (state.targetRole) lines.push(`Target role: ${state.targetRole}`);
     const gaps = state.skills.filter((s) => s.gap_category === "absent" || s.gap_category === "underdeveloped");
     if (gaps.length > 0) {
       lines.push(`Skills to develop: ${gaps.map((s) => `${s.skill_name} (${s.gap_category})`).join(", ")}`);

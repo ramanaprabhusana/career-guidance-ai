@@ -296,13 +296,14 @@ function renderSection2(
   softSkills: SkillAssessment[],
 ): string {
   if (isExplore && directions.length > 0) {
+    const topDirections = directions.slice(0, 3);
     const blended = blendSkillsAcrossRoles(candidateSkills, 5);
     return `
     <div class="section sec-path">
       <div class="section-header"><div class="icon">&#127919;</div> Recommended Career Directions</div>
       <div class="section-body">
         <p style="margin-bottom: 16px; color: #4a5568;">Based on your background and interests, the following career directions may be a strong fit:</p>
-        ${directions.map((d, i) => `
+        ${topDirections.map((d, i) => `
         <div class="direction-card">
           <div class="direction-num">${i + 1}</div>
           <div class="direction-title">${esc(d.direction_title)}</div>
@@ -457,34 +458,18 @@ function renderSection3(
     </div>`;
   }
 
-  // Explore track or empty skills
-  const blended = blendSkillsAcrossRoles(candidateSkills, 5);
+  // Explore track or empty skills — blended skills already shown in Section 2, skip here
   return `
     <div class="section sec-skills">
       <div class="section-header"><div class="icon">&#128202;</div> Skill Gap Analysis</div>
       <div class="section-body">
-        ${blended.length > 0 ? `
-        <p style="margin-bottom: 16px;">Since you are exploring multiple career directions, a full personalized gap analysis will be available once you select a specific target role. Below are cross-cutting skills across all recommended paths:</p>
-        <div class="action-grid">
-          ${blended.map(s => `
-          <div class="action-item">
-            <div class="action-bullet" style="background: ${s.skill_type === "technical" ? "#2980b9" : "#8e44ad"};"></div>
-            <div>
-              <div style="font-weight: 600; font-size: 13px;">${esc(s.skill_name)} <span class="cat-pill ${s.skill_type === "technical" ? "cat-tech" : "cat-soft"}">${s.skill_type}</span></div>
-              <div style="font-size: 12px; color: #718096;">Typical: ${esc(s.required_proficiency || "Varies")}</div>
-            </div>
-          </div>`).join("")}
-        </div>
-        <p style="font-size: 13px; color: #718096; margin-top: 16px;">To get a personalized gap analysis with ratings and course recommendations, consider starting a focused session for one of your recommended career directions.</p>` : `
         <p>${esc(
           !state.targetRole
-            ? "No target role was specified, so skills could not be assessed. Start a new session and specify a target role to get a skill gap analysis."
+            ? "To get a personalized skill gap analysis with ratings and course recommendations, start a focused session for one of the recommended career directions above."
             : state.skillsAssessmentStatus === "complete"
-              // Change 4 (Bug E9): coherent edge-case message instead of the
-              // old "not completed" copy that contradicted the 100% header.
               ? `Skills assessment for ${state.targetRole} is marked complete, but no skill records were retrieved for this report. Open the session in the app to view full results.`
               : "Skills assessment was not completed. Continue your session or start a new one for a full gap analysis."
-        )}</p>`}
+        )}</p>
       </div>
     </div>`;
 }

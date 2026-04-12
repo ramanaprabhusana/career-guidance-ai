@@ -71,11 +71,14 @@ function mergeExplorationFields(
     updates.constraints = [...new Set([...state.constraints, ...newConstraints])];
   }
   if (fields.candidate_directions) {
-    updates.candidateDirections = [
-      ...state.candidateDirections,
-      ...(fields.candidate_directions as AgentStateType["candidateDirections"]),
-    ];
+    const incoming = fields.candidate_directions as AgentStateType["candidateDirections"];
+    const existing = state.candidateDirections;
+    const existingTitles = new Set(existing.map(d => d.direction_title.toLowerCase()));
+    const deduped = incoming.filter(d => !existingTitles.has(d.direction_title.toLowerCase()));
+    updates.candidateDirections = [...existing, ...deduped];
   }
+  // Capture target_role when user picks a specific role during exploration
+  if (fields.target_role !== undefined) updates.targetRole = fields.target_role as string;
   // Change 4 (BR-11): capture candidate industries, cap at 3, raise a
   // clarification signal when the user names a 4th so the speaker can help
   // them narrow with reasoned tradeoffs.

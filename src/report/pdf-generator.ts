@@ -271,18 +271,19 @@ function renderSection2(
   softSkills: SkillAssessment[],
 ): void {
   if (isExplore && directions.length > 0) {
-    // Explore track: ranked directions + blended skills
+    // Explore track: ranked directions (capped at 3) + blended skills
     sectionBanner(doc, "2. Recommended career directions", "green");
     doc.fontSize(11).font("Helvetica").fillColor("#000000")
       .text("Based on your background and interests, the following career directions may be a strong fit:", { lineGap: 4 });
     doc.moveDown(0.3);
 
-    for (let i = 0; i < directions.length; i++) {
+    const topDirections = directions.slice(0, 3);
+    for (let i = 0; i < topDirections.length; i++) {
       checkPageBreak(doc);
       doc.fontSize(12).font("Helvetica-Bold").fillColor("#1a1a2e")
-        .text(`${i + 1}. ${directions[i].direction_title}`);
+        .text(`${i + 1}. ${topDirections[i].direction_title}`);
       doc.fontSize(10).font("Helvetica").fillColor("#555555")
-        .text(directions[i].rationale, { lineGap: 2 });
+        .text(topDirections[i].rationale, { lineGap: 2 });
       doc.moveDown(0.3);
     }
 
@@ -399,36 +400,15 @@ function renderSection3(
     return;
   }
 
-  // Explore track or empty skills
+  // Explore track or empty skills — blended skills already shown in Section 2, skip here
   sectionBanner(doc, "3. Skill gap analysis", "blue");
-  const blended = blendSkillsAcrossRoles(candidateSkills, 5);
-
-  if (blended.length > 0) {
-    doc.fontSize(11).font("Helvetica").fillColor("#000000")
-      .text("Since you are exploring multiple career directions, a detailed personalized gap analysis will be available once you select a specific target role. Below are cross-cutting skills that could strengthen your candidacy across all recommended paths:", { lineGap: 4 });
-    doc.moveDown(0.3);
-    renderSkillsSubtable(doc, blended, ["Skill", "Type", "Typical Level"], (s) => [
-      s.skill_name,
-      s.skill_type,
-      s.required_proficiency || "-",
-    ]);
-    doc.moveDown(0.3);
-    doc.fontSize(9).font("Helvetica").fillColor("#666666")
-      .text("To get a personalized gap analysis with self-assessment ratings and specific course recommendations, you might consider starting a new session focused on one of the career directions listed above.", { lineGap: 2 });
+  doc.fontSize(11).font("Helvetica").fillColor("#000000");
+  if (!state.targetRole) {
+    doc.text("To get a personalized skill gap analysis with ratings and course recommendations, start a focused session for one of the recommended career directions above.", { lineGap: 4 });
+  } else if (state.skillsAssessmentStatus === "complete") {
+    doc.text(`Skills assessment for ${state.targetRole} is marked complete, but no skill records were retrieved for this report. Open the session in the app to view full results.`, { lineGap: 4 });
   } else {
-    doc.fontSize(11).font("Helvetica").fillColor("#000000");
-    if (!state.targetRole) {
-      doc.text("No target role was specified during this session, so skills could not be assessed against role requirements. To get a skill gap analysis, consider starting a new session and specifying a target role.", { lineGap: 4 });
-    } else if (state.skillsAssessmentStatus === "complete") {
-      // Change 4 (Bug E9): the old branch unconditionally said "assessment
-      // was not completed" whenever `skills.length === 0 || techSkills.length +
-      // softSkills.length === 0`, even when the status field was marked
-      // complete. That created the "100% ASSESSED" header vs "not completed"
-      // Section 3 contradiction. Surface a coherent edge-case message instead.
-      doc.text(`Skills assessment for ${state.targetRole} is marked complete, but no skill records were retrieved for this report. This can happen if the session's skill cache was invalidated. Open the session in the app to view full results.`, { lineGap: 4 });
-    } else {
-      doc.text("Skills assessment was not completed during this session. To get a full skill gap analysis, consider continuing your session or starting a new one.", { lineGap: 4 });
-    }
+    doc.text("Skills assessment was not completed during this session. To get a full skill gap analysis, consider continuing your session or starting a new one.", { lineGap: 4 });
   }
   doc.moveDown(0.5);
 }
