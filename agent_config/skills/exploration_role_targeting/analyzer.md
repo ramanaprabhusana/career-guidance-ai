@@ -44,8 +44,10 @@ Confirm the user's target role and collect self-assessment ratings for skills re
 
 ### learning_needs_complete (system)
 - Set to `true` when learning needs AND timeframe have been discussed post-assessment
-- This requires: (1) user has stated their learning priorities, AND (2) user has stated their preferred timeframe
+- This requires: (1) user has stated their learning priorities (even a loose answer like "all of them feel important" counts), AND (2) user has stated their preferred timeframe
 - **Do NOT set to true** if only one of these has been discussed
+- **Change 4 (Bug E7)**: Do NOT loop on the priority question. Any answer that names a skill, says "all of them", or confirms the suggested priority order is enough. Combined with a timeframe + user confirmation, set this to true.
+- If the user has already been asked the priority question twice, accept the next answer unconditionally and set this to true.
 
 ### skills_evaluation_summary (system)
 - A brief textual summary of the gap analysis that was presented to the user
@@ -62,6 +64,21 @@ Confirm the user's target role and collect self-assessment ratings for skills re
 If user wants to go back to exploring:
 - Set phase_suggestion to "exploration_career"
 - Only if user explicitly says they want to reconsider their target
+
+## Role Switch Intent (Change 4, BR-9)
+When the user pivots to a different target role mid-session:
+
+- **Trigger phrases:** "what about X", "actually I'm thinking about Y", "let's switch to Z", "instead of X, look at Y", "compare with Q", "forget that, look at..."
+- **Extraction:** Set `target_role` to the NEW role. Also emit a structured field `role_switch_intent: { from: <current target>, to: <new target> }` so the orchestrator can recognize the pivot explicitly.
+- **Notes:** Append `"ROLE_SWITCH: <from> -> <to>"` to the `notes` field so the state-updater's pivot logic has a redundant signal if `target_role` alone is ambiguous.
+- **DO NOT** treat a pivot as a request to discard prior skill ratings — the backend rehydrates shared skill ratings automatically.
+
+## Role Comparison Intent (Change 4, BR-10)
+When the user asks to compare roles:
+
+- **Trigger phrases:** "compare X and Y", "which is better, A or B", "X vs Y", "side by side"
+- **Extraction:** Emit `role_comparison_intent: { roles: ["X", "Y"] }`. Cap at 2 roles. If the user names 3+, still extract but also set `too_broad_signal: true`.
+- **Notes:** Append `"ROLE_COMPARISON: <role_a> vs <role_b>"` to `notes`.
 
 ## Edge Cases
 - If user rates multiple skills in one message, extract all ratings

@@ -174,35 +174,64 @@ export async function retrieveChunks(query: string, topK: number = 5): Promise<R
   }));
 }
 
+// Change 4: per-role memoization so same-session role switches don't re-hit
+// O*NET. The cache stores the capped 4-tech + 4-soft result, meaning the
+// rehydration path in state-updater sees the same shape regardless of whether
+// the fetch was live or cached.
+const skillsByRoleCache = new Map<string, SkillAssessment[]>();
+const SKILL_CACHE_MAX = 30;
+function skillCacheKey(role: string): string {
+  return role.trim().toLowerCase();
+}
+
 /**
  * Retrieve skills for a target role.
  * Strategy: try live O*NET API first, fall back to local cached data.
+ * Change 4: memoizes per normalized role name; evicts oldest when over cap.
  */
 export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAssessment[]> {
+  const key = skillCacheKey(targetRole);
+  const cached = skillsByRoleCache.get(key);
+  if (cached) {
+    // Return a defensive copy so callers can't mutate the cached entry.
+    return cached.map((s) => ({ ...s }));
+  }
+
+  let result: SkillAssessment[] = [];
   // Try live O*NET API first (v2: API key in ONET_USERNAME; see services/onet.ts)
   if (process.env.ONET_USERNAME) {
     try {
-      const result = await liveOnetSkills(targetRole);
-      if (result && result.skills.length > 0) {
-        console.log(`[RAG] Live O*NET hit: ${result.title} (${result.socCode})`);
-        const allSkills = result.skills.map((skill) => ({
+      const liveResult = await liveOnetSkills(targetRole);
+      if (liveResult && liveResult.skills.length > 0) {
+        console.log(`[RAG] Live O*NET hit: ${liveResult.title} (${liveResult.socCode})`);
+        const allSkills = liveResult.skills.map((skill) => ({
           skill_name: skill.name,
-          onet_source: `${result.socCode} - ${result.title} (O*NET Live)`,
+          onet_source: `${liveResult.socCode} - ${liveResult.title} (O*NET Live)`,
           required_proficiency: skill.score && parseFloat(skill.score.value) >= 4 ? "Advanced"
             : skill.score && parseFloat(skill.score.value) >= 3 ? "Intermediate" : "Basic",
           user_rating: null,
           gap_category: null,
           skill_type: categorizeSkillType(skill.name),
         }));
-        return limitSkillsPerCategory(allSkills);
+        result = limitSkillsPerCategory(allSkills);
       }
     } catch (e) {
       console.warn("[RAG] Live O*NET failed, falling back to local data:", (e as Error).message);
     }
   }
 
-  // Fall back to local cached data
-  return retrieveSkillsFromLocal(targetRole);
+  // Fall back to local cached data if live returned nothing.
+  if (result.length === 0) {
+    result = retrieveSkillsFromLocal(targetRole);
+  }
+
+  // Evict oldest entry when over cap (Map preserves insertion order).
+  if (skillsByRoleCache.size >= SKILL_CACHE_MAX) {
+    const oldestKey = skillsByRoleCache.keys().next().value;
+    if (oldestKey !== undefined) skillsByRoleCache.delete(oldestKey);
+  }
+  skillsByRoleCache.set(key, result.map((s) => ({ ...s })));
+  return result.map((s) => ({ ...s }));
 }
 
 function retrieveSkillsFromLocal(targetRole: string): SkillAssessment[] {
@@ -327,6 +356,32 @@ export async function retrieveSkillsForMultipleRoles(
     })
   );
   return results;
+}
+
+/**
+ * Change 4 (BR-10): compare two roles side-by-side.
+ * Returns shared skills + skills unique to each. Reuses the capped
+ * retrieveSkillsForMultipleRoles result (4 tech + 4 soft per role) so
+ * the comparison is bounded and doesn't need extra rate limiting.
+ */
+export async function compareTwoRoles(
+  roleA: string,
+  roleB: string,
+): Promise<{
+  shared: SkillAssessment[];
+  uniqueA: SkillAssessment[];
+  uniqueB: SkillAssessment[];
+}> {
+  const both = await retrieveSkillsForMultipleRoles([roleA, roleB]);
+  const aSkills = both[roleA] ?? [];
+  const bSkills = both[roleB] ?? [];
+  const aNames = new Set(aSkills.map((s) => s.skill_name.toLowerCase().trim()));
+  const bNames = new Set(bSkills.map((s) => s.skill_name.toLowerCase().trim()));
+  return {
+    shared: aSkills.filter((s) => bNames.has(s.skill_name.toLowerCase().trim())),
+    uniqueA: aSkills.filter((s) => !bNames.has(s.skill_name.toLowerCase().trim())),
+    uniqueB: bSkills.filter((s) => !aNames.has(s.skill_name.toLowerCase().trim())),
+  };
 }
 
 /**

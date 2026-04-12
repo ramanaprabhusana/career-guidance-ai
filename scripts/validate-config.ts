@@ -273,6 +273,20 @@ const skillsDir = join(ROOT, "agent_config", "skills");
       // Profile DB columns referenced from orchestrator_rules.md but stored
       // outside state_schema (they live in SQLite via profile-hooks.ts).
       "last_session_id", "target_role", "job_title",
+      // Change 4: runtime-only annotations + comparison buckets referenced
+      // from BR-9 / BR-10 / BR-11 / BR-12 in orchestrator_rules.md. These live
+      // in state.ts as LangGraph annotations (explored_roles, prior_plan,
+      // previous_target_role, role_switch_context, role_comparison_context,
+      // role_switch_acknowledged, candidate_industries, compared_roles,
+      // user_persona) or inside shape helpers (skill_name, unique_a, unique_b,
+      // shared_skills) rather than in state_schema.json.
+      "explored_roles", "prior_plan", "skill_name",
+      "unique_a", "unique_b", "shared_skills",
+      "previous_target_role", "role_switch_context",
+      "role_comparison_context", "role_switch_acknowledged",
+      "candidate_industries", "compared_roles", "user_persona",
+      "years_experience", "education_level", "preferred_timeline",
+      "session_goal", "restart_pivot",
     ]);
     const schemaFieldSet = new Set<string>();
     for (const phase of Object.keys(stateSchema.phases)) {

@@ -4,7 +4,7 @@
     {
       "name": "career-guidance",
       "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": ["-c", "export PATH=/opt/homebrew/bin:$PATH && cd '/Users/prabhusana/Library/CloudStorage/OneDrive-purdue.edu/Spring 2026/MGMT 59000 Emerging Tech and Business/Final Project/Execution final deployment/career-guidance-ai' && exec npx tsx src/server.ts"],
+      "runtimeArgs": ["-c", "export PATH=/opt/homebrew/bin:$PATH && cd '/Users/prabhusana/Library/CloudStorage/OneDrive-purdue.edu/Spring 2026/MGMT 59000 Emerging Tech in Business/Final Project/Execution final deployment/career-guidance-ai' && exec npx tsx src/server.ts"],
       "autoPort": true
     }
   ]

@@ -7,6 +7,9 @@ import type {
   LearningResourceItem,
   EvidenceDecisionItem,
   ProgressItem,
+  RoleHistoryEntry,
+  RoleSwitchContext,
+  PriorPlanSnapshot,
 } from "../state.js";
 import { config } from "../config.js";
 import { retrieveSkillsForMultipleRoles, categorizeSkillType } from "../utils/rag.js";
@@ -73,7 +76,154 @@ function mergeExplorationFields(
       ...(fields.candidate_directions as AgentStateType["candidateDirections"]),
     ];
   }
+  // Change 4 (BR-11): capture candidate industries, cap at 3, raise a
+  // clarification signal when the user names a 4th so the speaker can help
+  // them narrow with reasoned tradeoffs.
+  const industryMerge = mergeIndustryFields(state, fields);
+  if (industryMerge.candidateIndustries) {
+    updates.candidateIndustries = industryMerge.candidateIndustries;
+  }
+  if (industryMerge.overLimitSignal) {
+    updates.clarificationCount = state.clarificationCount + 1;
+    updates.clarificationTopic = "INDUSTRY_CAP_HIT";
+  }
   return updates;
+}
+
+/**
+ * Change 4 (BR-9): carry user_rating values from one role's skill set to
+ * another when the skill_name matches. Used when a user pivots target_role
+ * mid-session so they don't have to re-rate shared skills (e.g. Financial
+ * Analyst → Quantitative Analyst both need "Mathematics" and "Critical
+ * Thinking"). Also recomputes gap_category against the new role's required
+ * proficiency so the gap analysis is correct for the NEW role, not the old.
+ *
+ * Normalizes skill_name case + whitespace so "Python Programming" matches
+ * "python  programming" etc.
+ */
+function rehydrateSkillRatings(
+  newSkills: SkillAssessment[],
+  ratingSource: SkillAssessment[],
+): { skills: SkillAssessment[]; rehydrated: number; sharedNames: string[] } {
+  const lut = new Map<string, UserRating>();
+  for (const s of ratingSource) {
+    if (s.user_rating !== null) {
+      lut.set(s.skill_name.toLowerCase().trim(), s.user_rating);
+    }
+  }
+  let rehydrated = 0;
+  const sharedNames: string[] = [];
+  const out = newSkills.map((s) => {
+    const prior = lut.get(s.skill_name.toLowerCase().trim());
+    if (prior && s.user_rating === null) {
+      rehydrated += 1;
+      sharedNames.push(s.skill_name);
+      return {
+        ...s,
+        user_rating: prior,
+        gap_category: deriveGapCategory(prior, s.required_proficiency),
+      };
+    }
+    return s;
+  });
+  return { skills: out, rehydrated, sharedNames };
+}
+
+/**
+ * Change 4 (BR-9): detect same-session target_role pivots. If the user
+ * already had a target and is now naming a different one, archive the prior
+ * target, snapshot any existing plan, seed roleSwitchContext, and clear path
+ * state so the auto-fetch block below refetches skills for the new role
+ * (at which point the rehydration hook kicks in).
+ *
+ * Called from BOTH `mergeRoleTargetingFields` AND `mergePlanningFields` so
+ * that a pivot works from any phase the user might be in when they change
+ * their mind (including mid-plan delivery).
+ *
+ * @param fromPlanning when true, also walks the phase back to
+ *   `exploration_role_targeting` so the auto-fetch + rehydration hook runs
+ *   and the user goes through delta-only skill questions before the new plan.
+ */
+function applyRoleSwitchPivot(
+  state: AgentStateType,
+  updates: Partial<AgentStateType>,
+  incomingRoleRaw: string,
+  fromPlanning: boolean
+): void {
+  const incomingRole = incomingRoleRaw.trim();
+  const currentRole = state.targetRole?.trim();
+  const isPivot =
+    !!incomingRole &&
+    !!currentRole &&
+    incomingRole.toLowerCase() !== currentRole.toLowerCase();
+
+  updates.targetRole = incomingRole;
+
+  if (!isPivot) return;
+
+  updates.previousTargetRole = currentRole ?? null;
+
+  // Snapshot prior plan if any plan content exists.
+  if (
+    state.recommendedPath ||
+    (state.skillDevelopmentAgenda ?? []).length > 0 ||
+    (state.immediateNextSteps ?? []).length > 0
+  ) {
+    const snapshot: PriorPlanSnapshot = {
+      target_role: currentRole!,
+      generated_at: Date.now(),
+      recommended_path: state.recommendedPath ?? null,
+      skill_development_agenda: state.skillDevelopmentAgenda ?? [],
+      immediate_next_steps: state.immediateNextSteps ?? [],
+      timeline: state.timeline ?? null,
+    };
+    updates.priorPlan = snapshot;
+  }
+
+  // Deprioritize the prior role in history.
+  const historyEntry: RoleHistoryEntry = {
+    role_name: currentRole!,
+    status: "deprioritized",
+    first_seen_at: Date.now(),
+  };
+  updates.exploredRoles = [...state.exploredRoles, historyEntry];
+
+  // Seed the context so the speaker can deliver a recap turn.
+  const switchContext: RoleSwitchContext = {
+    from_role: currentRole!,
+    to_role: incomingRole!,
+    shared_skills: [],
+    rehydrated_ratings: 0,
+    initiated_at: Date.now(),
+  };
+  updates.roleSwitchContext = switchContext;
+  updates.roleSwitchAcknowledged = false;
+
+  // Clear path-specific state so the auto-fetch block refetches skills.
+  updates.skills = [];
+  updates.skillsAssessmentStatus = "not_started";
+  updates.learningNeeds = [];
+  updates.learningNeedsComplete = false;
+  updates.skillsEvaluationSummary = null;
+  updates.userConfirmedEvaluation = false;
+  updates.recommendedPath = null;
+  updates.timeline = null;
+  updates.skillDevelopmentAgenda = [];
+  updates.immediateNextSteps = [];
+  updates.planRationale = null;
+  updates.planBlocks = [];
+
+  // When the pivot happens during PLANNING, walk the phase back to
+  // role_targeting so the auto-fetch + rehydration hook runs and the user
+  // goes through delta-only questions on the new role before the new plan.
+  if (fromPlanning) {
+    updates.currentPhase = "exploration_role_targeting";
+    updates.phaseTurnNumber = 0;
+    updates.previousPhase = "planning";
+    updates.newPhase = null;
+    updates.progressItems = [];
+    updates.reportGenerated = false;
+  }
 }
 
 function mergeRoleTargetingFields(
@@ -81,12 +231,15 @@ function mergeRoleTargetingFields(
   fields: Record<string, unknown>
 ): Partial<AgentStateType> {
   const updates: Partial<AgentStateType> = {};
-  if (fields.target_role !== undefined) updates.targetRole = fields.target_role as string;
+
+  if (fields.target_role !== undefined) {
+    applyRoleSwitchPivot(state, updates, fields.target_role as string, false);
+  }
 
   // Merge skill ratings
   if (fields.skills) {
     const incomingSkills = fields.skills as Record<string, unknown>[];
-    const updatedSkills = [...state.skills];
+    const updatedSkills = [...(updates.skills ?? state.skills)];
 
     for (const incoming of incomingSkills) {
       const idx = updatedSkills.findIndex(
@@ -118,7 +271,67 @@ function mergeRoleTargetingFields(
     updates.userConfirmedEvaluation = true;
   }
 
+  // Change 4 (Bug E7): planning gate loop fix.
+  // The old check `if (fields.learning_needs_complete === true)` only flipped
+  // on an explicit analyzer signal, so the bot looped 4x after the user had
+  // already provided priorities + timeframe + confirmation. Fallback rule:
+  // if the user has ANY learning needs captured AND the analyzer extracted a
+  // priority-related field AND the latest message looks like a confirmation,
+  // consider learning needs complete.
+  const learningNeedsCurrent =
+    updates.learningNeeds ?? state.learningNeeds ?? [];
+  const priorityFieldExtracted =
+    fields.priorities !== undefined ||
+    fields.focus_first !== undefined ||
+    fields.top_priority !== undefined;
+  if (
+    updates.learningNeedsComplete !== true &&
+    !state.learningNeedsComplete &&
+    learningNeedsCurrent.length > 0 &&
+    (priorityFieldExtracted || state.learningNeeds.length > 0) &&
+    isConfirmation(state.userMessage)
+  ) {
+    updates.learningNeedsComplete = true;
+  }
+  // Same fallback for userConfirmedEvaluation: if the summary was presented
+  // last turn and the user just said "yes / looks right / accurate", flip it.
+  if (
+    updates.userConfirmedEvaluation !== true &&
+    !state.userConfirmedEvaluation &&
+    state.skillsEvaluationSummary &&
+    isConfirmation(state.userMessage)
+  ) {
+    updates.userConfirmedEvaluation = true;
+  }
+
   return updates;
+}
+
+// Change 4: extract candidate industries during career exploration (BR-11).
+// The reducer in state.ts caps at 3; this merge helper emits a notes-style
+// signal when the user names a 4th so the speaker can help them narrow.
+function mergeIndustryFields(
+  state: AgentStateType,
+  fields: Record<string, unknown>,
+): { candidateIndustries?: string[]; overLimitSignal: boolean } {
+  const out: { candidateIndustries?: string[]; overLimitSignal: boolean } = {
+    overLimitSignal: false,
+  };
+  const raw = fields.candidate_industries;
+  if (!Array.isArray(raw)) return out;
+  const incoming = raw
+    .filter((x) => typeof x === "string")
+    .map((x) => (x as string).trim())
+    .filter(Boolean);
+  if (incoming.length === 0) return out;
+  const combined = Array.from(
+    new Set([...(state.candidateIndustries ?? []), ...incoming]),
+  );
+  if (combined.length > 3) {
+    out.overLimitSignal = true;
+  }
+  out.candidateIndustries = combined.slice(0, 3);
+  return out;
 }
 
 function parseLearningResources(raw: unknown): LearningResourceItem[] {
@@ -179,6 +392,14 @@ function mergePlanningFields(
   fields: Record<string, unknown>
 ): Partial<AgentStateType> {
   const updates: Partial<AgentStateType> = {};
+
+  // Change 4 (BR-9): detect mid-plan role pivots. Walks phase back to
+  // exploration_role_targeting so the auto-fetch + rehydration hook runs
+  // on the next state-updater pass.
+  if (fields.target_role !== undefined) {
+    applyRoleSwitchPivot(state, updates, fields.target_role as string, true);
+  }
+
   if (fields.timeline !== undefined) updates.timeline = fields.timeline as string;
   if (fields.recommended_path !== undefined) updates.recommendedPath = fields.recommended_path as string;
   if (fields.skill_development_agenda !== undefined) updates.skillDevelopmentAgenda = fields.skill_development_agenda as string[];
@@ -284,6 +505,15 @@ function determineTransition(
       const allAssessed = skills.length > 0 && assessed === skills.length;
       const learningDone = fieldUpdates.learningNeedsComplete ?? state.learningNeedsComplete;
       const evalConfirmed = fieldUpdates.userConfirmedEvaluation ?? state.userConfirmedEvaluation;
+      // Change 4 (BR-9 §4E): if a role switch is in progress and the speaker
+      // has not yet delivered the rehydration recap, hold the transition one
+      // extra turn so the user sees the "I've moved your ratings over" recap
+      // before being asked to confirm the plan.
+      const switchCtx = fieldUpdates.roleSwitchContext ?? state.roleSwitchContext;
+      const switchAcked = fieldUpdates.roleSwitchAcknowledged ?? state.roleSwitchAcknowledged;
+      if (switchCtx && !switchAcked) {
+        return { nextPhase: null, transitionDecision: "continue" };
+      }
       if (allAssessed && learningDone && evalConfirmed) {
         return { nextPhase: "planning", transitionDecision: "transition" };
       }
@@ -524,8 +754,47 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
       args: { role: effectiveRole },
     });
     if (toolResult.ok && Array.isArray(toolResult.data) && toolResult.data.length > 0) {
-      updates.skills = toolResult.data;
-      console.log(`[StateUpdater] Pre-populated ${toolResult.data.length} skills for "${effectiveRole}" via tool executor`);
+      let freshSkills = toolResult.data as SkillAssessment[];
+
+      // Change 4 (BR-9 §4C): if a role switch is in progress, rehydrate
+      // prior ratings before persisting. Rating sources, in priority order:
+      //   1. state.skills — the PRIOR role's live ratings (pivot just happened
+      //      this turn; mergeRoleTargetingFields cleared `updates.skills = []`
+      //      but the pre-merge snapshot still has them)
+      //   2. state.candidateSkills[previousTargetRole] — any historical cache
+      //      from exploration_career blend step
+      // Normalization + gap recomputation is handled inside rehydrateSkillRatings.
+      const switchCtx =
+        updates.roleSwitchContext ?? state.roleSwitchContext ?? null;
+      if (switchCtx) {
+        const prevRole =
+          updates.previousTargetRole ?? state.previousTargetRole ?? switchCtx.from_role;
+        const ratingSources: SkillAssessment[] = [];
+        if (Array.isArray(state.skills) && state.skills.length > 0) {
+          ratingSources.push(...state.skills);
+        }
+        if (prevRole && state.candidateSkills && state.candidateSkills[prevRole]) {
+          ratingSources.push(...state.candidateSkills[prevRole]);
+        }
+        if (ratingSources.length > 0) {
+          const { skills: rehydrated, rehydrated: count, sharedNames } =
+            rehydrateSkillRatings(freshSkills, ratingSources);
+          freshSkills = rehydrated;
+          updates.roleSwitchContext = {
+            ...switchCtx,
+            rehydrated_ratings: count,
+            shared_skills: sharedNames,
+          };
+          if (count > 0) {
+            console.log(
+              `[StateUpdater] Rehydrated ${count} skill ratings from "${prevRole}" → "${effectiveRole}": ${sharedNames.slice(0, 5).join(", ")}${sharedNames.length > 5 ? "…" : ""}`,
+            );
+          }
+        }
+      }
+
+      updates.skills = freshSkills;
+      console.log(`[StateUpdater] Pre-populated ${freshSkills.length} skills for "${effectiveRole}" via tool executor`);
     } else if (!toolResult.ok) {
       console.warn(`[StateUpdater] Tool ${toolResult.tool} failed: ${toolResult.errorCode ?? "unknown"} ${toolResult.detail ?? ""}`);
     }

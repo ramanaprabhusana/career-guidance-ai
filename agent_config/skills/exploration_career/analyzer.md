@@ -31,6 +31,20 @@ Discover the user's interests, constraints, and surface 2-4 candidate career dir
   - User says: "What about product management?" → Append: {"direction_title": "Product Management", "rationale": "User-initiated interest"}
 - **Do NOT extract if:** User is asking about a direction hypothetically without indicating interest
 
+### candidate_industries (optional, append) — Change 4 (BR-11)
+- **What to look for:** Distinct industries or sectors the user is considering. This is SEPARATE from `interests` (which are activities/topics) and SEPARATE from `candidate_directions` (which are specific roles).
+- **Type:** string[]
+- **Hard cap:** The backend reducer caps at 3. If the user names a 4th, the backend raises an `INDUSTRY_CAP_HIT` signal — still extract all 4 so the signal fires; the reducer will truncate.
+- **Examples:**
+  - User says: "I'm thinking about tech, healthcare, or consulting" → Extract: ["Technology", "Healthcare", "Consulting"]
+  - User says: "I'd also consider nonprofits" → Append: ["Nonprofit"]
+- **Do NOT extract if:** User only mentions a specific role/company (those are directions, not industries).
+
+### Cross-cutting intents (shared with orientation analyzer)
+Also emit when clearly signaled:
+- `too_broad_signal` (boolean): true when the user names >3 industries or >2 roles in a single message
+- `role_switch_intent`, `role_comparison_intent`, `restart_intent`, `continue_intent` — see orientation analyzer for trigger phrases
+
 ## Cross-Phase Detection
 If user names a specific target role with conviction:
 - Set phase_suggestion to "exploration_role_targeting"
@@ -42,6 +56,7 @@ If user names a specific target role with conviction:
 ## Edge Cases
 - If user expresses interest in something that conflicts with their constraints, note it but extract both
 - If user seems overwhelmed by options, note in "notes" field for speaker to narrow down
+- If the user names more than 3 candidate industries in total (counting prior turns), set `notes` to include "INDUSTRY_CAP_HIT" so the speaker can help them narrow.
 
 ## Completion
 This phase does not have strict required_complete criteria. Signal readiness when:

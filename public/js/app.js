@@ -64,14 +64,19 @@
       dialog.setAttribute('role', 'dialog');
       dialog.setAttribute('aria-modal', 'true');
       dialog.setAttribute('aria-labelledby', 'resumeHeading');
-      dialog.style.cssText = 'background:white;border-radius:16px;padding:32px;max-width:420px;width:90%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
+      dialog.style.cssText = 'background:white;border-radius:16px;padding:32px;max-width:460px;width:90%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
+      // Change 4 (Step 12A): 3-button returning-user modal so users can keep
+      // their profile facts while still pivoting direction. "New direction
+      // (keep my profile)" calls the server with `restart_pivot: true` so
+      // `applyRestartPivot` preserves jobTitle/industry/etc but clears path.
       dialog.innerHTML = `
         <div style="font-size:40px;margin-bottom:12px;">&#128075;</div>
         <h2 id="resumeHeading" style="font-size:20px;margin-bottom:8px;color:#191919;">Welcome Back!</h2>
-        <p style="color:#666;margin-bottom:24px;font-size:14px;line-height:1.5;">You have a previous career guidance session. Would you like to continue where you left off?</p>
-        <div style="display:flex;gap:12px;justify-content:center;">
-          <button id="resumeBtn" onclick="resumeSession('${savedId}')" style="padding:10px 24px;background:#0A66C2;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Resume Session</button>
-          <button id="freshBtn" onclick="startFreshSession()" style="padding:10px 24px;background:white;color:#191919;border:1px solid #E0E0E0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Start Fresh</button>
+        <p style="color:#666;margin-bottom:24px;font-size:14px;line-height:1.5;">You have a previous career guidance session. How would you like to proceed?</p>
+        <div style="display:flex;flex-direction:column;gap:10px;align-items:stretch;">
+          <button id="resumeBtn" onclick="resumeSession('${savedId}')" style="padding:12px 20px;background:#0A66C2;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;text-align:left;">Continue last session<div style="font-size:12px;font-weight:400;opacity:0.85;margin-top:2px;">Resume where we left off</div></button>
+          <button id="restartPivotBtn" onclick="startRestartPivotSession()" style="padding:12px 20px;background:#f5f5f5;color:#191919;border:1px solid #E0E0E0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;text-align:left;">New direction (keep my profile)<div style="font-size:12px;font-weight:400;color:#666;margin-top:2px;">Same background, fresh path</div></button>
+          <button id="freshBtn" onclick="startFreshSession()" style="padding:12px 20px;background:white;color:#191919;border:1px solid #E0E0E0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;text-align:left;">Start completely fresh<div style="font-size:12px;font-weight:400;color:#666;margin-top:2px;">Wipe everything and begin new</div></button>
         </div>
       `;
       overlay.appendChild(dialog);
@@ -81,12 +86,82 @@
       overlay.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') { startFreshSession(); return; }
         if (e.key === 'Tab') {
-          const btns = [document.getElementById('resumeBtn'), document.getElementById('freshBtn')];
+          const btns = [
+            document.getElementById('resumeBtn'),
+            document.getElementById('restartPivotBtn'),
+            document.getElementById('freshBtn'),
+          ];
           const idx = btns.indexOf(document.activeElement);
-          if (e.shiftKey) { e.preventDefault(); btns[idx <= 0 ? 1 : 0].focus(); }
-          else { e.preventDefault(); btns[idx >= 1 ? 0 : 1].focus(); }
+          if (e.shiftKey) { e.preventDefault(); btns[idx <= 0 ? btns.length - 1 : idx - 1].focus(); }
+          else { e.preventDefault(); btns[idx >= btns.length - 1 ? 0 : idx + 1].focus(); }
         }
       });
+    }
+
+    // Change 4 (Step 12A): "New direction (keep my profile)" handler.
+    // Sends `restart_pivot: true` so the server runs applyRestartPivot,
+    // which preserves profile facts but resets path-specific state.
+    async function startRestartPivotSession() {
+      removeResumeDialog();
+      localStorage.removeItem('careerbot_session_id');
+      document.getElementById('welcomeScreen').style.display = 'none';
+      document.getElementById('inputBar').style.display = 'flex';
+      showTyping();
+      try {
+        if (!navigator.onLine) { removeTyping(); showToast('You appear to be offline. Please check your internet connection.'); return; }
+        const uid = localStorage.getItem('careerbot_user_id');
+        const res = await fetch(`${API}/api/session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: uid, restart_pivot: true }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        sessionId = data.sessionId;
+        turnNumber = 0;
+        localStorage.setItem('careerbot_session_id', sessionId);
+        removeTyping();
+        if (data.profileRecap) renderProfileRecap(data.profileRecap);
+        addMessage('bot', data.message);
+        if (data.suggestions && data.suggestions.length > 0) {
+          showSuggestions(data.suggestions);
+        }
+        updatePhase(data.phase, data.skillsMeta || null);
+        document.getElementById('statsBar').classList.add('visible');
+        document.getElementById('msgInput').focus();
+      } catch (e) {
+        removeTyping();
+        addMessage('bot', "We're having trouble reaching the server. Please check your connection and refresh the page.");
+        showToast('Connection error', true);
+      }
+    }
+
+    // Change 4 (Step 12B): profile recap card rendered above the chat input
+    // for returning sessions. Shows the persisted facts so the user can see
+    // what the bot already knows.
+    function renderProfileRecap(recap) {
+      if (!recap || typeof recap !== 'object') return;
+      const existing = document.getElementById('profileRecapCard');
+      if (existing) existing.remove();
+      const items = [];
+      if (recap.jobTitle) items.push(['Current role', recap.jobTitle]);
+      if (recap.industry) items.push(['Industry', recap.industry]);
+      if (recap.yearsExperience !== null && recap.yearsExperience !== undefined) {
+        items.push(['Experience', `${recap.yearsExperience} years`]);
+      }
+      if (recap.educationLevel) items.push(['Education', recap.educationLevel]);
+      if (recap.location) items.push(['Location', recap.location]);
+      if (recap.preferredTimeline) items.push(['Timeline', recap.preferredTimeline]);
+      if (recap.previousTargetRole) items.push(['Prior target', recap.previousTargetRole]);
+      if (items.length === 0) return;
+      const card = document.createElement('div');
+      card.id = 'profileRecapCard';
+      card.style.cssText = 'margin:12px 0;padding:14px 18px;background:#f4f9ff;border:1px solid #cfe2ff;border-radius:12px;font-size:13px;color:#1a1a2e;';
+      const header = '<div style="font-weight:600;margin-bottom:8px;color:#0A66C2;">What I already know about you</div>';
+      const body = items.map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#666;">${k}</span><span style="font-weight:500;">${v}</span></div>`).join('');
+      card.innerHTML = header + body;
+      const area = document.getElementById('chatArea');
+      if (area) area.appendChild(card);
     }
 
     function removeResumeDialog() {
@@ -173,6 +248,8 @@
         turnNumber = 0;
         localStorage.setItem('careerbot_session_id', sessionId);
         removeTyping();
+        // Change 4: render persona profile recap card when server returns one
+        if (data.profileRecap) renderProfileRecap(data.profileRecap);
         addMessage('bot', data.message);
         if (data.suggestions && data.suggestions.length > 0) {
           showSuggestions(data.suggestions);

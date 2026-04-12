@@ -3,6 +3,42 @@ import { config } from "../config.js";
 import { loadSkillFile, loadPromptTemplate, populateTemplate } from "../utils/prompt-loader.js";
 import { getRecentTurns, getConversationSummary, formatCollectedData, formatMissingFields } from "../utils/history-manager.js";
 
+/**
+ * Change 4 (BR-12): persona-aware "known facts" block. Lists only the
+ * non-null profile facts so the speaker can skip re-asking them. Used for
+ * both returning_continue/returning_restart personas AND for same-session
+ * role switches where we want to remind the model that we already have the
+ * user's background even though the target role changed.
+ */
+function getKnownFactsBlock(state: AgentStateType): string {
+  const facts: string[] = [];
+  if (state.jobTitle) facts.push(`- Job title: ${state.jobTitle}`);
+  if (state.industry) facts.push(`- Industry: ${state.industry}`);
+  if (state.yearsExperience !== null && state.yearsExperience !== undefined) {
+    facts.push(`- Years experience: ${state.yearsExperience}`);
+  }
+  if (state.educationLevel) facts.push(`- Education: ${state.educationLevel}`);
+  if (state.location) facts.push(`- Location: ${state.location}`);
+  if (state.preferredTimeline) facts.push(`- Preferred timeline: ${state.preferredTimeline}`);
+  const explored = (state.exploredRoles ?? [])
+    .map((r) => r.role_name)
+    .filter(Boolean);
+  if (explored.length > 0) {
+    facts.push(`- Previously explored roles: ${explored.join(", ")}`);
+  }
+  if (state.targetRole) facts.push(`- Currently active target: ${state.targetRole}`);
+  if (state.previousTargetRole && state.previousTargetRole !== state.targetRole) {
+    facts.push(`- Prior plan generated for: ${state.previousTargetRole}`);
+  }
+  if (facts.length === 0) return "";
+  return [
+    "WHAT WE ALREADY KNOW ABOUT THIS USER",
+    ...facts,
+    "",
+    "CRITICAL: Do NOT re-ask any of the above. Only ask for fields that are still missing or need explicit confirmation.",
+  ].join("\n");
+}
+
 function getPhaseCollectedData(state: AgentStateType): Record<string, unknown> {
   const phase = state.currentPhase;
 
@@ -108,6 +144,79 @@ function getCrossPhaseContext(state: AgentStateType): string {
     }
   }
 
+  // Change 4 (BR-9): same-session role switch recap. Lists the skills that
+  // were rehydrated so the speaker can acknowledge them in one sentence and
+  // then only ask about the delta skills.
+  if (state.roleSwitchContext && !state.roleSwitchAcknowledged) {
+    const ctx = state.roleSwitchContext;
+    const unrated = state.skills
+      .filter((s) => s.user_rating === null)
+      .map((s) => s.skill_name);
+    lines.push("");
+    lines.push(`ROLE SWITCH ACTIVE: ${ctx.from_role} → ${ctx.to_role}`);
+    lines.push(`- Shared skills carried over with prior ratings: ${ctx.shared_skills.length}`);
+    lines.push(`- Rehydrated ratings: ${ctx.rehydrated_ratings}`);
+    if (ctx.shared_skills.length > 0) {
+      lines.push(`- Skills already rated (do NOT re-ask): ${ctx.shared_skills.join(", ")}`);
+    }
+    if (unrated.length > 0) {
+      lines.push(`- Skills you should ask about (delta only): ${unrated.join(", ")}`);
+    }
+    lines.push(
+      `INSTRUCTION: Lead with a one-sentence recap ("I've moved your prior ratings for ${ctx.shared_skills.slice(0, 3).join(", ") || "shared skills"} over to ${ctx.to_role}"). Then ask only about the unrated skills. Do NOT re-ask skills you already have ratings for.`,
+    );
+  }
+
+  // Change 4 (BR-10): active two-role comparison.
+  if (state.roleComparisonContext) {
+    const rc = state.roleComparisonContext;
+    lines.push("");
+    lines.push(`ROLE COMPARISON ACTIVE: ${rc.role_a} vs ${rc.role_b}`);
+    if (rc.shared_skills.length > 0) {
+      lines.push(`- Shared skills: ${rc.shared_skills.join(", ")}`);
+    }
+    if (rc.unique_a.length > 0) {
+      lines.push(`- Unique to ${rc.role_a}: ${rc.unique_a.join(", ")}`);
+    }
+    if (rc.unique_b.length > 0) {
+      lines.push(`- Unique to ${rc.role_b}: ${rc.unique_b.join(", ")}`);
+    }
+    if (rc.recommended_priority) {
+      const label = rc.recommended_priority === "role_a" ? rc.role_a : rc.role_b;
+      lines.push(`- Recommended priority: ${label}${rc.rationale ? ` — ${rc.rationale}` : ""}`);
+    }
+    lines.push(
+      "INSTRUCTION: Present the comparison in a structured way (shared / role_a unique / role_b unique). End with a reasoned priority recommendation based on user background, current skill fit, timeline, and constraints. Limit to exactly these 2 roles — do NOT introduce a third.",
+    );
+  }
+
+  // Change 4 (BR-9 cont.): prior plan on file — delta planning callout.
+  if (state.currentPhase === "planning" && state.priorPlan) {
+    const pp = state.priorPlan;
+    const date = new Date(pp.generated_at).toISOString().slice(0, 10);
+    lines.push("");
+    lines.push(`PRIOR PLAN ON FILE: ${pp.target_role} (generated ${date})`);
+    lines.push(
+      `INSTRUCTION: The user already has a plan for "${pp.target_role}". The current plan is for a NEW target role (${state.targetRole ?? "unknown"}). Acknowledge the prior plan briefly ("I'll keep your previous plan for ${pp.target_role} on file") and present this new plan as a delta. Do not regenerate scaffolding the user has already seen.`,
+    );
+  }
+
+  // Change 4 (BR-11): industry cap warning.
+  if (
+    state.currentPhase === "exploration_career" &&
+    (state.candidateIndustries?.length ?? 0) >= 3
+  ) {
+    lines.push("");
+    lines.push(
+      `INDUSTRY CAP REACHED: ${state.candidateIndustries.length} of 3 — ${state.candidateIndustries.join(", ")}. Do NOT add more. If the user names another, help them narrow — explain why the existing 3 are the strongest fit for their background and ask which to drop.`,
+    );
+  }
+  if (state.clarificationTopic === "INDUSTRY_CAP_HIT") {
+    lines.push(
+      "INDUSTRY OVERAGE SIGNAL: The user just named more than 3 industries. Acknowledge each briefly, then help them narrow to 3 using reasoned tradeoffs (fit to background, timeline, constraints).",
+    );
+  }
+
   return lines.length > 0 ? lines.join("\n") : "(no cross-phase context)";
 }
 
@@ -126,16 +235,60 @@ function getTurnTypeInstructions(turnType: string): string {
 export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateType> {
   // Use fallback for first turn
   if (state.turnType === "first_turn") {
-    // Slice S-B (Sr 17, 20): if a returning user is detected (profile hook
-    // loaded data during session init), prepend a "Welcome back" line and a
-    // 1-2 sentence summary of the last session before the standard opener.
     const opener = config.fallbackMessages.first_turn;
+
+    // Change 4 (BR-12): persona-specific welcome messages.
+    // `returning_continue` → offer to keep going with prior target
+    // `returning_restart` → kept profile, reset path
+    // `new_user` → legacy isReturningUser fall-through for backward compat
+    if (state.userPersona === "returning_continue") {
+      const prev = state.previousTargetRole ?? state.targetRole;
+      const roleNote = prev
+        ? `Last time we were working on **${prev}** — your plan and skill ratings are saved.`
+        : "I have your background on file from our last session.";
+      const options =
+        " Want to keep going with that, look at a different role, or compare a couple of roles side by side?";
+      const factsSummary = [
+        state.jobTitle && `current role: ${state.jobTitle}`,
+        state.industry && `industry: ${state.industry}`,
+        state.yearsExperience !== null && `${state.yearsExperience} years experience`,
+        state.location && `location: ${state.location}`,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      const factsLine = factsSummary
+        ? `\n\nI already have: ${factsSummary}. No need to re-enter those.`
+        : "";
+      return {
+        speakerPrompt: "",
+        speakerOutput: `Welcome back! ${roleNote}${factsLine}${options}`,
+      };
+    }
+
+    if (state.userPersona === "returning_restart") {
+      const prev = state.previousTargetRole ?? "";
+      const factsSummary = [
+        state.jobTitle && `current role: ${state.jobTitle}`,
+        state.industry && `industry: ${state.industry}`,
+        state.yearsExperience !== null && `${state.yearsExperience} years experience`,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      const factsLine = factsSummary ? ` (${factsSummary})` : "";
+      const prevLine = prev
+        ? ` We'll set aside the previous **${prev}** path and start fresh on direction.`
+        : "";
+      return {
+        speakerPrompt: "",
+        speakerOutput: `Welcome back. I've kept what I know about your background${factsLine}.${prevLine} What would you like to explore?`,
+      };
+    }
+
+    // Slice S-B (Sr 17, 20): legacy isReturningUser path kept for pre-Change 4
+    // sessions where `userPersona` was not yet set.
     if (state.isReturningUser) {
       const priorSummary = (state.priorSessionSummary ?? "").trim();
       const roleNote = state.targetRole ? ` We last discussed your interest in ${state.targetRole}.` : "";
-      // C3: if we have multi-session episodic memory, lead with the most
-      // recent episodic summary (short) and note how many earlier sessions
-      // we also have on file. Fall back to the single priorSessionSummary.
       const episodic = (state.priorEpisodicSummaries ?? []).filter((s) => s && s.trim().length > 0);
       let summaryLine = "";
       if (episodic.length > 0) {
@@ -189,13 +342,22 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
     }
   }
 
+  // Change 4: prepend "known facts" block to cross_phase_context so the
+  // model never re-asks facts already in the persisted profile. This is the
+  // single enforcement point for BR-12 inside the prompt template layer.
+  const knownFacts = getKnownFactsBlock(state);
+  const crossPhase =
+    (knownFacts ? `${knownFacts}\n\n` : "") +
+    getCrossPhaseContext(state) +
+    additionalContext;
+
   const prompt = populateTemplate(template, {
     active_phase_name: state.currentPhase,
     active_phase_speaker_md: speakerSkill,
     phase_collected_data: formatCollectedData(collectedData),
     phase_missing_required: missing_required,
     phase_missing_optional: missing_optional,
-    cross_phase_context: getCrossPhaseContext(state) + additionalContext,
+    cross_phase_context: crossPhase,
     turn_type: state.turnType,
     turn_type_instructions: getTurnTypeInstructions(state.turnType),
     last_user_message: state.userMessage || "(no message)",
@@ -204,5 +366,12 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
     recent_turns: getRecentTurns(state.conversationHistory),
   });
 
-  return { speakerPrompt: prompt };
+  // Change 4 (BR-9 §4E): after the speaker prompt includes the role-switch
+  // recap instruction, mark the switch as acknowledged so the next turn's
+  // `determineTransition` guard releases the planning-phase hold.
+  const updates: Partial<AgentStateType> = { speakerPrompt: prompt };
+  if (state.roleSwitchContext && !state.roleSwitchAcknowledged) {
+    updates.roleSwitchAcknowledged = true;
+  }
+  return updates;
 }

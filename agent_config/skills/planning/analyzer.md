@@ -59,8 +59,25 @@ If prerequisites are NOT met, set `required_complete: false` and add to "notes" 
 - **Type:** same shape as `evidence_kept`
 
 ## Cross-Phase Detection
-This is the terminal phase. No outgoing transitions.
-If user wants to change target role or explore more options, note it in "notes" but do NOT suggest a phase transition.
+This is the terminal phase. Normally there are no outgoing transitions.
+
+### Role Switch Intent (Change 4 — BR-9, BINDING)
+A user IS allowed to pivot to a different target role at any point during planning. When this happens, BR-9 requires the orchestrator to rehydrate prior skill ratings and present a delta plan. You MUST surface the pivot so the state-updater can trigger that logic.
+
+**Trigger phrases:** "actually let's look at X", "what about X instead", "I've been reconsidering... X", "let's switch to X", "I'd rather pursue X", "can we look at X instead".
+
+**When detected:**
+- Set `extracted_fields.target_role` to the new role the user named (this is what triggers `mergeRoleTargetingFields` pivot detection at `state-updater.ts`)
+- Set `extracted_fields.role_switch_intent = { to: "<new role>" }`
+- Set `phase_suggestion = "exploration_role_targeting"` — the orchestrator needs to walk the user back through the role-targeting phase for the new role (rehydrated ratings + delta-only questions)
+- Add `"ROLE_SWITCH: <prior role> -> <new role>"` to `notes`
+- Do NOT extract any planning fields (`timeline`, `learning_resources`, etc.) on the pivot turn — they belong to the OLD plan
+
+### Role Comparison Intent (Change 4 — BR-10)
+If the user asks to compare two roles ("compare X vs Y", "which is better, X or Y"), set `role_comparison_intent = { roles: [X, Y] }` and add `"ROLE_COMPARE: X vs Y"` to `notes`. Cap at exactly 2 roles.
+
+### Other pivots
+If the user wants to explore more options (not a specific role pivot), note it in `notes` but do NOT change phase.
 
 ## Edge Cases
 - If user requests modifications to the plan: note specific change requests in "notes"

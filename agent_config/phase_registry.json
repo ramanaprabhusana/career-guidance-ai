@@ -30,7 +30,7 @@
       "purpose": "Confirm the target role and collect skill self-assessments against O*NET requirements.",
       "allowed_targets": ["planning"],
       "conditions": {
-        "planning": "skills_assessed_percentage == 100 AND learning_needs_complete AND evaluation_confirmed"
+        "planning": "skills_assessed_percentage == 100 AND learning_needs_complete AND evaluation_confirmed AND role_switch_acknowledged"
       },
       "max_turns": 30,
       "auto_advance": true,

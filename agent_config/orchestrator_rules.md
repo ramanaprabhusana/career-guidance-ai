@@ -69,6 +69,34 @@ If user volunteers age, race, gender, disability, pregnancy, religion, or other 
 - NEVER extract or store protected characteristic data
 - This rule overrides ALL extraction instructions
 
+### BR-9: Role Switch Continuity (Change 4)
+When a user pivots `target_role` within a session (or from a returning session):
+- Archive the prior target to `previousTargetRole` and append it to `exploredRoles[]` with status `deprioritized`
+- Snapshot the current plan to `priorPlan` if any plan content exists (recommendedPath / skillDevelopmentAgenda / immediateNextSteps)
+- Rehydrate skill ratings for any `skill_name` that exists in both roles' O*NET sets via `rehydrateSkillRatings` (case+whitespace normalized match)
+- Seed `roleSwitchContext = { from_role, to_role, shared_skills, rehydrated_ratings, initiated_at }`
+- Emit a one-sentence recap turn BEFORE resuming skill assessment; block the planning transition until `roleSwitchAcknowledged === true`
+- **DO NOT wipe orientation facts** (`jobTitle`, `industry`, `yearsExperience`, `educationLevel`, `location`, `preferredTimeline`) — those survive the pivot per BR-12
+
+### BR-10: Role Comparison Cap (Change 4)
+- Maximum of 2 roles in active comparison at any time (`comparedRoles[≤2]`)
+- If the user names a 3rd, narrow down with a reasoned recommendation before proceeding
+- Comparison must classify skills into `shared` / `unique_a` / `unique_b` and end with a priority recommendation grounded in user background, current skill fit, timeline, and constraints
+- The `compareTwoRoles` helper in `src/utils/rag.ts` is the single source of truth for the split
+
+### BR-11: Industry Exploration Cap (Change 4)
+- Maximum 3 active candidate industries (`candidateIndustries[≤3]`)
+- Hard-enforced in the LangGraph reducer; the speaker ALSO surfaces a cap warning via cross-phase context
+- If the user names a 4th, narrow before proceeding — explain why the existing 3 are the strongest fit for their background
+- Industry exploration must support role prioritization, not become endless browsing
+
+### BR-12: Profile Reuse on Returning Sessions (Change 4)
+- Returning users (`userPersona === "returning_continue"` or `"returning_restart"`) MUST NOT be re-asked for facts already persisted in `profiles.payload`:
+  `job_title`, `industry`, `years_experience`, `education_level`, `location`, `preferred_timeline`, `explored_roles`, `prior_plan`
+- The speaker MUST acknowledge known facts in its opener via the `WHAT WE ALREADY KNOW ABOUT THIS USER` block
+- `applyRestartPivot` preserves profile facts but resets path-specific state per BR-9; only `applyFreshStart` wipes everything (used exclusively for the explicit "Start completely fresh" button)
+- Persona detection happens at `POST /api/session` based on whether a persisted profile exists for the `userId`
+
 ## Entity Rotation Rules
 
 ### exploration_role_targeting (entity: skills)

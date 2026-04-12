@@ -49,9 +49,19 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     addField(doc, "Industry", state.industry ?? "Not provided");
     addField(doc, "Years of Experience", state.yearsExperience !== null ? `${state.yearsExperience} years` : "Not provided");
     addField(doc, "Education", formatEducation(state.educationLevel));
+    if (state.location) addField(doc, "Location", state.location);
+    if (state.preferredTimeline) addField(doc, "Preferred Timeline", state.preferredTimeline);
     addField(doc, "Session Goal", state.sessionGoal === "explore_options" ? "Explore career options" : "Pursue a specific role");
     if (state.targetRole) {
       addField(doc, "Target Role", state.targetRole);
+    }
+    // Change 4: render previously-considered role when a pivot happened
+    if (state.previousTargetRole && state.previousTargetRole !== state.targetRole) {
+      addField(doc, "Previously Considered", state.previousTargetRole);
+    }
+    // Change 4: render active two-role comparison when present
+    if ((state.comparedRoles ?? []).length > 0) {
+      addField(doc, "Roles Compared", state.comparedRoles.join(" vs "));
     }
     doc.moveDown(0.5);
 
@@ -135,6 +145,9 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
 
     renderLearningEvidencePdf(doc, state);
 
+    // Change 4: prior plan appendix when a same-session pivot happened
+    renderPriorPlanAppendixPdf(doc, state);
+
     // --- Footer ---
     doc.moveDown(1);
     doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke("#cccccc");
@@ -148,6 +161,64 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     stream.on("finish", () => resolve(outputPath));
     stream.on("error", reject);
   });
+}
+
+/**
+ * Change 4 (BR-9): render any prior plan as an appendix so users who pivoted
+ * target roles mid-session still have their previous plan on file. Only
+ * fires when `state.priorPlan` is non-null.
+ */
+function renderPriorPlanAppendixPdf(doc: PDFKit.PDFDocument, state: AgentStateType): void {
+  const pp = state.priorPlan;
+  if (!pp) return;
+  const generated = new Date(pp.generated_at).toLocaleDateString();
+
+  checkPageBreak(doc);
+  doc.moveDown(0.8);
+  sectionBanner(doc, `Appendix A: Prior plan (${pp.target_role}, ${generated})`, "blue");
+  doc.fontSize(10).font("Helvetica").fillColor("#555555")
+    .text(`You previously explored ${pp.target_role} in this session. Your original plan is kept on file below for reference.`, { lineGap: 3 });
+  doc.fillColor("#000000");
+  doc.moveDown(0.4);
+
+  if (pp.recommended_path) {
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333")
+      .text("Recommended path");
+    doc.moveDown(0.2);
+    doc.fontSize(10).font("Helvetica").fillColor("#000000")
+      .text(pp.recommended_path, { lineGap: 3 });
+    doc.moveDown(0.3);
+  }
+
+  if ((pp.skill_development_agenda ?? []).length > 0) {
+    checkPageBreak(doc);
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333")
+      .text("Skill development agenda");
+    doc.moveDown(0.2);
+    doc.fontSize(10).font("Helvetica").fillColor("#000000");
+    for (const item of pp.skill_development_agenda) {
+      doc.text(`  • ${item}`, { lineGap: 2 });
+    }
+    doc.moveDown(0.3);
+  }
+
+  if ((pp.immediate_next_steps ?? []).length > 0) {
+    checkPageBreak(doc);
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333")
+      .text("Immediate next steps");
+    doc.moveDown(0.2);
+    doc.fontSize(10).font("Helvetica").fillColor("#000000");
+    for (const step of pp.immediate_next_steps) {
+      doc.text(`  ○ ${step}`, { lineGap: 2 });
+    }
+    doc.moveDown(0.3);
+  }
+
+  if (pp.timeline) {
+    doc.fontSize(10).font("Helvetica-Oblique").fillColor("#666666")
+      .text(`Prior timeline: ${pp.timeline}`, { lineGap: 2 });
+    doc.fillColor("#000000");
+  }
 }
 
 function renderLearningEvidencePdf(doc: PDFKit.PDFDocument, state: AgentStateType): void {
@@ -348,6 +419,13 @@ function renderSection3(
     doc.fontSize(11).font("Helvetica").fillColor("#000000");
     if (!state.targetRole) {
       doc.text("No target role was specified during this session, so skills could not be assessed against role requirements. To get a skill gap analysis, consider starting a new session and specifying a target role.", { lineGap: 4 });
+    } else if (state.skillsAssessmentStatus === "complete") {
+      // Change 4 (Bug E9): the old branch unconditionally said "assessment
+      // was not completed" whenever `skills.length === 0 || techSkills.length +
+      // softSkills.length === 0`, even when the status field was marked
+      // complete. That created the "100% ASSESSED" header vs "not completed"
+      // Section 3 contradiction. Surface a coherent edge-case message instead.
+      doc.text(`Skills assessment for ${state.targetRole} is marked complete, but no skill records were retrieved for this report. This can happen if the session's skill cache was invalidated. Open the session in the app to view full results.`, { lineGap: 4 });
     } else {
       doc.text("Skills assessment was not completed during this session. To get a full skill gap analysis, consider continuing your session or starting a new one.", { lineGap: 4 });
     }

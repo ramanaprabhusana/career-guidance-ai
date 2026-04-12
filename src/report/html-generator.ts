@@ -247,7 +247,11 @@ export function generateHTMLReport(state: AgentStateType): string {
         <div class="profile-item"><div class="label">Industry</div><div class="value">${esc(state.industry ?? "Not provided")}</div></div>
         <div class="profile-item"><div class="label">Experience</div><div class="value">${state.yearsExperience !== null ? `${state.yearsExperience} years` : "Not provided"}</div></div>
         <div class="profile-item"><div class="label">Education</div><div class="value">${esc(fmtEdu(state.educationLevel))}</div></div>
+        ${state.location ? `<div class="profile-item"><div class="label">Location</div><div class="value">${esc(state.location)}</div></div>` : ""}
         <div class="profile-item"><div class="label">Timeline</div><div class="value">${esc(timeline)}</div></div>
+        ${state.targetRole ? `<div class="profile-item"><div class="label">Target Role</div><div class="value">${esc(state.targetRole)}</div></div>` : ""}
+        ${state.previousTargetRole && state.previousTargetRole !== state.targetRole ? `<div class="profile-item"><div class="label">Previously Considered</div><div class="value">${esc(state.previousTargetRole)}</div></div>` : ""}
+        ${(state.comparedRoles ?? []).length > 0 ? `<div class="profile-item"><div class="label">Roles Compared</div><div class="value">${esc(state.comparedRoles.join(" vs "))}</div></div>` : ""}
       </div>
     </div>
   </div>
@@ -261,6 +265,8 @@ ${renderSection4(state, skills, techSkills, softSkills, timeline)}
 ${renderLearningEvidenceSection(state)}
 
 ${renderSection5(state, isExplore, directions)}
+
+${renderPriorPlanAppendixHtml(state)}
 
   </div>
 
@@ -473,7 +479,11 @@ function renderSection3(
         <p>${esc(
           !state.targetRole
             ? "No target role was specified, so skills could not be assessed. Start a new session and specify a target role to get a skill gap analysis."
-            : "Skills assessment was not completed. Continue your session or start a new one for a full gap analysis."
+            : state.skillsAssessmentStatus === "complete"
+              // Change 4 (Bug E9): coherent edge-case message instead of the
+              // old "not completed" copy that contradicted the 100% header.
+              ? `Skills assessment for ${state.targetRole} is marked complete, but no skill records were retrieved for this report. Open the session in the app to view full results.`
+              : "Skills assessment was not completed. Continue your session or start a new one for a full gap analysis."
         )}</p>`}
       </div>
     </div>`;
@@ -689,6 +699,34 @@ function softenStep(step: string): string {
     .replace(/^Explore /i, "You might consider exploring ")
     .replace(/^Start /i, "Consider starting ")
     .replace(/^Take /i, "You might consider taking ");
+}
+
+/**
+ * Change 4 (BR-9): render prior plan as an appendix in the HTML report.
+ * Only fires when state.priorPlan is non-null (i.e. user pivoted target
+ * roles mid-session).
+ */
+function renderPriorPlanAppendixHtml(state: AgentStateType): string {
+  const pp = state.priorPlan;
+  if (!pp) return "";
+  const generated = new Date(pp.generated_at).toLocaleDateString();
+  const agenda = (pp.skill_development_agenda ?? []).map(
+    (s) => `<li>${esc(s)}</li>`,
+  ).join("");
+  const steps = (pp.immediate_next_steps ?? []).map(
+    (s) => `<li>${esc(s)}</li>`,
+  ).join("");
+  return `
+    <div class="section sec-profile">
+      <div class="section-header"><div class="icon">&#128196;</div> Appendix A: Prior plan (${esc(pp.target_role)}, ${esc(generated)})</div>
+      <div class="section-body">
+        <p style="color: #4a5568; margin-bottom: 12px;">You previously explored <strong>${esc(pp.target_role)}</strong> in this session. Your original plan is kept on file below for reference.</p>
+        ${pp.recommended_path ? `<h3 style="font-size: 14px; color: #2d3748; margin: 14px 0 6px;">Recommended path</h3><p style="font-size: 13px; color: #4a5568;">${esc(pp.recommended_path)}</p>` : ""}
+        ${agenda ? `<h3 style="font-size: 14px; color: #2d3748; margin: 14px 0 6px;">Skill development agenda</h3><ul style="font-size: 13px; color: #4a5568; padding-left: 20px;">${agenda}</ul>` : ""}
+        ${steps ? `<h3 style="font-size: 14px; color: #2d3748; margin: 14px 0 6px;">Immediate next steps</h3><ul style="font-size: 13px; color: #4a5568; padding-left: 20px;">${steps}</ul>` : ""}
+        ${pp.timeline ? `<p style="font-size: 12px; color: #718096; font-style: italic; margin-top: 12px;">Prior timeline: ${esc(pp.timeline)}</p>` : ""}
+      </div>
+    </div>`;
 }
 
 function esc(s: string): string {

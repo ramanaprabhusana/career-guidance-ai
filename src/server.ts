@@ -12,9 +12,27 @@ import { generatePDFReport } from "./report/pdf-generator.js";
 import { generateHTMLReport } from "./report/html-generator.js";
 import { buildEvidencePack, writeEvidencePackFile } from "./report/evidence-pack.js";
 import { searchOccupations } from "./services/onet.js";
-import type { AgentStateType, ProgressItem } from "./state.js";
-import { categorizeSkillType, warmup as warmupRag } from "./utils/rag.js";
-import { openProfileDb, getProfilePayload, upsertProfilePayload, appendEpisodicSummary, listRecentEpisodic } from "./db/profile-db.js";
+import type {
+  AgentStateType,
+  ProgressItem,
+  UserPersona,
+  RoleHistoryEntry,
+  RoleSwitchContext,
+  RoleComparisonContext,
+  PriorPlanSnapshot,
+} from "./state.js";
+import { categorizeSkillType, warmup as warmupRag, retrieveSkillsForRole, compareTwoRoles } from "./utils/rag.js";
+import {
+  openProfileDb,
+  getProfilePayload,
+  upsertProfilePayload,
+  appendEpisodicSummary,
+  listRecentEpisodic,
+  saveSessionState,
+  loadSessionState,
+  recordPriorPlan,
+  recordSkillRatingsForRole,
+} from "./db/profile-db.js";
 import { parseResumeText } from "./services/resume-parser.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -56,9 +74,19 @@ try {
 }
 
 function saveSession(id: string, state: AgentStateType): void {
-  // In-memory is the source of truth for the current request path. Disk
-  // writes are async (P4) so /api/chat can return before the JSON lands.
+  // Change 4 (Bug E8): SQLite is the source of truth — Render free-tier
+  // dyno restarts wipe the ephemeral filesystem AND the in-memory Map, so
+  // sessions/*.json alone was losing mid-flow conversations. In-memory Map
+  // stays as an L1 cache (same-request reuse) and disk JSON writes remain
+  // as a debugging artifact.
   sessions.set(id, state);
+  if (profileDb) {
+    try {
+      saveSessionState(profileDb, id, state.userId ?? null, JSON.stringify(state));
+    } catch (e) {
+      console.warn("saveSessionState failed:", (e as Error).message);
+    }
+  }
   void writeFile(join(SESSION_DIR, `${id}.json`), JSON.stringify(state)).catch((e) => {
     console.warn("Failed to persist session:", (e as Error).message);
   });
@@ -128,17 +156,74 @@ function migrateSession(state: any): AgentStateType {
   if (state.offTopicStrikes === undefined) state.offTopicStrikes = 0;
   if (state.resumeChoice === undefined) state.resumeChoice = null;
 
+  // --- Change 4: defaults for structured role memory fields. All additive so
+  // pre-Change-4 sessions load without crashing and get empty/null defaults.
+  if (state.userPersona === undefined) state.userPersona = "new_user";
+  if (!Array.isArray(state.candidateIndustries)) state.candidateIndustries = [];
+  if (!Array.isArray(state.prioritizedIndustries)) state.prioritizedIndustries = [];
+  if (!Array.isArray(state.exploredRoles)) state.exploredRoles = [];
+  if (!Array.isArray(state.comparedRoles)) state.comparedRoles = [];
+  if (state.previousTargetRole === undefined) state.previousTargetRole = null;
+  if (state.roleSwitchContext === undefined) state.roleSwitchContext = null;
+  if (state.roleSwitchAcknowledged === undefined) state.roleSwitchAcknowledged = false;
+  if (state.roleComparisonContext === undefined) state.roleComparisonContext = null;
+  if (state.priorPlan === undefined) state.priorPlan = null;
+
   return state as AgentStateType;
 }
 
 function persistUserProfile(state: AgentStateType, sessionId: string): void {
   if (!profileDb || !state.userId) return;
+  // Change 4: persist the extended profile facts so returning users and
+  // in-session role pivots can reuse them without re-asking.
   upsertProfilePayload(profileDb, state.userId, {
     last_session_id: sessionId,
     target_role: state.targetRole,
     job_title: state.jobTitle,
     conversation_summary: state.conversationSummary || undefined,
+    industry: state.industry ?? null,
+    education_level: state.educationLevel ?? null,
+    years_experience: state.yearsExperience ?? null,
+    location: state.location ?? null,
+    preferred_timeline: state.preferredTimeline ?? null,
+    explored_roles: (state.exploredRoles ?? []).map((e) => ({
+      role_name: e.role_name,
+      status: e.status,
+      first_seen_at: e.first_seen_at,
+    })),
   });
+
+  // Persist skill ratings for the current target role so they can be
+  // rehydrated on future pivots (same session OR new session).
+  if (state.targetRole && Array.isArray(state.skills) && state.skills.length > 0) {
+    try {
+      recordSkillRatingsForRole(profileDb, state.userId, state.targetRole, state.skills);
+    } catch (e) {
+      console.warn("recordSkillRatingsForRole failed:", (e as Error).message);
+    }
+  }
+
+  // Snapshot the most recent completed plan when the planning phase finishes.
+  if (
+    state.currentPhase === "planning" &&
+    state.targetRole &&
+    (state.recommendedPath || (state.skillDevelopmentAgenda ?? []).length > 0)
+  ) {
+    const snapshot: PriorPlanSnapshot = {
+      target_role: state.targetRole,
+      generated_at: Date.now(),
+      recommended_path: state.recommendedPath ?? null,
+      skill_development_agenda: state.skillDevelopmentAgenda ?? [],
+      immediate_next_steps: state.immediateNextSteps ?? [],
+      timeline: state.timeline ?? null,
+    };
+    try {
+      recordPriorPlan(profileDb, state.userId, snapshot);
+    } catch (e) {
+      console.warn("recordPriorPlan failed:", (e as Error).message);
+    }
+  }
+
   if (state.transitionDecision === "complete" && state.conversationSummary?.trim()) {
     appendEpisodicSummary(profileDb, state.userId, sessionId, state.conversationSummary);
   }
@@ -158,12 +243,75 @@ function detectResumeIntent(msg: string): "resume" | "fresh" | null {
   return null;
 }
 
-// Wipe all profile-derived context so a returning user can start a clean
-// orientation. Preserves identity (userId, sessionId) and audit trail
-// (conversationHistory). Sets resumeChoice="fresh" so we don't re-prompt.
+// Change 4 — applyRestartPivot: "New direction, keep my profile".
+// Per Revised Prompt §C: the chatbot should NOT erase useful profile memory
+// just because the target role/path changed. This keeps jobTitle, industry,
+// yearsExperience, educationLevel, location, preferredTimeline, exploredRoles,
+// priorPlan; resets only path-specific state (track/targetRole/skills/plan).
+// If we know the job title, we can skip orientation and jump to exploration.
+function applyRestartPivot(state: AgentStateType): AgentStateType {
+  const archivedTarget = state.targetRole;
+  const exploredUpdate: RoleHistoryEntry[] = archivedTarget
+    ? [
+        ...state.exploredRoles,
+        {
+          role_name: archivedTarget,
+          status: "deprioritized" as const,
+          first_seen_at: Date.now(),
+        },
+      ]
+    : state.exploredRoles;
+
+  return {
+    ...state,
+    userPersona: "returning_restart",
+    resumeChoice: "fresh",
+    isReturningUser: false, // skip the welcome-back prompt; user already chose
+    priorSessionSummary: "",
+    priorEpisodicSummaries: [],
+    // KEEP profile facts (jobTitle, industry, yearsExperience, educationLevel,
+    //   sessionGoal, location, preferredTimeline, priorPlan).
+    // RESET path-specific state:
+    track: null,
+    interests: [],
+    constraints: [],
+    candidateDirections: [],
+    candidateIndustries: [],
+    prioritizedIndustries: [],
+    comparedRoles: [],
+    targetRole: null,
+    previousTargetRole: archivedTarget,
+    exploredRoles: exploredUpdate,
+    roleSwitchContext: null,
+    roleSwitchAcknowledged: false,
+    roleComparisonContext: null,
+    skills: [],
+    skillsAssessmentStatus: "not_started",
+    candidateSkills: {},
+    learningNeeds: [],
+    learningNeedsComplete: false,
+    skillsEvaluationSummary: null,
+    userConfirmedEvaluation: false,
+    recommendedPath: null,
+    timeline: null,
+    skillDevelopmentAgenda: [],
+    immediateNextSteps: [],
+    planRationale: null,
+    reportGenerated: false,
+    planBlocks: [],
+    shiftIntent: false,
+    // If we already have orientation facts, skip straight to exploration.
+    currentPhase: state.jobTitle ? "exploration_career" : "orientation",
+    phaseTurnNumber: 0,
+  };
+}
+
+// Full wipe (the explicit "Start completely fresh" UI button). Preserves
+// identity (userId, sessionId) and audit trail only; resets everything else.
 function applyFreshStart(state: AgentStateType): AgentStateType {
   return {
     ...state,
+    userPersona: "new_user",
     resumeChoice: "fresh",
     isReturningUser: false,
     priorSessionSummary: "",
@@ -182,7 +330,15 @@ function applyFreshStart(state: AgentStateType): AgentStateType {
     interests: [],
     constraints: [],
     candidateDirections: [],
+    candidateIndustries: [],
+    prioritizedIndustries: [],
+    comparedRoles: [],
     targetRole: null,
+    previousTargetRole: null,
+    exploredRoles: [],
+    roleSwitchContext: null,
+    roleSwitchAcknowledged: false,
+    roleComparisonContext: null,
     skills: [],
     skillsAssessmentStatus: "not_started",
     candidateSkills: {},
@@ -199,6 +355,7 @@ function applyFreshStart(state: AgentStateType): AgentStateType {
     reportGenerated: false,
     planBlocks: [],
     shiftIntent: false,
+    priorPlan: null,
     currentPhase: "orientation",
     phaseTurnNumber: 0,
   };
@@ -224,11 +381,26 @@ function buildSkillsMeta(state: AgentStateType) {
 }
 
 function loadSession(id: string): AgentStateType | null {
-  // Check memory first
+  // Change 4 (Bug E8): SQLite is the source of truth on Render free tier.
+  // L1 cache (Map) → SQLite → disk JSON (legacy fallback).
   const mem = sessions.get(id);
   if (mem) return migrateSession(mem);
 
-  // Try disk
+  if (profileDb) {
+    try {
+      const row = loadSessionState(profileDb, id);
+      if (row) {
+        const data = JSON.parse(row.state_json);
+        const migrated = migrateSession(data);
+        sessions.set(id, migrated);
+        return migrated;
+      }
+    } catch (e) {
+      console.warn("loadSessionState failed:", (e as Error).message);
+    }
+  }
+
+  // Legacy fallback: sessions/*.json files from pre-Change-4 runs.
   const path = join(SESSION_DIR, `${id}.json`);
   if (existsSync(path)) {
     try {
@@ -267,32 +439,71 @@ app.post("/api/session", async (req, res) => {
     typeof req.body?.userId === "string" && req.body.userId.trim().length > 0
       ? req.body.userId.trim().slice(0, 128)
       : null;
+  // Change 4 (Step 12A): the frontend "New direction (keep my profile)" button
+  // sends { userId, restart_pivot: true }. When set, we skip the welcome-back
+  // prompt, archive the prior target, and reset path-specific state.
+  const restartPivot = req.body?.restart_pivot === true;
 
   try {
-    // Slice S-B (Sr 17, 20): prefetch profile BEFORE graph.invoke so the
-    // speakerPromptCreator can emit the "Welcome back" opener on first_turn.
+    // Change 4: explicit persona detection replaces the old binary
+    // isReturningUser flag. The speaker branches on persona for opener
+    // wording and which known facts to acknowledge.
+    let userPersona: UserPersona = "new_user";
     let isReturningUser = false;
     let priorSessionSummary = "";
     let priorEpisodicSummaries: string[] = [];
     let priorTargetRole: string | null = null;
     let priorJobTitle: string | null = null;
+    // New: preload extended profile facts so the orientation speaker can
+    // acknowledge them and skip re-asking (BR-12).
+    let priorIndustry: string | null = null;
+    let priorEducation: any = null;
+    let priorYearsExperience: number | null = null;
+    let priorLocation: string | null = null;
+    let priorPreferredTimeline: string | null = null;
+    let priorExploredRoles: RoleHistoryEntry[] = [];
+    let priorPlan: PriorPlanSnapshot | null = null;
+
     if (userId && profileDb) {
       const prof = getProfilePayload(profileDb, userId);
       if (prof) {
+        userPersona = "returning_continue";
         isReturningUser = true;
         priorSessionSummary = (prof.conversation_summary ?? "").trim();
         priorTargetRole = prof.target_role ?? null;
         priorJobTitle = prof.job_title ?? null;
+        priorIndustry = prof.industry ?? null;
+        priorEducation = prof.education_level ?? null;
+        priorYearsExperience = prof.years_experience ?? null;
+        priorLocation = prof.location ?? null;
+        priorPreferredTimeline = prof.preferred_timeline ?? null;
+        priorExploredRoles = (prof.explored_roles ?? []).map((e) => ({
+          role_name: e.role_name,
+          status: (e.status as RoleHistoryEntry["status"]) ?? "explored",
+          first_seen_at: e.first_seen_at,
+        }));
+        priorPlan = prof.prior_plan ?? null;
       }
-      // C3: pull up to 3 episodic summaries for multi-session recall. This is
-      // separate from the single `conversation_summary` on the profile row;
-      // listRecentEpisodic returns a list ordered most-recent-first.
+      // C3: pull up to 3 episodic summaries for multi-session recall.
       try {
         priorEpisodicSummaries = listRecentEpisodic(profileDb, userId, 3);
-        if (priorEpisodicSummaries.length > 0) isReturningUser = true;
+        if (priorEpisodicSummaries.length > 0) {
+          isReturningUser = true;
+          if (userPersona === "new_user") userPersona = "returning_continue";
+        }
       } catch (e) {
         console.warn("listRecentEpisodic failed:", (e as Error).message);
       }
+    }
+
+    // restart_pivot flips persona to "returning_restart" — the server builds
+    // the first-turn state as if the user already chose "New direction, keep
+    // my profile". The speaker opener adjusts accordingly.
+    if (restartPivot && userPersona !== "new_user") {
+      userPersona = "returning_restart";
+      isReturningUser = false; // suppress the welcome-back prompt
+      priorSessionSummary = "";
+      priorEpisodicSummaries = [];
     }
 
     let state = await graph.invoke({
@@ -301,16 +512,26 @@ app.post("/api/session", async (req, res) => {
       startedAt: Date.now(),
       userMessage: "",
       turnType: "first_turn",
+      userPersona,
       isReturningUser,
       priorSessionSummary,
       priorEpisodicSummaries,
       conversationSummary: priorSessionSummary,
-      targetRole: priorTargetRole,
+      // Preloaded profile facts (BR-12: no re-asking known info).
+      targetRole: restartPivot ? null : priorTargetRole,
+      previousTargetRole: restartPivot ? priorTargetRole : null,
       jobTitle: priorJobTitle,
+      industry: priorIndustry,
+      educationLevel: priorEducation,
+      yearsExperience: priorYearsExperience,
+      location: priorLocation,
+      preferredTimeline: priorPreferredTimeline,
+      exploredRoles: priorExploredRoles,
+      priorPlan,
     }, {
       runName: "career-guidance-session-start",
-      tags: ["first_turn", "session_init"],
-      metadata: { sessionId, userId: userId ?? undefined },
+      tags: ["first_turn", "session_init", userPersona],
+      metadata: { sessionId, userId: userId ?? undefined, userPersona },
     });
 
     if (userId) state = { ...state, userId };
@@ -324,6 +545,20 @@ app.post("/api/session", async (req, res) => {
       phase: state.currentPhase,
       userId: state.userId,
       suggestions: sessionParsed.suggestions,
+      userPersona,
+      // Profile recap payload so the frontend can render the recap card.
+      profileRecap: isReturningUser || restartPivot
+        ? {
+            jobTitle: priorJobTitle,
+            industry: priorIndustry,
+            yearsExperience: priorYearsExperience,
+            educationLevel: priorEducation,
+            location: priorLocation,
+            preferredTimeline: priorPreferredTimeline,
+            previousTargetRole: priorTargetRole,
+            priorPlanExists: priorPlan !== null,
+          }
+        : null,
     });
   } catch (e) {
     res.status(500).json({ error: (e as Error).message });
@@ -744,6 +979,173 @@ app.post("/api/session/:sessionId/target-role", (req, res) => {
   state.targetRole = title;
   saveSession(req.params.sessionId, state);
   res.json({ success: true, targetRole: title, code });
+});
+
+// --- Change 4: explicit role-switch endpoint (BR-9) ---
+// Archives current targetRole → previousTargetRole, snapshots the current plan
+// to priorPlan (if any), clears path state so the next chat turn auto-fetches
+// skills for the new role, and sets roleSwitchContext so the speaker can
+// deliver the rehydration recap before resuming assessment.
+app.post("/api/session/:sessionId/role-switch", async (req, res) => {
+  const { to_role } = req.body ?? {};
+  if (typeof to_role !== "string" || !to_role.trim()) {
+    res.status(400).json({ error: "to_role is required" });
+    return;
+  }
+  const state = loadSession(req.params.sessionId);
+  if (!state) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  const fromRole = state.targetRole ?? null;
+  if (fromRole && fromRole.trim().toLowerCase() === to_role.trim().toLowerCase()) {
+    res.json({ ok: true, noop: true, message: "Already targeting that role." });
+    return;
+  }
+
+  // Snapshot the plan if the user already generated one for the prior role.
+  const priorPlanSnapshot: PriorPlanSnapshot | null =
+    fromRole && (state.recommendedPath || (state.skillDevelopmentAgenda ?? []).length > 0)
+      ? {
+          target_role: fromRole,
+          generated_at: Date.now(),
+          recommended_path: state.recommendedPath ?? null,
+          skill_development_agenda: state.skillDevelopmentAgenda ?? [],
+          immediate_next_steps: state.immediateNextSteps ?? [],
+          timeline: state.timeline ?? null,
+        }
+      : state.priorPlan;
+
+  // Fetch fresh skills for the new target role so we can rehydrate ratings.
+  let newSkills: AgentStateType["skills"] = [];
+  try {
+    newSkills = await retrieveSkillsForRole(to_role.trim());
+  } catch (e) {
+    console.warn("retrieveSkillsForRole failed during role switch:", (e as Error).message);
+  }
+
+  // Rehydrate from the prior role's current ratings.
+  const priorRatings = state.skills.filter((s) => s.user_rating !== null);
+  const priorLut = new Map(
+    priorRatings.map((s) => [s.skill_name.toLowerCase().trim(), s.user_rating])
+  );
+  let rehydratedCount = 0;
+  const sharedSkills: string[] = [];
+  const rehydratedSkills = newSkills.map((s) => {
+    const match = priorLut.get(s.skill_name.toLowerCase().trim());
+    if (match) {
+      rehydratedCount += 1;
+      sharedSkills.push(s.skill_name);
+      return { ...s, user_rating: match };
+    }
+    return s;
+  });
+
+  const exploredUpdate: RoleHistoryEntry[] = fromRole
+    ? [
+        ...state.exploredRoles,
+        {
+          role_name: fromRole,
+          status: "deprioritized" as const,
+          first_seen_at: Date.now(),
+        },
+      ]
+    : state.exploredRoles;
+
+  const switchContext: RoleSwitchContext = {
+    from_role: fromRole ?? "(unset)",
+    to_role: to_role.trim(),
+    shared_skills: sharedSkills,
+    rehydrated_ratings: rehydratedCount,
+    initiated_at: Date.now(),
+  };
+
+  const updated: AgentStateType = {
+    ...state,
+    targetRole: to_role.trim(),
+    previousTargetRole: fromRole,
+    priorPlan: priorPlanSnapshot,
+    skills: rehydratedSkills,
+    skillsAssessmentStatus: rehydratedSkills.length > 0 && rehydratedCount === rehydratedSkills.length ? "complete" : rehydratedSkills.length > 0 ? "in_progress" : "not_started",
+    learningNeedsComplete: false,
+    userConfirmedEvaluation: false,
+    skillsEvaluationSummary: null,
+    recommendedPath: null,
+    timeline: null,
+    skillDevelopmentAgenda: [],
+    immediateNextSteps: [],
+    planRationale: null,
+    planBlocks: [],
+    exploredRoles: exploredUpdate,
+    roleSwitchContext: switchContext,
+    roleSwitchAcknowledged: false,
+    roleComparisonContext: null,
+    currentPhase: "exploration_role_targeting",
+  };
+  saveSession(req.params.sessionId, updated);
+  res.json({
+    ok: true,
+    from_role: fromRole,
+    to_role: to_role.trim(),
+    shared_skills_count: sharedSkills.length,
+    rehydrated_count: rehydratedCount,
+    prior_plan_saved: priorPlanSnapshot !== null,
+  });
+});
+
+// --- Change 4: role comparison endpoint (BR-10) ---
+// Hard cap of 2 roles. Populates roleComparisonContext with shared/unique
+// skill splits so the speaker can present a structured comparison with a
+// reasoned priority recommendation.
+app.post("/api/session/:sessionId/role-compare", async (req, res) => {
+  const { role_a, role_b } = req.body ?? {};
+  if (typeof role_a !== "string" || typeof role_b !== "string" || !role_a.trim() || !role_b.trim()) {
+    res.status(400).json({ error: "role_a and role_b are required" });
+    return;
+  }
+  if (role_a.trim().toLowerCase() === role_b.trim().toLowerCase()) {
+    res.status(400).json({ error: "Cannot compare a role with itself" });
+    return;
+  }
+  const state = loadSession(req.params.sessionId);
+  if (!state) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  let compared;
+  try {
+    compared = await compareTwoRoles(role_a.trim(), role_b.trim());
+  } catch (e) {
+    res.status(502).json({ error: `compareTwoRoles failed: ${(e as Error).message}` });
+    return;
+  }
+
+  const comparisonContext: RoleComparisonContext = {
+    role_a: role_a.trim(),
+    role_b: role_b.trim(),
+    shared_skills: compared.shared.map((s) => s.skill_name),
+    unique_a: compared.uniqueA.map((s) => s.skill_name),
+    unique_b: compared.uniqueB.map((s) => s.skill_name),
+    recommended_priority: null, // speaker fills this in based on background
+    rationale: null,
+  };
+
+  const updated: AgentStateType = {
+    ...state,
+    comparedRoles: [role_a.trim(), role_b.trim()],
+    roleComparisonContext: comparisonContext,
+  };
+  saveSession(req.params.sessionId, updated);
+  res.json({
+    ok: true,
+    role_a: role_a.trim(),
+    role_b: role_b.trim(),
+    shared_skills: comparisonContext.shared_skills,
+    unique_a: comparisonContext.unique_a,
+    unique_b: comparisonContext.unique_b,
+  });
 });
 
 // --- Resources: curated recommendations ---

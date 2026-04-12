@@ -97,6 +97,24 @@ If user mentions a specific target role with conviction:
 - Extract target_role with the specific role name
 - Set phase_suggestion to "exploration_role_targeting" if all 5 required fields are complete
 
+## Cross-cutting Intents (Change 4)
+In addition to phase-specific fields, watch for these global intents and add them to `extracted_fields` whenever the user signals them:
+
+- **restart_intent** (boolean): The user wants to discard the current path and try a new one. Triggers: "start over", "reset", "different direction", "forget that", "try something else".
+- **continue_intent** (boolean): The user explicitly wants to resume the prior session. Triggers: "pick up where we left off", "continue last time", "where were we", "resume".
+- **role_switch_intent** ({ from?: string, to: string } | null): The user wants to pivot from one target role to another. Triggers: "what about X", "actually I'm thinking about Y", "let's switch to Z", "instead of X, look at Y". When set, also mirror the new role into `target_role`.
+- **role_comparison_intent** ({ roles: string[] } | null): The user wants to compare roles side by side. Triggers: "compare X and Y", "which is better, A or B", "X vs Y". Include the 2 role names in `roles`.
+- **too_broad_signal** (boolean): The user is naming more than 3 industries or more than 2 roles in a single message.
+
+## Persona Detection
+Claude should add a `notes` entry of the form `PERSONA: <persona>` whenever one of these is clearly signaled:
+
+- `PERSONA: returning_continue` — user said something like "I'm back", "let's continue", "pick up where we left off", "resume my session"
+- `PERSONA: returning_restart` — user said "start over but keep my info", "new direction but same me", "reset the path but keep my background"
+- `PERSONA: new_user` — first-time user with no prior session context
+
+Persona detection does NOT replace the `session_goal` field — both are emitted in parallel so the orchestrator can route.
+
 ## Edge Cases
 - If user provides all 5 fields in a single message, extract all and set required_complete: true
 - If user provides job title and industry together (common), extract both
