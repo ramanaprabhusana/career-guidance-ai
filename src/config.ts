@@ -64,8 +64,8 @@ export function loadConfig(): AppConfig {
 
   return {
     provider: "google",
-    analyzerModel: "gemini-2.5-pro",
-    speakerModel: "gemini-2.5-pro",
+    analyzerModel: "gemini-2.5-flash-lite",
+    speakerModel: "gemini-2.5-flash",
     analyzerTemperature: 0,
     speakerTemperature: 0.7,
     maxRetries: 2,
@@ -94,6 +94,9 @@ export function loadConfig(): AppConfig {
 
 // --- Model Factory ---
 
+// Cached model instances — created once at startup, reused every turn.
+const _modelCache = new Map<string, ChatGoogleGenerativeAI>();
+
 export function createChatModel(
   purpose: "analyzer" | "speaker",
   config: AppConfig
@@ -103,11 +106,15 @@ export function createChatModel(
     throw new Error("GOOGLE_API_KEY environment variable is required");
   }
 
-  return new ChatGoogleGenerativeAI({
-    model: purpose === "analyzer" ? config.analyzerModel : config.speakerModel,
-    temperature: purpose === "analyzer" ? config.analyzerTemperature : config.speakerTemperature,
-    apiKey,
-  });
+  const key = purpose;
+  if (!_modelCache.has(key)) {
+    _modelCache.set(key, new ChatGoogleGenerativeAI({
+      model: purpose === "analyzer" ? config.analyzerModel : config.speakerModel,
+      temperature: purpose === "analyzer" ? config.analyzerTemperature : config.speakerTemperature,
+      apiKey,
+    }));
+  }
+  return _modelCache.get(key)!;
 }
 
 export const config = loadConfig();
