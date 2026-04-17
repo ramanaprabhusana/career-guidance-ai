@@ -9,8 +9,19 @@ export function generateHTMLReport(state: AgentStateType): string {
   const outputPath = join(config.paths.root, "exports", `career-plan-${state.sessionId}.html`);
   mkdirSync(join(config.paths.root, "exports"), { recursive: true });
 
-  const isExplore = state.sessionGoal === "explore_options";
-  const directions = state.candidateDirections ?? [];
+  const hasAssessedRole = Boolean(state.targetRole) && (state.skills ?? []).length > 0;
+  const isExplore = state.sessionGoal === "explore_options" && !hasAssessedRole;
+  const directions = ((): AgentStateType["candidateDirections"] => {
+    const seen = new Set<string>();
+    const out: AgentStateType["candidateDirections"] = [];
+    for (const d of state.candidateDirections ?? []) {
+      const key = (d.direction_title ?? "").trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(d);
+    }
+    return out;
+  })();
   const candidateSkills = (state as any).candidateSkills ?? {};
   const skills = (state.skills ?? []).map(s => ({
     ...s,
@@ -255,7 +266,7 @@ export function generateHTMLReport(state: AgentStateType): string {
         <div class="profile-item"><div class="label">Education</div><div class="value">${esc(fmtEdu(state.educationLevel))}</div></div>
         ${state.location ? `<div class="profile-item"><div class="label">Location</div><div class="value">${esc(state.location)}</div></div>` : ""}
         <div class="profile-item"><div class="label">Timeline</div><div class="value">${esc(timeline)}</div></div>
-        ${state.preferredTimeline ? `<div class="profile-item"><div class="label">Preferred Timeline</div><div class="value">${esc(state.preferredTimeline)}</div></div>` : ""}
+        ${state.preferredTimeline && state.preferredTimeline !== timeline ? `<div class="profile-item"><div class="label">Preferred Timeline</div><div class="value">${esc(state.preferredTimeline)}</div></div>` : ""}
         <div class="profile-item"><div class="label">Session Goal</div><div class="value">${isExplore ? "Explore career options" : "Pursue a specific role"}</div></div>
         ${state.targetRole ? `<div class="profile-item"><div class="label">Target Role</div><div class="value">${esc(state.targetRole)}</div></div>` : ""}
         ${state.previousTargetRole && state.previousTargetRole !== state.targetRole ? `<div class="profile-item"><div class="label">Previously Considered</div><div class="value">${esc(state.previousTargetRole)}</div></div>` : ""}

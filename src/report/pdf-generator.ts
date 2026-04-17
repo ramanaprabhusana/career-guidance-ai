@@ -22,8 +22,9 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     doc.rect(0, 0, doc.page.width, 6).fill("#2a9d8f");
     doc.restore();
 
-    const isExplore = state.sessionGoal === "explore_options";
-    const directions = state.candidateDirections ?? [];
+    const hasAssessedRole = Boolean(state.targetRole) && (state.skills ?? []).length > 0;
+    const isExplore = state.sessionGoal === "explore_options" && !hasAssessedRole;
+    const directions = dedupeDirections(state.candidateDirections ?? []);
     const candidateSkills = (state as any).candidateSkills ?? {};
     const skills = (state.skills ?? []).map((s: SkillAssessment) => ({
       ...s,
@@ -78,7 +79,9 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     addField(doc, "Education", formatEducation(state.educationLevel));
     if (state.location) addField(doc, "Location", state.location);
     addField(doc, "Timeline", timeline);
-    if (state.preferredTimeline) addField(doc, "Preferred Timeline", state.preferredTimeline);
+    if (state.preferredTimeline && state.preferredTimeline !== timeline) {
+      addField(doc, "Preferred Timeline", state.preferredTimeline);
+    }
     addField(doc, "Session Goal", state.sessionGoal === "explore_options" ? "Explore career options" : "Pursue a specific role");
     if (state.targetRole) {
       addField(doc, "Target Role", state.targetRole);
@@ -290,6 +293,18 @@ function renderLearningEvidencePdf(doc: PDFKit.PDFDocument, state: AgentStateTyp
     }
     doc.moveDown(0.3);
   }
+}
+
+function dedupeDirections<T extends { direction_title?: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const it of items) {
+    const key = (it.direction_title ?? "").trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(it);
+  }
+  return out;
 }
 
 // --- Header badges + stat chips (parity with HTML hero) ---
