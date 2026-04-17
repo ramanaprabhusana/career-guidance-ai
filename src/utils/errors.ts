@@ -34,6 +34,7 @@ export type ErrorCode =
   | "STATE_SCHEMA_VIOLATION"
   | "RAG_RETRIEVAL_EMPTY"
   | "RAG_SOURCE_DOWN"
+  | "RAG_BLANK_ROLE"
   | "PROFILE_DB_UNAVAILABLE"
   | "OFF_TOPIC_PERSISTENT"
   | "SAFETY_BLOCK";
@@ -55,6 +56,9 @@ export const ERROR_REGISTRY: Record<ErrorCode, ErrorEntry> = {
   STATE_SCHEMA_VIOLATION: { code: "STATE_SCHEMA_VIOLATION", severity: "recoverable", recovery: "silent",            userMessage: null },
   RAG_RETRIEVAL_EMPTY:    { code: "RAG_RETRIEVAL_EMPTY",    severity: "recoverable", recovery: "fallback",          userMessage: null },
   RAG_SOURCE_DOWN:        { code: "RAG_SOURCE_DOWN",        severity: "recoverable", recovery: "fallback",          userMessage: "Live job-market data isn't reachable right now — using cached figures." },
+  // Change 5 P0 (Apr 14 2026): never silently fetch for a blank/missing role.
+  // Orchestrator sets `needsRoleConfirmation` so the speaker re-asks instead.
+  RAG_BLANK_ROLE:         { code: "RAG_BLANK_ROLE",         severity: "recoverable", recovery: "user_message_only", userMessage: null },
   PROFILE_DB_UNAVAILABLE: { code: "PROFILE_DB_UNAVAILABLE", severity: "recoverable", recovery: "silent",            userMessage: null },
   OFF_TOPIC_PERSISTENT:   { code: "OFF_TOPIC_PERSISTENT",   severity: "policy",      recovery: "user_message_only", userMessage: "I can only help with career guidance — let's get back to your goals." },
   SAFETY_BLOCK:           { code: "SAFETY_BLOCK",           severity: "policy",      recovery: "user_message_only", userMessage: "I can't continue this conversation. Please reach out to a human advisor." },

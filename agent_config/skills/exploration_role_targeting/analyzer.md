@@ -15,6 +15,9 @@ Confirm the user's target role and collect self-assessment ratings for skills re
   - User says: "I'm interested in UX" → Do NOT extract (too broad, needs clarification)
   - User says: "I want to transition into data science" → Extract: "Data Scientist"
 - **Do NOT extract if:** User is still exploring broadly without commitment
+- **Change 5 P0 (Apr 14 2026) — thin-reply rule:**
+  - If the user's message is a pure acknowledgment ("ok", "okay", "yes", "sure", "sounds good", "I think we already covered it", "proceed", "go ahead", "lgtm"), **OMIT the `target_role` field entirely** from `extracted_fields`. Do NOT emit `target_role: null` or `target_role: ""` — omitting the key preserves the previously-confirmed role.
+  - Only emit `target_role` when the user explicitly NAMES a role in this turn.
 
 ### skills (required, entity-bearing, append)
 - **What to look for:** User's self-assessment of specific skills

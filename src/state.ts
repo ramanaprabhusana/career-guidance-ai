@@ -321,6 +321,44 @@ export const AgentState = Annotation.Root({
     reducer: (_, b) => b,
     default: () => null,
   }),
+  // Change 5 P0 (Apr 14 2026): set true by the orchestrator when RAG
+  // auto-fetch is needed but `targetRole` is blank / unconfirmed. The
+  // speaker reads this and asks the user to pick a specific role instead
+  // of silently falling back to an unrelated cached occupation (Apr 12
+  // "Data Entry Keyer" regression).
+  needsRoleConfirmation: Annotation<boolean>({
+    reducer: (_, b) => b,
+    default: () => false,
+  }),
+
+  // --- Change 5 P0 (Apr 14 2026): scoped ReAct loop channels ---
+  // Gated by `ENABLE_REACT_LOOP=true` env AND a named intent. The default
+  // chat path is single-pass (analyzer → state-updater → speaker); these
+  // channels are only populated when the user explicitly asks for "deep
+  // research this role" and the orchestrator approves the loop. Hard caps
+  // are enforced inside `reactExecutor` (≤ maxReactSteps AND ≤ 15s elapsed).
+  reactIntent: Annotation<"deep_research_role" | null>({
+    reducer: (_, b) => b,
+    default: () => null,
+  }),
+  reactStepCount: Annotation<number>({
+    reducer: (_, b) => b,
+    default: () => 0,
+  }),
+  maxReactSteps: Annotation<number>({
+    reducer: (_, b) => b,
+    default: () => 3,
+  }),
+  reactObservationLog: Annotation<
+    Array<{ step: number; tool: string; args: Record<string, unknown>; ok: boolean; summary: string }>
+  >({
+    reducer: (a, b) => [...(a ?? []), ...(b ?? [])],
+    default: () => [],
+  }),
+  pendingReactTool: Annotation<{ name: string; args: Record<string, unknown> } | null>({
+    reducer: (_, b) => b,
+    default: () => null,
+  }),
 });
 
 export type AgentStateType = typeof AgentState.State;

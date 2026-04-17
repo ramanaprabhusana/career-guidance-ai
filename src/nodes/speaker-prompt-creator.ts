@@ -144,6 +144,24 @@ function getCrossPhaseContext(state: AgentStateType): string {
     }
   }
 
+  // Change 5 P0 (Apr 14 2026): orchestrator signals that we're in role
+  // targeting without a confirmed target role. Speaker MUST ask the user
+  // to name a specific role instead of assuming one or presenting skills
+  // for an un-confirmed occupation (Apr 12 "Data Entry Keyer" regression).
+  if (state.needsRoleConfirmation) {
+    lines.push("");
+    lines.push("ROLE CONFIRMATION REQUIRED: The user has not yet named a specific target role for this phase.");
+    lines.push(
+      "INSTRUCTION: Ask the user to pick ONE specific role (e.g. 'Software Engineer', 'Corporate Finance Analyst'). Do NOT introduce a skill assessment, do NOT assume a role from earlier phases, and do NOT invent one. If they already mentioned a role in history, re-confirm it back to them in one sentence and wait for yes/no."
+    );
+  }
+
+  // Change 5 P0 (Apr 14 2026): reinforce target-role memory so the speaker
+  // never re-asks a role that is already on file.
+  if (state.targetRole && !state.needsRoleConfirmation) {
+    lines.push(`Target role on file: ${state.targetRole} (already confirmed — do NOT re-ask).`);
+  }
+
   // Change 4 (BR-9): same-session role switch recap. Lists the skills that
   // were rehydrated so the speaker can acknowledge them in one sentence and
   // then only ask about the delta skills.
