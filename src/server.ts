@@ -38,6 +38,16 @@ import { parseResumeText } from "./services/resume-parser.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 
+// Change 6 (Apr 16 2026): ensure exports dir exists at boot. Render's free-tier
+// disk is ephemeral and may not carry the dir forward across deploys. Without
+// this, generatePDFReport also mkdirs, but having it at boot makes the failure
+// mode (missing dir) impossible between Render dyno restart and first export.
+try {
+  mkdirSync(join(ROOT, "exports"), { recursive: true });
+} catch (e) {
+  console.warn("exports dir bootstrap failed:", (e as Error).message);
+}
+
 // Load .env
 try {
   const envPath = join(ROOT, ".env");
@@ -723,8 +733,51 @@ app.post("/api/export", async (req, res) => {
   }
 });
 
-// Serve exported files
+// Serve exported files (HTML "view in browser" path retained for backwards
+// compatibility). PDF downloads should go through /api/report/:sessionId.pdf
+// instead — see Change 6 note below.
 app.use("/exports", express.static(join(ROOT, "exports")));
+
+// Change 6 (Apr 16 2026): dedicated PDF download endpoint.
+// Fixes user-reported "message says report ready but cannot download it" bug.
+// Root causes addressed:
+//   1) Frontend previously only opened the HTML in a new tab (pop-up blockers
+//      could kill it). This endpoint returns a real file with
+//      Content-Disposition: attachment so browsers show a save dialog.
+//   2) Render free-tier disk is ephemeral — a file written on one request
+//      can be wiped before the user clicks. We regenerate on every call so
+//      the download is immune to disk wipes.
+// Keeps /api/export unchanged so existing HTML-view flows keep working.
+app.get("/api/report/:sessionId.pdf", async (req, res) => {
+  const { sessionId } = req.params;
+  const state = loadSession(sessionId);
+  if (!state) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  try {
+    const pdfPath = await generatePDFReport(state);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="career-plan-${sessionId}.pdf"`,
+    );
+    // dotfiles: "allow" — lets sendFile serve paths under .claude/worktrees
+    // in local dev; Express defaults to "ignore" which rejects any dotted
+    // path segment. No-op on Render (prod path has no dotted dirs).
+    res.sendFile(pdfPath, { dotfiles: "allow" }, (err) => {
+      if (err) {
+        console.error("PDF sendFile error:", (err as Error).message);
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Failed to stream PDF" });
+        }
+      }
+    });
+  } catch (e) {
+    console.error("PDF download error:", (e as Error).message);
+    res.status(500).json({ error: "Failed to generate PDF" });
+  }
+});
 
 // Get session info
 app.get("/api/session/:sessionId", (req, res) => {
