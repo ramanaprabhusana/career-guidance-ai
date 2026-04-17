@@ -762,7 +762,10 @@ app.get("/api/report/:sessionId.pdf", async (req, res) => {
       "Content-Disposition",
       `attachment; filename="career-plan-${sessionId}.pdf"`,
     );
-    res.sendFile(pdfPath, (err) => {
+    // dotfiles: "allow" — lets sendFile serve paths under .claude/worktrees
+    // in local dev; Express defaults to "ignore" which rejects any dotted
+    // path segment. No-op on Render (prod path has no dotted dirs).
+    res.sendFile(pdfPath, { dotfiles: "allow" }, (err) => {
       if (err) {
         console.error("PDF sendFile error:", (err as Error).message);
         if (!res.headersSent) {
