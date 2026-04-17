@@ -35,6 +35,61 @@ export interface ReadinessStats {
   strengthPct: number;
 }
 
+export interface ProximityStats {
+  /** Average progress-toward-required across technical skills (0–100). */
+  techProgressPct: number;
+  /** Average progress-toward-required across soft skills (0–100). */
+  softProgressPct: number;
+  /** Average across all skills. */
+  overallProgressPct: number;
+}
+
+const LEVEL_TO_ORDINAL: Record<string, number> = {
+  beginner: 1,
+  intermediate: 2,
+  advanced: 3,
+  expert: 4,
+  // legacy 3-level values (Change 3 pre-cutover sessions)
+  not_yet_familiar: 1,
+  working_knowledge: 2,
+  strong_proficiency: 3,
+};
+
+function toOrdinal(level: string | null | undefined): number {
+  if (!level) return 0;
+  return LEVEL_TO_ORDINAL[level.toLowerCase()] ?? 0;
+}
+
+/**
+ * Progress-toward-required score. For each skill: min(userLevel / requiredLevel, 1).
+ * A fresh graduate rated beginner(1) against advanced(3) scores 33% rather than
+ * 0%, which prevents the "0% TECH STRENGTH" headline that reads as "you have no
+ * competence" for users who are still learning. See Apr 17 2026 transcript.
+ *
+ * Skills with no user_rating contribute 0; skills with no required_proficiency
+ * fall back to advanced(3) as the conservative expected bar.
+ */
+export function computeProximityStats(skills: SkillAssessment[]): ProximityStats {
+  const pct = (subset: SkillAssessment[]): number => {
+    if (subset.length === 0) return 0;
+    let sum = 0;
+    for (const s of subset) {
+      const user = toOrdinal(s.user_rating);
+      const req = toOrdinal(s.required_proficiency) || 3;
+      const ratio = req > 0 ? Math.min(user / req, 1) : 0;
+      sum += ratio;
+    }
+    return Math.round((sum / subset.length) * 100);
+  };
+  const tech = skills.filter((s) => s.skill_type === "technical");
+  const soft = skills.filter((s) => s.skill_type === "soft");
+  return {
+    techProgressPct: pct(tech),
+    softProgressPct: pct(soft),
+    overallProgressPct: pct(skills),
+  };
+}
+
 /**
  * Change 5 P0 (Apr 14 2026): compute assessment-completion vs current-strength
  * separately. The previous implementation called `strong / total` "Tech Ready",

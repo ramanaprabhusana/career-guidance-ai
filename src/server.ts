@@ -1262,14 +1262,21 @@ try {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  const tracingEnabled = process.env.LANGCHAIN_TRACING_V2 === "true" && !!process.env.LANGCHAIN_API_KEY;
+  const tracingFlag = process.env.LANGCHAIN_TRACING_V2 === "true";
+  const tracingKey = !!process.env.LANGCHAIN_API_KEY;
+  const tracingEnabled = tracingFlag && tracingKey;
   const tracingProject = process.env.LANGCHAIN_PROJECT || "career-guidance-ai";
+  const tracingStatus = tracingEnabled
+    ? `ENABLED (project: ${tracingProject})`
+    : tracingFlag && !tracingKey
+      ? "tracing flag on but LANGCHAIN_API_KEY missing — no traces will be sent"
+      : "disabled";
 
   console.log(`\n  Career Guidance Assistant`);
   console.log(`  ========================`);
   console.log(`  Open in browser: http://localhost:${PORT}`);
   console.log(`  API: http://localhost:${PORT}/api`);
-  console.log(`  LangSmith: ${tracingEnabled ? `ENABLED (project: ${tracingProject})` : "disabled"}`);
+  console.log(`  LangSmith: ${tracingStatus}`);
   console.log(`  O*NET API: ${process.env.ONET_USERNAME ? "configured" : "local fallback"}`);
   console.log(`  BLS API: ${process.env.BLS_API_KEY ? "configured" : "not set"}`);
   console.log(`  USAJOBS API: ${process.env.USAJOBS_API_KEY ? "configured" : "not set"}`);

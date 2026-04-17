@@ -194,6 +194,8 @@ Re-run scenarios 5, 6, 9 against the live URL.
 
 ## 9. Change History
 
+> **Active sprint tracker:** `Checklist 17th Apr 2026/README.md` is the canonical index for current gap-closure work (P1 recovery → P2 test gate → P3 determinism → P4 continuity). Older `Enhancement and others 14 Apr 2026/` and `Checklist 8th April 2026/` folders are superseded.
+
 - **Change 1–2** (earlier): baseline 4-phase flow, LangGraph assembly, O*NET/BLS connectors, PDF/HTML export
 - **Change 3** (deployed): mandatory skills assessment (100% rating required), 4-level rating scale, learning-needs gating, `skillsEvaluationSummary` + `userConfirmedEvaluation`, career-shift variant
 - **Change 4**: structured role memory, persona detection, same-session role-switch rehydration, role comparison (max 2), industry caps (max 3), plan continuity via `priorPlan`, bug fixes E6 (stale 3-level chips) / E7 (planning gate loop) / E8 (ephemeral sessions on Render) / E9 (PDF "not completed" contradiction)
