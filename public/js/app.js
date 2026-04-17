@@ -371,6 +371,13 @@
       input.focus();
     }
 
+    // Change 6 (Apr 16 2026): split report export into a real PDF download
+    // AND an HTML view. Previously this only opened HTML in a new tab —
+    // users reported "the report says it's ready but I cannot download it"
+    // because pop-up blockers kill window.open and/or Render's ephemeral
+    // disk wipes the file before they click. Now we trigger a direct
+    // download via the new /api/report/:sessionId.pdf endpoint (which
+    // regenerates on demand and serves with Content-Disposition: attachment).
     async function exportReport() {
       if (!sessionId) { showToast('Complete a career guidance conversation first to generate your report.'); return; }
       const btn = document.getElementById('exportBtnTop');
@@ -378,7 +385,7 @@
       const origText = btnText.textContent;
       btn.disabled = true;
       btn.setAttribute('aria-busy', 'true');
-      btnText.textContent = 'Exporting...';
+      btnText.textContent = 'Preparing report...';
       btn.classList.add('btn-exporting');
 
       try {
@@ -389,8 +396,23 @@
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        window.open(`${API}${data.html}`, '_blank');
-        showToast('Report opened in a new tab. You can also print it as a PDF.');
+
+        // Primary action: trigger real PDF download via anchor+download attr.
+        // This survives pop-up blockers (unlike window.open) and routes
+        // through the new regenerate-on-demand endpoint (disk-wipe safe).
+        const dl = document.createElement('a');
+        dl.href = `${API}/api/report/${encodeURIComponent(sessionId)}.pdf`;
+        dl.download = `career-plan-${sessionId}.pdf`;
+        dl.rel = 'noopener';
+        document.body.appendChild(dl);
+        dl.click();
+        document.body.removeChild(dl);
+
+        showToast('Your PDF is downloading. Opening HTML view in a new tab too.');
+
+        // Secondary action: open the HTML view for users who want to read
+        // inline without leaving the tab. Not critical if blocked.
+        try { window.open(`${API}${data.html}`, '_blank', 'noopener'); } catch (_) { /* ignore */ }
       } catch (e) {
         showToast('We could not generate your report right now. Please try again in a moment.', true);
       }
@@ -625,7 +647,7 @@
         <h3>Your Career Plan is Ready</h3>
         <div class="summary">${summary}</div>
         <div class="card-btns">
-          <button class="btn btn-success" onclick="exportReport()">View Full Report</button>
+          <button class="btn btn-success" onclick="exportReport()">Download Report (PDF)</button>
           <button class="btn btn-outline" onclick="this.closest('.completion-card').remove()">Continue Conversation</button>
         </div>
         <div class="privacy-note">Your report contains personal career information. Save it to a secure location.</div>
