@@ -32,25 +32,52 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     const techSkills = skills.filter((s: SkillAssessment) => s.skill_type === "technical");
     const softSkills = skills.filter((s: SkillAssessment) => s.skill_type === "soft");
     const timeline = state.timeline ?? "to be determined";
+    const displayRole = getDisplayRole(state);
+    const headerStats = computeReadinessStats(skills);
+    const techStrengthPct = techSkills.length > 0
+      ? Math.round((techSkills.filter(s => s.gap_category === "strong").length / techSkills.length) * 100)
+      : 0;
+    const softStrengthPct = softSkills.length > 0
+      ? Math.round((softSkills.filter(s => s.gap_category === "strong").length / softSkills.length) * 100)
+      : 0;
 
     // --- Title ---
     doc.fillColor("#c94c4c").fontSize(22).font("Helvetica-Bold").text("Career Development Plan", { align: "center" });
     doc.fillColor("#333333");
     doc.moveDown(0.4);
     doc.fontSize(10).font("Helvetica").fillColor("#666666")
-      .text(`Generated: ${new Date().toLocaleDateString()}`, { align: "center" });
+      .text(`Personalized guidance report | ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, { align: "center" });
     doc.fillColor("#000000");
-    doc.moveDown(0.8);
+    doc.moveDown(0.6);
+
+    // Header badges (parity with HTML hero): Goal • Role • Location
+    const badges: { label: string; fill: string; border: string; fg: string }[] = [
+      { label: isExplore ? "Exploring Options" : "Specific Role", fill: "#fff3cd", border: "#e8b931", fg: "#8a6d00" },
+    ];
+    if (displayRole) badges.push({ label: displayRole, fill: "#e8f8ef", border: "#52c97f", fg: "#1e6b3d" });
+    if (state.location) badges.push({ label: state.location, fill: "#e8f4fc", border: "#7eb8da", fg: "#1a5270" });
+    renderHeaderBadges(doc, badges);
+
+    // Header readiness chips (only when skills assessed): Assessed • Tech • Soft
+    if (skills.length > 0) {
+      renderHeaderStatChips(doc, [
+        { pct: headerStats.assessmentPct, label: "Assessed", color: "#c94c4c" },
+        { pct: techStrengthPct, label: "Tech Strength", color: "#2874a6" },
+        { pct: softStrengthPct, label: "Soft Strength", color: "#7d3c98" },
+      ]);
+    }
+
     doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke("#e8c4cc");
     doc.moveDown(0.8);
 
     // --- Section 1: Profile ---
     sectionBanner(doc, "1. Your career snapshot", "orange");
-    addField(doc, "Current/Recent Role", state.jobTitle ?? "Not provided");
+    addField(doc, "Current Role", state.jobTitle ?? "Not provided");
     addField(doc, "Industry", state.industry ?? "Not provided");
-    addField(doc, "Years of Experience", state.yearsExperience !== null ? `${state.yearsExperience} years` : "Not provided");
+    addField(doc, "Experience", state.yearsExperience !== null ? `${state.yearsExperience} years` : "Not provided");
     addField(doc, "Education", formatEducation(state.educationLevel));
     if (state.location) addField(doc, "Location", state.location);
+    addField(doc, "Timeline", timeline);
     if (state.preferredTimeline) addField(doc, "Preferred Timeline", state.preferredTimeline);
     addField(doc, "Session Goal", state.sessionGoal === "explore_options" ? "Explore career options" : "Pursue a specific role");
     if (state.targetRole) {
@@ -139,7 +166,7 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
           doc.fillColor("#000000");
         } else {
           for (const line of lines) {
-            doc.fontSize(10).font("Helvetica").fillColor("#000000").text(`    ○  ${line}`, { lineGap: 3 });
+            doc.fontSize(10).font("Helvetica").fillColor("#000000").text(`    •  ${line}`, { lineGap: 3 });
           }
         }
         doc.moveDown(0.4);
@@ -216,7 +243,7 @@ function renderPriorPlanAppendixPdf(doc: PDFKit.PDFDocument, state: AgentStateTy
     doc.moveDown(0.2);
     doc.fontSize(10).font("Helvetica").fillColor("#000000");
     for (const step of pp.immediate_next_steps) {
-      doc.text(`  ○ ${step}`, { lineGap: 2 });
+      doc.text(`  • ${step}`, { lineGap: 2 });
     }
     doc.moveDown(0.3);
   }
@@ -263,6 +290,59 @@ function renderLearningEvidencePdf(doc: PDFKit.PDFDocument, state: AgentStateTyp
     }
     doc.moveDown(0.3);
   }
+}
+
+// --- Header badges + stat chips (parity with HTML hero) ---
+
+function renderHeaderBadges(
+  doc: PDFKit.PDFDocument,
+  badges: { label: string; fill: string; border: string; fg: string }[],
+): void {
+  if (badges.length === 0) return;
+  doc.fontSize(9).font("Helvetica-Bold");
+  const y = doc.y;
+  const gap = 8;
+  const padX = 10;
+  const h = 20;
+  const widths = badges.map(b => doc.widthOfString(b.label) + padX * 2);
+  const totalW = widths.reduce((a, b) => a + b, 0) + gap * (badges.length - 1);
+  let x = doc.page.width / 2 - totalW / 2;
+  for (let i = 0; i < badges.length; i++) {
+    const b = badges[i];
+    const w = widths[i];
+    doc.save();
+    doc.roundedRect(x, y, w, h, 10).fillAndStroke(b.fill, b.border);
+    doc.restore();
+    doc.fillColor(b.fg).text(b.label, x, y + 5, { width: w, align: "center" });
+    x += w + gap;
+  }
+  doc.y = y + h + 10;
+  doc.fillColor("#000000");
+}
+
+function renderHeaderStatChips(
+  doc: PDFKit.PDFDocument,
+  chips: { pct: number; label: string; color: string }[],
+): void {
+  if (chips.length === 0) return;
+  const y = doc.y;
+  const gap = 10;
+  const cardW = 120;
+  const cardH = 58;
+  const totalW = cardW * chips.length + gap * (chips.length - 1);
+  let x = doc.page.width / 2 - totalW / 2;
+  for (const chip of chips) {
+    doc.save();
+    doc.roundedRect(x, y, cardW, cardH, 12).fillAndStroke("#ffffff", "#ead5dc");
+    doc.restore();
+    doc.fontSize(22).font("Helvetica-Bold").fillColor(chip.color)
+      .text(`${chip.pct}%`, x, y + 8, { width: cardW, align: "center" });
+    doc.fontSize(8).font("Helvetica").fillColor("#888888")
+      .text(chip.label.toUpperCase(), x, y + 38, { width: cardW, align: "center", characterSpacing: 0.5 });
+    x += cardW + gap;
+  }
+  doc.y = y + cardH + 12;
+  doc.fillColor("#000000");
 }
 
 // --- Section Renderers ---
@@ -465,7 +545,7 @@ function renderGapTable(
   timeline: string,
   type: "tech" | "soft",
 ): void {
-  const headers = ["Skill", "Required", "Your Level", "Gap", "Suggested Action"];
+  const headers = ["Skill", "Required", "Your Level", "Status", "Suggested Action"];
   const colWidths = [100, 65, 65, 80, 175];
   const startX = 55;
 

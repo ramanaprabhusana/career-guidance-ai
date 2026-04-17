@@ -40,7 +40,7 @@ export function generateHTMLReport(state: AgentStateType): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Career Development Plan${state.jobTitle ? ` - ${esc(state.jobTitle)}` : ""}</title>
+  <title>Career Development Plan${displayRole ? ` - ${esc(displayRole)}` : (state.jobTitle ? ` - ${esc(state.jobTitle)}` : "")}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@700;900&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -255,6 +255,8 @@ export function generateHTMLReport(state: AgentStateType): string {
         <div class="profile-item"><div class="label">Education</div><div class="value">${esc(fmtEdu(state.educationLevel))}</div></div>
         ${state.location ? `<div class="profile-item"><div class="label">Location</div><div class="value">${esc(state.location)}</div></div>` : ""}
         <div class="profile-item"><div class="label">Timeline</div><div class="value">${esc(timeline)}</div></div>
+        ${state.preferredTimeline ? `<div class="profile-item"><div class="label">Preferred Timeline</div><div class="value">${esc(state.preferredTimeline)}</div></div>` : ""}
+        <div class="profile-item"><div class="label">Session Goal</div><div class="value">${isExplore ? "Explore career options" : "Pursue a specific role"}</div></div>
         ${state.targetRole ? `<div class="profile-item"><div class="label">Target Role</div><div class="value">${esc(state.targetRole)}</div></div>` : ""}
         ${state.previousTargetRole && state.previousTargetRole !== state.targetRole ? `<div class="profile-item"><div class="label">Previously Considered</div><div class="value">${esc(state.previousTargetRole)}</div></div>` : ""}
         ${(state.comparedRoles ?? []).length > 0 ? `<div class="profile-item"><div class="label">Roles Compared</div><div class="value">${esc(state.comparedRoles.join(" vs "))}</div></div>` : ""}
