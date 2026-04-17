@@ -23,6 +23,21 @@ jobs:
 
       - run: npm run validate-config
 
+      - name: Golden-path regressions
+        run: npm run golden
+
+      - name: P1 recovery matrix
+        run: npm run recovery
+
+      - name: P2 critical journey suite
+        run: npm run journeys
+
+      - name: P3 determinism
+        run: npm run determinism
+
+      - name: P4 continuity
+        run: npm run continuity
+
       - name: Smoke test
         run: npm run smoke
         env:

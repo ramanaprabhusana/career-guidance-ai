@@ -36,6 +36,9 @@ export type ErrorCode =
   | "RAG_SOURCE_DOWN"
   | "RAG_BLANK_ROLE"
   | "PROFILE_DB_UNAVAILABLE"
+  | "DB_WRITE_FAILED"
+  | "EXPORT_FAILURE"
+  | "TOOL_EXECUTION_FAILED"
   | "OFF_TOPIC_PERSISTENT"
   | "SAFETY_BLOCK";
 
@@ -60,6 +63,9 @@ export const ERROR_REGISTRY: Record<ErrorCode, ErrorEntry> = {
   // Orchestrator sets `needsRoleConfirmation` so the speaker re-asks instead.
   RAG_BLANK_ROLE:         { code: "RAG_BLANK_ROLE",         severity: "recoverable", recovery: "user_message_only", userMessage: null },
   PROFILE_DB_UNAVAILABLE: { code: "PROFILE_DB_UNAVAILABLE", severity: "recoverable", recovery: "silent",            userMessage: null },
+  DB_WRITE_FAILED:        { code: "DB_WRITE_FAILED",        severity: "recoverable", recovery: "fallback",          userMessage: null },
+  EXPORT_FAILURE:         { code: "EXPORT_FAILURE",         severity: "recoverable", recovery: "user_message_only", userMessage: "I couldn't generate that report — please try again in a moment." },
+  TOOL_EXECUTION_FAILED:  { code: "TOOL_EXECUTION_FAILED",  severity: "recoverable", recovery: "fallback",          userMessage: null },
   OFF_TOPIC_PERSISTENT:   { code: "OFF_TOPIC_PERSISTENT",   severity: "policy",      recovery: "user_message_only", userMessage: "I can only help with career guidance — let's get back to your goals." },
   SAFETY_BLOCK:           { code: "SAFETY_BLOCK",           severity: "policy",      recovery: "user_message_only", userMessage: "I can't continue this conversation. Please reach out to a human advisor." },
 };
@@ -88,4 +94,38 @@ export function logAgentError(err: AgentError, context: Record<string, unknown> 
   // Keep this dependency-free so it can be called from any node.
   // eslint-disable-next-line no-console
   console.error(JSON.stringify({ level: "error", code: err.code, severity: err.severity, message: err.message, ...context }));
+}
+
+/**
+ * P1 (Apr 17 2026): incident-grade log line. Includes the context fields the
+ * Gap_closure.md P1 spec requires (sessionId, phase, errorCode, fallbackUsed)
+ * so every recovery path is observable in LangSmith.
+ */
+export interface IncidentContext {
+  sessionId?: string | null;
+  phase?: string | null;
+  fallbackUsed?: string | null;
+  [key: string]: unknown;
+}
+
+export function logIncident(code: ErrorCode, ctx: IncidentContext = {}): void {
+  const entry = ERROR_REGISTRY[code];
+  // eslint-disable-next-line no-console
+  console.error(
+    JSON.stringify({
+      level: "error",
+      event: "incident",
+      code,
+      severity: entry.severity,
+      recovery: entry.recovery,
+      sessionId: ctx.sessionId ?? null,
+      phase: ctx.phase ?? null,
+      fallbackUsed: ctx.fallbackUsed ?? null,
+      ...Object.fromEntries(
+        Object.entries(ctx).filter(
+          ([k]) => !["sessionId", "phase", "fallbackUsed"].includes(k),
+        ),
+      ),
+    }),
+  );
 }

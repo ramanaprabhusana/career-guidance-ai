@@ -34,6 +34,7 @@ import {
   recordSkillRatingsForRole,
 } from "./db/profile-db.js";
 import { parseResumeText } from "./services/resume-parser.js";
+import { AgentError, ERROR_REGISTRY, logIncident } from "./utils/errors.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -710,8 +711,8 @@ app.post("/api/export", async (req, res) => {
       res.send(JSON.stringify(evidencePack, null, 2));
       return;
     } catch (e) {
-      console.error("JSON export error:", (e as Error).message);
-      res.status(500).json({ error: (e as Error).message });
+      logIncident("EXPORT_FAILURE", { sessionId, phase: state.currentPhase, format: "json", detail: (e as Error).message });
+      res.status(500).json({ error: ERROR_REGISTRY.EXPORT_FAILURE.userMessage ?? "Export failed" });
       return;
     }
   }
@@ -728,8 +729,8 @@ app.post("/api/export", async (req, res) => {
       html: `/exports/career-plan-${sessionId}.html`,
     });
   } catch (e) {
-    console.error("Export error:", (e as Error).message);
-    res.status(500).json({ error: (e as Error).message });
+    logIncident("EXPORT_FAILURE", { sessionId, phase: state.currentPhase, format: format ?? "pdf", detail: (e as Error).message });
+    res.status(500).json({ error: ERROR_REGISTRY.EXPORT_FAILURE.userMessage ?? "Export failed" });
   }
 });
 
@@ -767,15 +768,15 @@ app.get("/api/report/:sessionId.pdf", async (req, res) => {
     // path segment. No-op on Render (prod path has no dotted dirs).
     res.sendFile(pdfPath, { dotfiles: "allow" }, (err) => {
       if (err) {
-        console.error("PDF sendFile error:", (err as Error).message);
+        logIncident("EXPORT_FAILURE", { sessionId, phase: state.currentPhase, detail: (err as Error).message, stage: "sendFile" });
         if (!res.headersSent) {
-          res.status(500).json({ error: "Failed to stream PDF" });
+          res.status(500).json({ error: ERROR_REGISTRY.EXPORT_FAILURE.userMessage ?? "Failed to stream PDF" });
         }
       }
     });
   } catch (e) {
-    console.error("PDF download error:", (e as Error).message);
-    res.status(500).json({ error: "Failed to generate PDF" });
+    logIncident("EXPORT_FAILURE", { sessionId, phase: state.currentPhase, detail: (e as Error).message, stage: "generate" });
+    res.status(500).json({ error: ERROR_REGISTRY.EXPORT_FAILURE.userMessage ?? "Failed to generate PDF" });
   }
 });
 
