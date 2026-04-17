@@ -4,7 +4,14 @@
 
 **Stack note:** Plan names Streamlit + Python + SQLite + Chroma; the implemented app is **TypeScript**, **LangGraph / LangChain**, **Express**, **session JSON files**, **FAISS** (via `faiss-node` / embeddings data), and **`public/index.html`** UI. Compliance is judged on **capabilities**, not identical technology names.
 
-**Last updated:** 2026-04-02
+**Last updated:** 2026-04-15 (Change 5 — Apr 12 transcript P0 fixes + scoped RAG/ReAct upgrade on branch `claude/flamboyant-diffie`)
+
+### Change 5 delta (2026-04-15)
+
+- **ReAct loop** row moves from "Not implemented" → **Partial (feature-flagged)** — `ENABLE_REACT_LOOP=true` + named intent `deep_research_role` enables ≤ 3-step scoped loop in `src/nodes/react-executor.ts`. Default chat path stays single-pass.
+- **RAG quality** row — lexical re-rank + structured retrieval logging added behind `ENABLE_RAG_RERANK=true` in `src/utils/rag.ts`; chunk schema tolerates both legacy strings and `{content, metadata}` shapes.
+- **Quality / Evaluation — Golden-path regression** (new row class) — `npm run golden` added (`src/tests/golden-path.test.ts`); 14 deterministic assertions cover the four Apr 12 P0 regressions (targetRole drift, blank-role RAG, planning loop, PDF readiness math).
+- **Observability** — every `runTool` call now emits a structured `tool_call` JSON log with latency + error code.
 
 ---
 

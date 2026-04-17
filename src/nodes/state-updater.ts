@@ -40,6 +40,50 @@ function deriveGapCategory(userRating: UserRating | null, requiredProficiency: s
   return "strong"; // expert
 }
 
+/**
+ * Change 5 (P0, Apr 14 2026 sprint): single choke point for every
+ * `targetRole` write. Protects against the Apr 12 regression where thin
+ * user replies ("ok", "yes") caused the analyzer to emit an empty /
+ * null `target_role`, which then blanked a previously-confirmed role.
+ *
+ * Returns the resolved role string that was actually written, or null
+ * if the incoming value was not a non-empty string (in which case
+ * `updates.targetRole` is left alone — never blanked).
+ *
+ * Logs every real change so regressions are visible in stderr/LangSmith.
+ */
+function applyTargetRoleWrite(
+  updates: Partial<AgentStateType>,
+  incomingRaw: unknown,
+  currentTargetRole: string | null,
+  reason: string
+): string | null {
+  if (typeof incomingRaw !== "string") return null;
+  const incoming = incomingRaw.trim();
+  if (!incoming) return null;
+  const current = currentTargetRole?.trim() ?? null;
+  if (current && incoming.toLowerCase() === current.toLowerCase()) {
+    // No-op rewrite (normalize trim); do not log noise.
+    updates.targetRole = incoming;
+    return incoming;
+  }
+  try {
+    console.error(
+      JSON.stringify({
+        level: "info",
+        event: "target_role_write",
+        from: current,
+        to: incoming,
+        reason,
+      })
+    );
+  } catch {
+    /* never throw from logging */
+  }
+  updates.targetRole = incoming;
+  return incoming;
+}
+
 function mergeOrientationFields(
   state: AgentStateType,
   fields: Record<string, unknown>
@@ -52,8 +96,11 @@ function mergeOrientationFields(
   if (fields.session_goal !== undefined) updates.sessionGoal = fields.session_goal as AgentStateType["sessionGoal"];
   if (fields.location !== undefined) updates.location = fields.location as string;
   if (fields.preferred_timeline !== undefined) updates.preferredTimeline = fields.preferred_timeline as string;
-  // Also capture target_role if mentioned during orientation
-  if (fields.target_role !== undefined) updates.targetRole = fields.target_role as string;
+  // Also capture target_role if mentioned during orientation.
+  // Change 5 P0: guarded write — null/blank target_role never clears a prior role.
+  if (fields.target_role !== undefined) {
+    applyTargetRoleWrite(updates, fields.target_role, state.targetRole, "orientation_merge");
+  }
   return updates;
 }
 
@@ -77,8 +124,11 @@ function mergeExplorationFields(
     const deduped = incoming.filter(d => !existingTitles.has(d.direction_title.toLowerCase()));
     updates.candidateDirections = [...existing, ...deduped];
   }
-  // Capture target_role when user picks a specific role during exploration
-  if (fields.target_role !== undefined) updates.targetRole = fields.target_role as string;
+  // Capture target_role when user picks a specific role during exploration.
+  // Change 5 P0: guarded write — null/blank target_role never clears a prior role.
+  if (fields.target_role !== undefined) {
+    applyTargetRoleWrite(updates, fields.target_role, state.targetRole, "exploration_merge");
+  }
   // Change 4 (BR-11): capture candidate industries, cap at 3, raise a
   // clarification signal when the user names a 4th so the speaker can help
   // them narrow with reasoned tradeoffs.
@@ -160,7 +210,14 @@ function applyRoleSwitchPivot(
     !!currentRole &&
     incomingRole.toLowerCase() !== currentRole.toLowerCase();
 
-  updates.targetRole = incomingRole;
+  // Change 5 P0: guarded write — never blank a previously-set role when
+  // analyzer returns empty / null on a thin turn. Callers also pre-filter.
+  applyTargetRoleWrite(
+    updates,
+    incomingRole,
+    currentRole ?? null,
+    fromPlanning ? "planning_pivot" : "role_targeting_pivot"
+  );
 
   if (!isPivot) return;
 
@@ -235,8 +292,15 @@ function mergeRoleTargetingFields(
 ): Partial<AgentStateType> {
   const updates: Partial<AgentStateType> = {};
 
+  // Change 5 P0: only dispatch the pivot path if the incoming role is a
+  // non-empty string. Thin acknowledgments that produce target_role: null
+  // or "" must not invoke the pivot (which would clear prior role state).
   if (fields.target_role !== undefined) {
-    applyRoleSwitchPivot(state, updates, fields.target_role as string, false);
+    const incoming =
+      typeof fields.target_role === "string" ? fields.target_role.trim() : "";
+    if (incoming) {
+      applyRoleSwitchPivot(state, updates, incoming, false);
+    }
   }
 
   // Merge skill ratings
@@ -399,8 +463,14 @@ function mergePlanningFields(
   // Change 4 (BR-9): detect mid-plan role pivots. Walks phase back to
   // exploration_role_targeting so the auto-fetch + rehydration hook runs
   // on the next state-updater pass.
+  // Change 5 P0 (Apr 14): only dispatch if incoming is a non-empty string —
+  // thin "ok" replies must not trigger a pivot that wipes the current plan.
   if (fields.target_role !== undefined) {
-    applyRoleSwitchPivot(state, updates, fields.target_role as string, true);
+    const incoming =
+      typeof fields.target_role === "string" ? fields.target_role.trim() : "";
+    if (incoming) {
+      applyRoleSwitchPivot(state, updates, incoming, true);
+    }
   }
 
   if (fields.timeline !== undefined) updates.timeline = fields.timeline as string;
@@ -460,6 +530,160 @@ function parsePlanBlocks(raw: unknown): import("../state.js").PlanBlock[] {
     out.push({ id: id as import("../state.js").PlanBlockId, label, content, confirmed });
   }
   return out;
+}
+
+/**
+ * Change 5 P0 (Apr 14 2026): seed the 5 canonical plan blocks from whatever
+ * planning-phase state is already populated. Called exclusively on planning
+ * entry (when planBlocks is empty) so the speaker has something concrete to
+ * present block-by-block instead of looping on "preparing your plan".
+ *
+ * Each block's `content` is a short human-readable paragraph assembled
+ * deterministically from existing state channels. The speaker is responsible
+ * for prose rendering — this function only guarantees that `planBlocks`
+ * exists and is non-empty when the planning phase starts.
+ */
+function seedPlanBlocks(
+  state: AgentStateType,
+  updates: Partial<AgentStateType>,
+): import("../state.js").PlanBlock[] {
+  const effectiveTrack = updates.track ?? state.track;
+  const targetRole = updates.targetRole ?? state.targetRole ?? null;
+  const directions = updates.candidateDirections ?? state.candidateDirections ?? [];
+  const skills = updates.skills ?? state.skills ?? [];
+  const agenda = updates.skillDevelopmentAgenda ?? state.skillDevelopmentAgenda ?? [];
+  const nextSteps = updates.immediateNextSteps ?? state.immediateNextSteps ?? [];
+  const timeline = updates.timeline ?? state.timeline ?? null;
+  const resources = updates.learningResources ?? state.learningResources ?? [];
+  const strengths = skills.filter((s) => s.gap_category === "strong");
+  const gaps = skills.filter(
+    (s) => s.gap_category === "absent" || s.gap_category === "underdeveloped",
+  );
+
+  const blocks: import("../state.js").PlanBlock[] = [];
+
+  // 1. understanding — recap what the user wants
+  const understandingParts: string[] = [];
+  if (targetRole) {
+    understandingParts.push(`You're targeting ${targetRole}.`);
+  } else if (directions.length > 0) {
+    understandingParts.push(
+      `You're exploring ${directions.length} direction${directions.length === 1 ? "" : "s"}: ${directions.map((d) => d.direction_title).slice(0, 3).join(", ")}.`,
+    );
+  }
+  if (state.jobTitle) {
+    understandingParts.push(`Current role on file: ${state.jobTitle}.`);
+  }
+  if (timeline) {
+    understandingParts.push(`Preferred timeline: ${timeline}.`);
+  }
+  if (understandingParts.length > 0) {
+    blocks.push({
+      id: "understanding",
+      label: "Understanding your situation",
+      content: understandingParts.join(" "),
+      confirmed: false,
+    });
+  }
+
+  // 2. path — the recommended path
+  const pathContent = updates.recommendedPath ?? state.recommendedPath ?? null;
+  if (pathContent) {
+    blocks.push({
+      id: "path",
+      label: "Recommended path",
+      content: pathContent,
+      confirmed: false,
+    });
+  }
+
+  // 3. skills — strengths + gaps
+  const skillsParts: string[] = [];
+  if (strengths.length > 0) {
+    skillsParts.push(
+      `Strengths: ${strengths.slice(0, 4).map((s) => s.skill_name).join(", ")}.`,
+    );
+  }
+  if (gaps.length > 0) {
+    skillsParts.push(
+      `Focus areas: ${gaps.slice(0, 4).map((s) => s.skill_name).join(", ")}.`,
+    );
+  }
+  if (agenda.length > 0) {
+    skillsParts.push(`Development agenda: ${agenda.slice(0, 3).join("; ")}.`);
+  }
+  if (skillsParts.length > 0) {
+    blocks.push({
+      id: "skills",
+      label: "Skill development plan",
+      content: skillsParts.join(" "),
+      confirmed: false,
+    });
+  }
+
+  // 4. courses — learning resources (if any)
+  if (resources.length > 0) {
+    const top = resources
+      .slice(0, 4)
+      .map((r) => (r.url ? `${r.title} (${r.url})` : r.title))
+      .join("; ");
+    blocks.push({
+      id: "courses",
+      label: "Suggested learning resources",
+      content: top,
+      confirmed: false,
+    });
+  } else if (effectiveTrack === "role_targeting" && gaps.length > 0) {
+    blocks.push({
+      id: "courses",
+      label: "Suggested learning resources",
+      content: `We'll pull 3–6 reputable resources focused on ${gaps
+        .slice(0, 2)
+        .map((s) => s.skill_name)
+        .join(" and ")} once you confirm the plan direction.`,
+      confirmed: false,
+    });
+  }
+
+  // 5. end_goal — what "done" looks like
+  const endParts: string[] = [];
+  if (nextSteps.length > 0) {
+    endParts.push(`Immediate next steps: ${nextSteps.slice(0, 3).join("; ")}.`);
+  }
+  if (targetRole) {
+    endParts.push(
+      `Goal: be interview-ready for ${targetRole} roles${timeline ? ` within ${timeline}` : ""}.`,
+    );
+  } else if (directions.length > 0) {
+    endParts.push(
+      `Goal: narrow the ${directions.length} candidate direction${directions.length === 1 ? "" : "s"} to one target role and start a focused plan.`,
+    );
+  }
+  if (endParts.length > 0) {
+    blocks.push({
+      id: "end_goal",
+      label: "End goal & next steps",
+      content: endParts.join(" "),
+      confirmed: false,
+    });
+  }
+
+  return blocks;
+}
+
+/**
+ * Change 5 P0 (Apr 14 2026): advance the next unconfirmed plan block when
+ * the user confirms ("ok", "yes", "sounds good"). This is what prevents the
+ * "preparing your plan" loop — each confirmed message flips one block.
+ */
+function advanceNextPlanBlock(
+  blocks: import("../state.js").PlanBlock[] | undefined,
+): import("../state.js").PlanBlock[] | null {
+  if (!Array.isArray(blocks) || blocks.length === 0) return null;
+  const idx = blocks.findIndex((b) => !b.confirmed);
+  if (idx < 0) return null;
+  const next = blocks.map((b, i) => (i === idx ? { ...b, confirmed: true } : b));
+  return next;
 }
 
 function checkOrientationComplete(state: AgentStateType, updates: Partial<AgentStateType>): boolean {
@@ -738,12 +962,47 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
       ].slice(0, 16);
       if (items.length > 0) updates.progressItems = items;
     }
+
+    // Change 5 P0 (Apr 14 2026): seed the 5 canonical plan blocks on planning
+    // entry if they aren't already populated. Previously the analyzer was
+    // responsible for emitting `plan_blocks`, but its skill prompt never
+    // defined that schema — so blocks were never seeded and the speaker looped
+    // on "Plan Presentation Strategy" without ever advancing. See Apr 12
+    // transcript. `parsePlanBlocks` (above) defines the valid id set.
+    const existingBlocks = updates.planBlocks ?? state.planBlocks ?? [];
+    if (existingBlocks.length === 0) {
+      const seeded = seedPlanBlocks(state, updates);
+      if (seeded.length > 0) updates.planBlocks = seeded;
+    }
   }
 
   // Auto-fetch skills when in role targeting and targetRole is set but skills are empty
   const effectivePhase = updates.currentPhase ?? state.currentPhase;
-  const effectiveRole = updates.targetRole ?? fieldUpdates.targetRole ?? state.targetRole;
+  const effectiveRoleRaw =
+    updates.targetRole ?? fieldUpdates.targetRole ?? state.targetRole;
+  // Change 5 P0 (Apr 14 2026): trim + require truthy before dispatching RAG.
+  // A blank / whitespace role must NEVER trigger a silent cached-occupation
+  // substitution (Apr 12 "Data Entry Keyer" regression).
+  const effectiveRole =
+    typeof effectiveRoleRaw === "string" && effectiveRoleRaw.trim()
+      ? effectiveRoleRaw.trim()
+      : null;
   const effectiveSkills = updates.skills ?? state.skills;
+
+  // Raise `needsRoleConfirmation` when we are in role targeting with no
+  // skills yet AND no confirmed role — the speaker reads this flag and
+  // asks the user to name a role instead of fetching a random one.
+  if (
+    effectivePhase === "exploration_role_targeting" &&
+    !effectiveRole &&
+    effectiveSkills.length === 0
+  ) {
+    updates.needsRoleConfirmation = true;
+  } else if (effectiveRole) {
+    // Clear the flag once the user has provided a role.
+    updates.needsRoleConfirmation = false;
+  }
+
   if (
     effectivePhase === "exploration_role_targeting" &&
     effectiveRole &&
@@ -872,20 +1131,22 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
 
   // Slice S-E (Sr 31, 32): block-by-block plan confirmation gate.
   // If plan_blocks exist and the user's last message is a confirmation,
-  // mark the first unconfirmed block as confirmed. The planning speaker
-  // skill is responsible for surfacing only one unconfirmed block at a time.
+  // advance the next unconfirmed block. The planning speaker skill is
+  // responsible for surfacing only one unconfirmed block at a time.
+  // Change 5 P0 (Apr 14 2026): uses `advanceNextPlanBlock` helper so the
+  // same code path is reachable from mergePlanningFields tests.
   const existingBlocks = updates.planBlocks ?? state.planBlocks ?? [];
   if (state.currentPhase === "planning" && existingBlocks.length > 0) {
     const firstPending = existingBlocks.findIndex((b) => !b.confirmed);
     if (firstPending >= 0 && isConfirmation(state.userMessage)) {
-      const next = existingBlocks.map((b, i) =>
-        i === firstPending ? { ...b, confirmed: true } : b
-      );
-      updates.planBlocks = next;
-      // Only let reportGenerated flip once EVERY block is confirmed.
-      const allConfirmed = next.every((b) => b.confirmed);
-      if (!allConfirmed && updates.reportGenerated) {
-        updates.reportGenerated = false;
+      const advanced = advanceNextPlanBlock(existingBlocks);
+      if (advanced) {
+        updates.planBlocks = advanced;
+        // Only let reportGenerated flip once EVERY block is confirmed.
+        const allConfirmed = advanced.every((b) => b.confirmed);
+        if (!allConfirmed && updates.reportGenerated) {
+          updates.reportGenerated = false;
+        }
       }
     } else if (firstPending >= 0 && updates.reportGenerated) {
       // Orchestrator guarantee: cannot complete plan until all blocks confirmed.

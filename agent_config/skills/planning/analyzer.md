@@ -79,6 +79,11 @@ If the user asks to compare two roles ("compare X vs Y", "which is better, X or 
 ### Other pivots
 If the user wants to explore more options (not a specific role pivot), note it in `notes` but do NOT change phase.
 
+### Change 5 P0 — thin-reply rule (Apr 14 2026, BINDING)
+If the user's message in the planning phase is a pure acknowledgment ("ok", "okay", "yes", "sure", "sounds good", "I think we already covered it", "proceed", "go ahead", "lgtm"):
+- **OMIT `target_role` entirely** from `extracted_fields`. Do NOT emit `target_role: null` or `""` — omitting the key is what preserves the previously-confirmed role. Emitting null/blank would silently clear the user's plan target (Apr 12 2026 regression).
+- It is fine to emit `user_confirmed_evaluation: true` or confirm the current plan block, but NEVER re-emit `target_role` on a thin turn.
+
 ## Edge Cases
 - If user requests modifications to the plan: note specific change requests in "notes"
 - If user asks to export/download: note in "notes" for speaker to offer export

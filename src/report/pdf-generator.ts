@@ -4,6 +4,7 @@ import { join } from "path";
 import type { AgentStateType, SkillAssessment } from "../state.js";
 import { config } from "../config.js";
 import { blendSkillsAcrossRoles, categorizeSkillType } from "../utils/rag.js";
+import { getDisplayRole, computeReadinessStats } from "./report-helpers.js";
 
 export async function generatePDFReport(state: AgentStateType): Promise<string> {
   const outputPath = join(config.paths.root, "exports", `career-plan-${state.sessionId}.pdf`);
@@ -92,10 +93,16 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
       doc.moveDown(0.3);
       doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333").text("Overall readiness");
       doc.moveDown(0.2);
-      const techReady = techSkills.length > 0 ? Math.round((techSkills.filter(s => s.gap_category === "strong").length / techSkills.length) * 100) : 0;
-      const softReady = softSkills.length > 0 ? Math.round((softSkills.filter(s => s.gap_category === "strong").length / softSkills.length) * 100) : 0;
-      doc.fontSize(10).font("Helvetica").fillColor("#2874a6").text(`Technical skills on track: ${techReady}%`);
-      doc.fillColor("#7d3c98").text(`Soft skills on track: ${softReady}%`);
+      // Change 5 P0 (Apr 14 2026): split assessment-completion vs current-strength.
+      // Users expect to see 100% after rating every skill even if they're still learning.
+      const stats = computeReadinessStats(skills);
+      const techStrength = techSkills.length > 0 ? Math.round((techSkills.filter(s => s.gap_category === "strong").length / techSkills.length) * 100) : 0;
+      const softStrength = softSkills.length > 0 ? Math.round((softSkills.filter(s => s.gap_category === "strong").length / softSkills.length) * 100) : 0;
+      doc.fontSize(10).font("Helvetica").fillColor("#c94c4c").text(`Assessment completion: ${stats.assessmentPct}% (${stats.assessedSkills}/${stats.totalSkills} skills rated)`);
+      doc.fillColor("#2874a6").text(`Technical skills — current strength: ${techStrength}%`);
+      doc.fillColor("#7d3c98").text(`Soft skills — current strength: ${softStrength}%`);
+      doc.fillColor("#666666").fontSize(9).font("Helvetica-Oblique")
+        .text("Strength reflects skills you already rate as advanced/expert. Gaps are expected and are exactly what your development plan addresses.", { lineGap: 2 });
       doc.fillColor("#000000");
     }
     doc.moveDown(0.5);
@@ -307,8 +314,9 @@ function renderSection2(
 
   if (state.targetRole && skills.length > 0) {
     // Specific role track: target role + tech/soft skill tables
+    // Change 5 P0 (Apr 14 2026): use getDisplayRole so title + badge agree.
     sectionBanner(doc, "2. Recommended career path", "green");
-    addField(doc, "Target Role", state.targetRole);
+    addField(doc, "Target Role", getDisplayRole(state) ?? state.targetRole);
     if (state.recommendedPath) {
       doc.fontSize(11).font("Helvetica").fillColor("#000000")
         .text(state.recommendedPath, { lineGap: 4 });

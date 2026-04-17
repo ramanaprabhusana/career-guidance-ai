@@ -287,6 +287,11 @@ const skillsDir = join(ROOT, "agent_config", "skills");
       "candidate_industries", "compared_roles", "user_persona",
       "years_experience", "education_level", "preferred_timeline",
       "session_goal", "restart_pivot",
+      // Change 5 P0 (Apr 14 2026): role-confirmation guard + scoped ReAct
+      // loop channels. All runtime-only; never emitted by the analyzer and
+      // never written to state_schema.json.
+      "needs_role_confirmation", "react_intent", "react_step_count",
+      "max_react_steps", "react_observation_log", "pending_react_tool",
     ]);
     const schemaFieldSet = new Set<string>();
     for (const phase of Object.keys(stateSchema.phases)) {

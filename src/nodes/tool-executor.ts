@@ -16,7 +16,7 @@
 
 import { retrieveSkillsForRole } from "../utils/rag.js";
 import type { SkillAssessment } from "../state.js";
-import { AgentError, logAgentError } from "../utils/errors.js";
+import { AgentError, logAgentError, type ErrorCode } from "../utils/errors.js";
 import { webSearch, type WebSearchResult } from "../services/web-search.js";
 import { findCourses, type CourseHit, type FindCoursesArgs } from "../services/courses.js";
 import { getWageData, type LaborMarketData } from "../services/bls.js";
@@ -38,28 +38,69 @@ export interface ToolResult<T = unknown> {
   ok: boolean;
   tool: ToolName;
   data?: T;
-  errorCode?: "RAG_RETRIEVAL_EMPTY" | "RAG_SOURCE_DOWN" | "CONFIG_MISSING" | "LLM_TIMEOUT";
+  // Change 5 P0 (Apr 14 2026): widened to the full ErrorCode union so new
+  // codes (RAG_BLANK_ROLE) flow through without per-tool type surgery.
+  errorCode?: ErrorCode;
   detail?: string;
 }
 
 export async function runTool(call: ToolCall): Promise<ToolResult> {
-  switch (call.name) {
-    case "retrieve_skills_for_role":
-      return await retrieveSkillsTool(call.args);
-    case "web_search":
-      return await webSearchTool(call.args);
-    case "find_courses":
-      return findCoursesTool(call.args);
-    case "get_wage_data":
-      return await getWageDataTool(call.args);
-    case "get_job_counts":
-      return await getJobCountsTool(call.args);
-    default: {
-      const err = new AgentError("CONFIG_MISSING", `Unknown tool: ${call.name as string}`);
-      logAgentError(err, { tool: call.name });
-      return { ok: false, tool: call.name, errorCode: "CONFIG_MISSING", detail: err.message };
+  // Change 5 P0 (Apr 14 2026): structured tool-call logging so every side
+  // effect lands in stderr / LangSmith with a stable shape. Crucial for the
+  // golden-path regression test — we assert that RAG is only called with a
+  // confirmed role, and silent side effects can't be asserted against.
+  const startedAt = Date.now();
+  let result: ToolResult;
+  try {
+    switch (call.name) {
+      case "retrieve_skills_for_role":
+        result = await retrieveSkillsTool(call.args);
+        break;
+      case "web_search":
+        result = await webSearchTool(call.args);
+        break;
+      case "find_courses":
+        result = findCoursesTool(call.args);
+        break;
+      case "get_wage_data":
+        result = await getWageDataTool(call.args);
+        break;
+      case "get_job_counts":
+        result = await getJobCountsTool(call.args);
+        break;
+      default: {
+        const err = new AgentError("CONFIG_MISSING", `Unknown tool: ${call.name as string}`);
+        logAgentError(err, { tool: call.name });
+        result = { ok: false, tool: call.name, errorCode: "CONFIG_MISSING", detail: err.message };
+      }
     }
+  } catch (e) {
+    // Defensive: any tool that throws through runTool should still emit a log
+    // line so the caller can see the failure shape. Re-throw so caller sees it.
+    logToolCall(call.name, false, Date.now() - startedAt, "CONFIG_MISSING");
+    throw e;
   }
+  logToolCall(call.name, result.ok, Date.now() - startedAt, result.errorCode);
+  return result;
+}
+
+function logToolCall(
+  tool: string,
+  ok: boolean,
+  latencyMs: number,
+  errorCode?: string,
+): void {
+  // eslint-disable-next-line no-console
+  console.error(
+    JSON.stringify({
+      level: "info",
+      event: "tool_call",
+      tool,
+      ok,
+      latency_ms: latencyMs,
+      ...(errorCode ? { error_code: errorCode } : {}),
+    }),
+  );
 }
 
 async function webSearchTool(args: Record<string, unknown>): Promise<ToolResult<WebSearchResult>> {
@@ -128,9 +169,15 @@ async function getJobCountsTool(args: Record<string, unknown>): Promise<ToolResu
 }
 
 async function retrieveSkillsTool(args: Record<string, unknown>): Promise<ToolResult<SkillAssessment[]>> {
-  const role = typeof args.role === "string" ? args.role : "";
+  const role = typeof args.role === "string" ? args.role.trim() : "";
+  // Change 5 P0 (Apr 14 2026): blank role is a DIFFERENT failure mode than
+  // "retrieval returned nothing" — return RAG_BLANK_ROLE so the orchestrator
+  // can raise `needsRoleConfirmation` and the speaker re-asks instead of
+  // silently substituting an unrelated cached occupation.
   if (!role) {
-    return { ok: false, tool: "retrieve_skills_for_role", errorCode: "RAG_RETRIEVAL_EMPTY", detail: "empty role" };
+    const err = new AgentError("RAG_BLANK_ROLE", "retrieveSkillsTool called with blank role");
+    logAgentError(err, { tool: "retrieve_skills_for_role" });
+    return { ok: false, tool: "retrieve_skills_for_role", errorCode: "RAG_BLANK_ROLE", detail: "empty role" };
   }
   try {
     const skills = await retrieveSkillsForRole(role);
@@ -139,6 +186,12 @@ async function retrieveSkillsTool(args: Record<string, unknown>): Promise<ToolRe
     }
     return { ok: true, tool: "retrieve_skills_for_role", data: skills };
   } catch (e) {
+    // Preserve the original AgentError code (e.g. RAG_BLANK_ROLE if it
+    // somehow slipped past the guard) instead of flattening to RAG_SOURCE_DOWN.
+    if (e instanceof AgentError) {
+      logAgentError(e, { tool: "retrieve_skills_for_role", role });
+      return { ok: false, tool: "retrieve_skills_for_role", errorCode: e.code, detail: e.message };
+    }
     const err = new AgentError("RAG_SOURCE_DOWN", (e as Error).message);
     logAgentError(err, { tool: "retrieve_skills_for_role", role });
     return { ok: false, tool: "retrieve_skills_for_role", errorCode: "RAG_SOURCE_DOWN", detail: err.message };

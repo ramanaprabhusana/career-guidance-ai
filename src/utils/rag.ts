@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { config } from "../config.js";
 import type { SkillAssessment, SkillType } from "../state.js";
+import { AgentError } from "./errors.js";
 
 // --- Soft skill classification (O*NET taxonomy) ---
 const SOFT_SKILLS = new Set([
@@ -50,7 +51,17 @@ interface OccupationProfile {
   growth_rate: string;
 }
 
-let cachedChunks: string[] | null = null;
+// Change 5 P0 (Apr 14 2026): chunks may ship either as raw strings (legacy) or
+// as `{ content, metadata }` objects once the chunk-builder is upgraded. The
+// runtime normalizes both shapes into `StoredChunk` for retrieval. User
+// conversation text is intentionally NOT indexed here — user memory lives in
+// SQLite (profiles, episodic, sessions). Do not mix the two stores.
+interface StoredChunk {
+  content: string;
+  metadata?: { source?: string; role?: string; proficiency?: string };
+}
+
+let cachedChunks: StoredChunk[] | null = null;
 let cachedEmbeddings: number[][] | null = null;
 let cachedOccupations: OccupationProfile[] | null = null;
 
@@ -88,7 +99,20 @@ function loadData(): void {
     return;
   }
 
-  cachedChunks = JSON.parse(readFileSync(chunksPath, "utf-8"));
+  // Accept both legacy `string[]` and new `{content, metadata}[]` shapes so
+  // we don't have to rebuild the index to ship the upgrade.
+  const rawChunks = JSON.parse(readFileSync(chunksPath, "utf-8")) as unknown;
+  if (Array.isArray(rawChunks)) {
+    cachedChunks = rawChunks.map((c) => {
+      if (typeof c === "string") return { content: c };
+      const obj = c as Record<string, unknown>;
+      const content = typeof obj.content === "string" ? obj.content : "";
+      const metadata = (obj.metadata as StoredChunk["metadata"]) ?? undefined;
+      return { content, metadata };
+    });
+  } else {
+    cachedChunks = [];
+  }
   cachedEmbeddings = JSON.parse(readFileSync(embeddingsPath, "utf-8"));
   cachedOccupations = existsSync(occupationsPath)
     ? JSON.parse(readFileSync(occupationsPath, "utf-8"))
@@ -149,7 +173,16 @@ export interface RetrievalResult {
 export async function retrieveChunks(query: string, topK: number = 5): Promise<RetrievalResult[]> {
   loadData();
 
+  const startedAt = Date.now();
   if (!cachedChunks || cachedChunks.length === 0 || !cachedEmbeddings) {
+    logRetrieval({
+      query,
+      topK,
+      returned: 0,
+      reranked: false,
+      latencyMs: Date.now() - startedAt,
+      note: "empty_index",
+    });
     return [];
   }
 
@@ -158,6 +191,14 @@ export async function retrieveChunks(query: string, topK: number = 5): Promise<R
     queryEmb = await embedQuery(query);
   } catch (e) {
     console.warn("[RAG] Embedding unavailable (e.g. Ollama not reachable):", (e as Error).message);
+    logRetrieval({
+      query,
+      topK,
+      returned: 0,
+      reranked: false,
+      latencyMs: Date.now() - startedAt,
+      note: "embedding_unavailable",
+    });
     return [];
   }
 
@@ -168,10 +209,99 @@ export async function retrieveChunks(query: string, topK: number = 5): Promise<R
 
   scored.sort((a, b) => b.score - a.score);
 
-  return scored.slice(0, topK).map(({ idx, score }) => ({
-    content: cachedChunks![idx],
+  // Change 5 P0 (Apr 14 2026): optional lexical re-rank over the top-8 when
+  // ENABLE_RAG_RERANK is set. Deterministic (no LLM) so it's safe to default
+  // on once we validate it against `scripts/eval-rag.ts`. The plan calls for
+  // a Gemini-Flash judge pass here; that's a future upgrade — the interface
+  // below is stable so swapping the implementation won't ripple.
+  const rerankEnabled = process.env.ENABLE_RAG_RERANK === "true";
+  const topCandidates = scored.slice(0, rerankEnabled ? Math.min(8, scored.length) : topK);
+  let ordered: { idx: number; score: number }[];
+  if (rerankEnabled) {
+    ordered = rerankByLexicalOverlap(query, topCandidates, cachedChunks);
+    ordered = ordered.slice(0, topK);
+  } else {
+    ordered = topCandidates;
+  }
+
+  const results = ordered.map(({ idx, score }) => ({
+    content: cachedChunks![idx]!.content,
     score,
   }));
+  logRetrieval({
+    query,
+    topK,
+    returned: results.length,
+    reranked: rerankEnabled,
+    latencyMs: Date.now() - startedAt,
+    topScores: ordered.slice(0, 4).map((o) => Number(o.score.toFixed(3))),
+  });
+  return results;
+}
+
+/**
+ * Change 5 P0 (Apr 14 2026): deterministic lexical re-rank. Blends cosine
+ * similarity with keyword-overlap (BM25-lite). Placeholder for a future
+ * Gemini-Flash LLM-judge pass; keeping this function isolated so the LLM
+ * variant can drop in without touching `retrieveChunks`.
+ */
+function rerankByLexicalOverlap(
+  query: string,
+  candidates: { idx: number; score: number }[],
+  chunks: StoredChunk[],
+): { idx: number; score: number }[] {
+  const qTokens = new Set(
+    query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length >= 3),
+  );
+  if (qTokens.size === 0) return candidates;
+  const rescored = candidates.map(({ idx, score }) => {
+    const content = chunks[idx]?.content ?? "";
+    const cTokens = content.toLowerCase().split(/\s+/);
+    let overlap = 0;
+    for (const t of cTokens) {
+      if (qTokens.has(t)) overlap += 1;
+    }
+    const normalizedOverlap = Math.min(overlap / qTokens.size, 1);
+    // 70% cosine + 30% overlap — conservative mix that preserves recall.
+    const blended = score * 0.7 + normalizedOverlap * 0.3;
+    return { idx, score: blended };
+  });
+  rescored.sort((a, b) => b.score - a.score);
+  return rescored;
+}
+
+/**
+ * Change 5 P0 (Apr 14 2026): structured retrieval log. Picked up by LangSmith
+ * or whatever log aggregator is scraping stderr. One line per retrieval —
+ * no user PII, only the query's first 60 chars (full text is available in
+ * LangSmith spans when LANGCHAIN_TRACING_V2 is enabled).
+ */
+function logRetrieval(fields: {
+  query: string;
+  topK: number;
+  returned: number;
+  reranked: boolean;
+  latencyMs: number;
+  topScores?: number[];
+  note?: string;
+}): void {
+  // eslint-disable-next-line no-console
+  console.error(
+    JSON.stringify({
+      level: "info",
+      event: "rag_retrieve",
+      query_preview: fields.query.slice(0, 60),
+      top_k: fields.topK,
+      returned: fields.returned,
+      reranked: fields.reranked,
+      latency_ms: fields.latencyMs,
+      ...(fields.topScores ? { top_scores: fields.topScores } : {}),
+      ...(fields.note ? { note: fields.note } : {}),
+    }),
+  );
 }
 
 // Change 4: per-role memoization so same-session role switches don't re-hit
@@ -190,6 +320,13 @@ function skillCacheKey(role: string): string {
  * Change 4: memoizes per normalized role name; evicts oldest when over cap.
  */
 export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAssessment[]> {
+  // Change 5 P0 (Apr 14 2026): fail loudly on blank role instead of silently
+  // returning [] (which previously let the orchestrator fall back to an
+  // unrelated cached occupation). Callers / tool-executor surface a
+  // RAG_BLANK_ROLE code to the speaker so it asks the user for a role.
+  if (typeof targetRole !== "string" || !targetRole.trim()) {
+    throw new AgentError("RAG_BLANK_ROLE", "retrieveSkillsForRole called with blank role");
+  }
   const key = skillCacheKey(targetRole);
   const cached = skillsByRoleCache.get(key);
   if (cached) {

@@ -12,7 +12,8 @@
     "validate-config": "tsx scripts/validate-config.ts",
     "eval-fixtures": "tsx scripts/eval-fixtures.ts",
     "eval": "tsx scripts/eval-fixtures.ts",
-    "check": "npm run typecheck && npm run validate-config && npm run smoke && npm run eval-fixtures"
+    "golden": "tsx src/tests/golden-path.test.ts",
+    "check": "npm run typecheck && npm run validate-config && npm run golden && npm run smoke && npm run eval-fixtures"
   },
   "keywords": [
     "career-guidance",
