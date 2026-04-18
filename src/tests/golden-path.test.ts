@@ -22,7 +22,7 @@
 
 import { stateUpdater } from "../nodes/state-updater.js";
 import type { AgentStateType, SkillAssessment } from "../state.js";
-import { computeReadinessStats, getDisplayRole } from "../report/report-helpers.js";
+import { computeReadinessStats, computeProximityStats, getDisplayRole } from "../report/report-helpers.js";
 
 let failures = 0;
 function assert(cond: unknown, label: string): void {
@@ -244,6 +244,30 @@ async function main(): Promise<void> {
     assert(stats.strengthPct === 0, `no strong skills yields strengthPct=0 (got ${stats.strengthPct})`);
     assert(stats.totalSkills === 4, "totalSkills counted correctly");
     assert(stats.assessedSkills === 4, "assessedSkills counted correctly");
+  }
+
+  // --- Regression 4b: proximity score non-zero for fresh-grad (Apr 17 UX fix) ---
+  console.log("[4b] proximity score rewards partial progress (not 0%)");
+  {
+    const freshGradTech: SkillAssessment[] = [
+      { skill_name: "SQL", onet_source: "t", required_proficiency: "advanced", user_rating: "beginner", gap_category: "absent", skill_type: "technical" },
+      { skill_name: "Python", onet_source: "t", required_proficiency: "advanced", user_rating: "intermediate", gap_category: "underdeveloped", skill_type: "technical" },
+    ];
+    const prox = computeProximityStats(freshGradTech);
+    // beginner/advanced = 1/3 = 33%, intermediate/advanced = 2/3 = 67%. Avg = 50%.
+    assert(prox.techProgressPct === 50, `tech progress = 50% for beginner+intermediate vs advanced (got ${prox.techProgressPct})`);
+    assert(prox.techProgressPct > 0, "proximity is strictly greater than 0 when anything is rated");
+
+    const allBeginnerVsAdvanced: SkillAssessment[] = [
+      { skill_name: "A", onet_source: "t", required_proficiency: "advanced", user_rating: "beginner", gap_category: "absent", skill_type: "technical" },
+      { skill_name: "B", onet_source: "t", required_proficiency: "advanced", user_rating: "beginner", gap_category: "absent", skill_type: "technical" },
+    ];
+    const p2 = computeProximityStats(allBeginnerVsAdvanced);
+    assert(p2.techProgressPct === 33, `all-beginner-vs-advanced = 33% (got ${p2.techProgressPct})`);
+
+    // Strength is still 0 for these — proximity and strength are distinct.
+    const strengthStats = computeReadinessStats(allBeginnerVsAdvanced);
+    assert(strengthStats.strengthPct === 0, "strengthPct still 0 for all-beginner-vs-advanced (proximity != strength)");
   }
 
   // --- Regression 5: getDisplayRole resolves consistently per track ---

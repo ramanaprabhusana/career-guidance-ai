@@ -4,7 +4,7 @@ import { join } from "path";
 import type { AgentStateType, SkillAssessment } from "../state.js";
 import { config } from "../config.js";
 import { blendSkillsAcrossRoles, categorizeSkillType } from "../utils/rag.js";
-import { getDisplayRole, computeReadinessStats } from "./report-helpers.js";
+import { getDisplayRole, computeReadinessStats, computeProximityStats } from "./report-helpers.js";
 
 export async function generatePDFReport(state: AgentStateType): Promise<string> {
   const outputPath = join(config.paths.root, "exports", `career-plan-${state.sessionId}.pdf`);
@@ -35,6 +35,7 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     const timeline = state.timeline ?? "to be determined";
     const displayRole = getDisplayRole(state);
     const headerStats = computeReadinessStats(skills);
+    const headerProximity = computeProximityStats(skills);
     const techStrengthPct = techSkills.length > 0
       ? Math.round((techSkills.filter(s => s.gap_category === "strong").length / techSkills.length) * 100)
       : 0;
@@ -63,8 +64,8 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     if (skills.length > 0) {
       renderHeaderStatChips(doc, [
         { pct: headerStats.assessmentPct, label: "Assessed", color: "#c94c4c" },
-        { pct: techStrengthPct, label: "Tech Strength", color: "#2874a6" },
-        { pct: softStrengthPct, label: "Soft Strength", color: "#7d3c98" },
+        { pct: headerProximity.techProgressPct, label: "Tech Progress", color: "#2874a6" },
+        { pct: headerProximity.softProgressPct, label: "Soft Progress", color: "#7d3c98" },
       ]);
     }
 
@@ -123,16 +124,19 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
       doc.moveDown(0.3);
       doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333").text("Overall readiness");
       doc.moveDown(0.2);
-      // Change 5 P0 (Apr 14 2026): split assessment-completion vs current-strength.
-      // Users expect to see 100% after rating every skill even if they're still learning.
       const stats = computeReadinessStats(skills);
+      const proximity = computeProximityStats(skills);
       const techStrength = techSkills.length > 0 ? Math.round((techSkills.filter(s => s.gap_category === "strong").length / techSkills.length) * 100) : 0;
       const softStrength = softSkills.length > 0 ? Math.round((softSkills.filter(s => s.gap_category === "strong").length / softSkills.length) * 100) : 0;
       doc.fontSize(10).font("Helvetica").fillColor("#c94c4c").text(`Assessment completion: ${stats.assessmentPct}% (${stats.assessedSkills}/${stats.totalSkills} skills rated)`);
-      doc.fillColor("#2874a6").text(`Technical skills — current strength: ${techStrength}%`);
-      doc.fillColor("#7d3c98").text(`Soft skills — current strength: ${softStrength}%`);
+      doc.fillColor("#2874a6").text(`Technical skills — progress toward required: ${proximity.techProgressPct}% (currently at advanced/expert: ${techStrength}%)`);
+      doc.fillColor("#7d3c98").text(`Soft skills — progress toward required: ${proximity.softProgressPct}% (currently at advanced/expert: ${softStrength}%)`);
+      if (stats.assessmentPct === 100 && stats.strengthPct < 25) {
+        doc.fillColor("#555555").fontSize(9).font("Helvetica-Oblique")
+          .text("You've assessed every skill — the strength number climbs as you move toward advanced/expert, which is exactly what your development plan is designed to get you to.", { lineGap: 2 });
+      }
       doc.fillColor("#666666").fontSize(9).font("Helvetica-Oblique")
-        .text("Strength reflects skills you already rate as advanced/expert. Gaps are expected and are exactly what your development plan addresses.", { lineGap: 2 });
+        .text("Progress averages how close your current level is to the required level per skill. Strength counts only the skills already at advanced/expert.", { lineGap: 2 });
       doc.fillColor("#000000");
     }
     doc.moveDown(0.5);

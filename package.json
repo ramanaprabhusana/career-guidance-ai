@@ -13,7 +13,11 @@
     "eval-fixtures": "tsx scripts/eval-fixtures.ts",
     "eval": "tsx scripts/eval-fixtures.ts",
     "golden": "tsx src/tests/golden-path.test.ts",
-    "check": "npm run typecheck && npm run validate-config && npm run golden && npm run smoke && npm run eval-fixtures"
+    "recovery": "tsx src/tests/recovery.test.ts",
+    "journeys": "tsx src/tests/journeys.test.ts",
+    "determinism": "tsx src/tests/determinism.test.ts",
+    "continuity": "tsx src/tests/continuity.test.ts",
+    "check": "npm run typecheck && npm run validate-config && npm run golden && npm run recovery && npm run journeys && npm run determinism && npm run continuity && npm run smoke && npm run eval-fixtures"
   },
   "keywords": [
     "career-guidance",

@@ -52,7 +52,7 @@ function deriveGapCategory(userRating: UserRating | null, requiredProficiency: s
  *
  * Logs every real change so regressions are visible in stderr/LangSmith.
  */
-function applyTargetRoleWrite(
+export function applyTargetRoleWrite(
   updates: Partial<AgentStateType>,
   incomingRaw: unknown,
   currentTargetRole: string | null,

@@ -3,7 +3,7 @@ import { join } from "path";
 import type { AgentStateType, SkillAssessment } from "../state.js";
 import { config } from "../config.js";
 import { blendSkillsAcrossRoles, categorizeSkillType } from "../utils/rag.js";
-import { getDisplayRole, computeReadinessStats } from "./report-helpers.js";
+import { getDisplayRole, computeReadinessStats, computeProximityStats } from "./report-helpers.js";
 
 export function generateHTMLReport(state: AgentStateType): string {
   const outputPath = join(config.paths.root, "exports", `career-plan-${state.sessionId}.html`);
@@ -37,11 +37,14 @@ export function generateHTMLReport(state: AgentStateType): string {
   // `Tech Ready`/`Soft Ready` was misleading — it showed 0% whenever skills
   // were still developing even after 100% were rated (see Apr 12 transcript).
   const stats = computeReadinessStats(skills);
+  const proximity = computeProximityStats(skills);
   const totalSkills = stats.totalSkills;
   const ratedSkills = stats.assessedSkills;
   const strongSkills = stats.strongSkills;
   const gapSkills = stats.gapSkills;
   const assessmentPct = stats.assessmentPct;
+  const techProgressPct = proximity.techProgressPct;
+  const softProgressPct = proximity.softProgressPct;
   const techStrengthPct = techSkills.length > 0 ? Math.round((techSkills.filter(s => s.gap_category === "strong").length / techSkills.length) * 100) : 0;
   const softStrengthPct = softSkills.length > 0 ? Math.round((softSkills.filter(s => s.gap_category === "strong").length / softSkills.length) * 100) : 0;
   const displayRole = getDisplayRole(state);
@@ -243,12 +246,12 @@ export function generateHTMLReport(state: AgentStateType): string {
           <div class="pct-label">Assessed</div>
         </div>
         <div class="progress-card">
-          <div class="pct pct-tech">${techStrengthPct}%</div>
-          <div class="pct-label">Tech Strength</div>
+          <div class="pct pct-tech">${techProgressPct}%</div>
+          <div class="pct-label">Tech Progress</div>
         </div>
         <div class="progress-card">
-          <div class="pct pct-soft">${softStrengthPct}%</div>
-          <div class="pct-label">Soft Strength</div>
+          <div class="pct pct-soft">${softProgressPct}%</div>
+          <div class="pct-label">Soft Progress</div>
         </div>
       </div>` : ""}
     </div>
@@ -546,13 +549,15 @@ function renderSection4(
         <p style="color: #718096;">Complete a full career coaching session to receive a personalized development timeline.</p>`}
 
         ${skills.length > 0 ? (() => {
-          // Change 5 P0 (Apr 14 2026): show assessment completion as primary metric;
-          // label the strength bars as "current strength" not "readiness" so the
-          // 0% strength doesn't contradict the 100% assessed completion.
           const assessedCount = skills.filter(s => s.user_rating !== null).length;
           const assessedPct = skills.length > 0 ? Math.round((assessedCount / skills.length) * 100) : 0;
           const techStrength = techSkills.length > 0 ? Math.round((techSkills.filter(s => s.gap_category === "strong").length / techSkills.length) * 100) : 0;
           const softStrength = softSkills.length > 0 ? Math.round((softSkills.filter(s => s.gap_category === "strong").length / softSkills.length) * 100) : 0;
+          const techProg = computeProximityStats(skills).techProgressPct;
+          const softProg = computeProximityStats(skills).softProgressPct;
+          const lowStrengthNote = assessedPct === 100 && (techStrength + softStrength) < 25
+            ? `<p style="font-size: 12px; color: #4a5568; margin-top: 10px;">You've assessed every skill — the strength number climbs as you move toward advanced/expert, which is exactly what your development plan is designed to get you to.</p>`
+            : "";
           return `
         <h3 style="font-size: 14px; margin: 24px 0 12px; color: #2d3748;">Overall Readiness</h3>
         <div style="margin-bottom: 14px;">
@@ -561,15 +566,18 @@ function renderSection4(
         </div>
         <div class="two-col">
           <div>
-            <div style="font-size: 13px; font-weight: 600; color: #2471a3; margin-bottom: 4px;">Technical — current strength</div>
-            <div class="progress-bar-wrap"><div class="progress-bar-fill fill-tech" style="width: ${techStrength}%;"></div></div>
+            <div style="font-size: 13px; font-weight: 600; color: #2471a3; margin-bottom: 4px;">Technical — progress toward required (${techProg}%)</div>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill fill-tech" style="width: ${techProg}%;"></div></div>
+            <div style="font-size: 11px; color: #718096; margin-top: 3px;">Currently at advanced/expert: ${techStrength}%</div>
           </div>
           <div>
-            <div style="font-size: 13px; font-weight: 600; color: #7d3c98; margin-bottom: 4px;">Soft — current strength</div>
-            <div class="progress-bar-wrap"><div class="progress-bar-fill fill-soft" style="width: ${softStrength}%;"></div></div>
+            <div style="font-size: 13px; font-weight: 600; color: #7d3c98; margin-bottom: 4px;">Soft — progress toward required (${softProg}%)</div>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill fill-soft" style="width: ${softProg}%;"></div></div>
+            <div style="font-size: 11px; color: #718096; margin-top: 3px;">Currently at advanced/expert: ${softStrength}%</div>
           </div>
         </div>
-        <p style="font-size: 11px; color: #718096; margin-top: 8px; font-style: italic;">Strength reflects skills you already rate as advanced/expert. Gaps are expected and are exactly what your development plan addresses.</p>`;
+        ${lowStrengthNote}
+        <p style="font-size: 11px; color: #718096; margin-top: 8px; font-style: italic;">Progress averages how close your current level is to the required level per skill. Strength counts only the skills already at advanced/expert.</p>`;
         })() : ""}
       </div>
     </div>`;
