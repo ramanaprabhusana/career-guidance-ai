@@ -1,0 +1,78 @@
+flowchart TD
+  user["User"] --> server["Express Server / API"]
+
+  server --> sessionLoad["Load Session State"]
+  sessionLoad --> memoryHydration["Hydrate Memory"]
+  memoryHydration --> memoryPrecedence["Apply Memory Precedence"]
+
+  memoryPrecedence --> analyzerPrompt["Analyzer Prompt Creator"]
+  analyzerPrompt --> analyzer["Analyzer"]
+  analyzer --> fillerGuard["Filler / Ambiguous Intent Guard"]
+  fillerGuard --> stateUpdater["State Updater"]
+  stateUpdater --> invariants["State Invariant Checks"]
+
+  invariants --> reactDecision{"Evidence-Heavy Intent?"}
+  reactDecision -->|"No"| noRepeat["No-Repeat / Known-Fact Check"]
+  reactDecision -->|"Yes, ReAct enabled"| reactExecutor["Bounded ReAct Executor"]
+
+  reactExecutor --> toolGate["Allowed Tool Gate"]
+  toolGate --> onet["O*NET"]
+  toolGate --> bls["BLS"]
+  toolGate --> occupationRag["Internal RAG / Occupation Memory"]
+  toolGate --> courses["Curated Courses"]
+  toolGate --> webSearch["Optional Web Search, Feature Flag"]
+
+  onet --> reactControl["Step Limit + Timeout + Fallback"]
+  bls --> reactControl
+  occupationRag --> reactControl
+  courses --> reactControl
+  webSearch --> reactControl
+
+  reactControl --> reactObservations["ReAct Observations"]
+  reactObservations --> noRepeat
+
+  noRepeat --> speakerPrompt["Speaker Prompt Creator"]
+  speakerPrompt --> speaker["Speaker"]
+  speaker --> response["User Response"]
+
+  response --> saveSession["Save Session State"]
+  saveSession --> sessionMemory["Session Memory"]
+  saveSession --> profileMemory["Long-Term Profile Memory"]
+  saveSession --> episodicMemory["Episodic Memory"]
+
+  response --> summarizeDecision{"Summarize Needed?"}
+  summarizeDecision -->|"No"| endNode["End Turn"]
+  summarizeDecision -->|"Yes"| summarizer["Summarizer"]
+  summarizer --> episodicMemory
+  summarizer --> endNode
+
+  server --> restartIntent["Restart Intent"]
+  restartIntent --> startOver["Start Over"]
+  restartIntent --> freshStart["Fresh Start"]
+  restartIntent --> forgetEverything["Forget Everything"]
+  restartIntent --> newRolePath["New Role / New Path"]
+
+  startOver --> nonDestructiveRestart["Reset Active Journey Only"]
+  freshStart --> clarifyRestart["Ask Restart Scope"]
+  forgetEverything --> deletionConfirm["Require Confirmation"]
+  newRolePath --> roleSwitch["Preserve Profile, Reset Active Role State Only"]
+
+  roleSwitch --> inactiveHistory["Mark Old Role Artifacts Inactive / History"]
+  inactiveHistory --> resetRoleContext["Reset Active Role-Specific Context"]
+  resetRoleContext --> identifySkills["Identify Overlapping Skills"]
+  identifySkills --> exactSkillReuse["Reuse Exact / Normalized Skill Matches Only"]
+  identifySkills --> ambiguousSkillReuse["Ask Confirmation for Ambiguous Skill Matches"]
+
+  deletionConfirm -->|"Confirmed"| resetActiveJourney["Reset Active Journey Only"]
+  deletionConfirm -->|"Not Confirmed"| nonDestructiveRestart
+
+  server --> reportRequest["Report Export Request"]
+  reportRequest --> reportReadiness["Report Readiness Check"]
+  reportReadiness -->|"Not Ready"| reportBlocked["Block Export With Missing Items"]
+  reportReadiness -->|"Ready"| reportRoleMatch["Report Role Matches Active Role"]
+
+  reportRoleMatch --> priorRolesCheck["Prior Roles Only in History / Appendix"]
+  priorRolesCheck --> readinessLabels["No Conflicting Readiness Labels"]
+  readinessLabels --> activeRoleCheck["Exactly One Active Target Role"]
+  activeRoleCheck --> reportGenerate["Generate PDF / HTML / Evidence Pack"]
+  reportGenerate --> reportOutput["Report Output"]

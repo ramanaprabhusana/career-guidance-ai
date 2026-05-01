@@ -4,6 +4,7 @@ All architectural decisions, technology changes, and structural modifications to
 
 | Date | Time (ET) | What Changed | Where (File/Component) | What It Replaced | Why |
 |------|-----------|-------------|----------------------|-----------------|-----|
+| 2026-05-01 | 17:38 | Froze MVP runtime Mermaid reference with final corrections: `Reset Active Role-Specific Context` belongs only under role switch/new path; `Internal RAG / Memory` renamed to `Internal RAG / Occupation Memory` | `docs/architecture/architecture-4.0.0.mmd`, `docs/architecture/README.md` | Chat-only Mermaid reference and ambiguous RAG/memory label | Prevents diagram readers from interpreting report export as state-resetting and avoids confusing occupation RAG with user memory |
 | 2026-03-27 | 18:55 | Chose LangGraph TypeScript + Gemini as runtime stack | Project-wide | Python + Streamlit (from approved project plan) | TypeScript provides type safety; LangGraph enables stateful multi-node agent pipeline |
 | 2026-03-27 | 18:55 | 5-node StateGraph pipeline: AnalyzerPromptCreator -> Analyzer -> StateUpdater -> SpeakerPromptCreator -> Speaker | `src/graph.ts` | N/A (greenfield) | Separation of concerns: analysis, state mutation, and response generation are independent nodes per chatbot_lab framework |
 | 2026-03-27 | 18:55 | Gemini 2.0 Flash Preview (`gemini-2.0-flash-preview`) via `@langchain/google-genai` as LLM | `src/config.ts` | N/A | Free tier availability; sufficient quality for career guidance domain |

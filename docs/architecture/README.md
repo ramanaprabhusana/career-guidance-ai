@@ -10,3 +10,4 @@ Frozen Mermaid snapshots showing system architecture progression. Render at [mer
 | 1.3.0 | 2026-03-31 | 03:14 | [architecture-1.3.0.mmd](architecture-1.3.0.mmd) | Added file session persistence, returning user flow, LangSmith tracing, data sync |
 | 2.0.0 | 2026-04-02 | 14:54 | [architecture-2.0.0.mmd](architecture-2.0.0.mmd) | UI redesign: 9-section landing page, accessibility layer, 2-column footer (backend unchanged) |
 | 3.0.0 | 2026-04-02 | 15:30 | [architecture-3.0.0.mmd](architecture-3.0.0.mmd) | **Planned**: Resume + Interview + Resources pipelines, state schema expansion, 7 new API routes |
+| 4.0.0 | 2026-05-01 | 21:38 | [architecture-4.0.0.mmd](architecture-4.0.0.mmd) | Final MVP runtime reference: sequential Analyzer -> filler guard -> State Updater -> bounded ReAct/no-repeat -> Speaker, non-destructive restart/role switch, report readiness gates |
