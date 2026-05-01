@@ -1,4 +1,6 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatOpenAI } from "@langchain/openai";
+import type { BaseMessage } from "@langchain/core/messages";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -35,9 +37,11 @@ export interface StateSchema {
 }
 
 export interface AppConfig {
-  provider: "google";
+  provider: "google" | "groq";
   analyzerModel: string;
   speakerModel: string;
+  groqAnalyzerModel: string;
+  groqSpeakerModel: string;
   analyzerTemperature: number;
   speakerTemperature: number;
   maxRetries: number;
@@ -66,6 +70,8 @@ export function loadConfig(): AppConfig {
     provider: "google",
     analyzerModel: "gemini-2.5-flash-lite",
     speakerModel: "gemini-2.5-flash",
+    groqAnalyzerModel: "llama-3.1-8b-instant",
+    groqSpeakerModel: "llama-3.1-8b-instant",
     analyzerTemperature: 0,
     speakerTemperature: 0.7,
     maxRetries: 2,
@@ -94,25 +100,111 @@ export function loadConfig(): AppConfig {
 
 // --- Model Factory ---
 
+type LlmProvider = "google" | "groq";
+type ChatModelLike = {
+  invoke(input: BaseMessage[]): Promise<{ content: unknown }>;
+};
+
 // Cached model instances — created once at startup, reused every turn.
-const _modelCache = new Map<string, ChatGoogleGenerativeAI>();
+const _modelCache = new Map<string, ChatModelLike>();
+
+function normalizeProvider(value: string | undefined): LlmProvider | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "google" || normalized === "gemini") return "google";
+  if (normalized === "groq") return "groq";
+  return null;
+}
+
+export function getProviderSequence(): LlmProvider[] {
+  const sequence = process.env.LLM_PROVIDER_SEQUENCE
+    ?.split(",")
+    .map((provider) => normalizeProvider(provider))
+    .filter((provider): provider is LlmProvider => provider !== null);
+  if (sequence?.length) return sequence;
+
+  const forced = normalizeProvider(process.env.LLM_PROVIDER);
+  return forced ? [forced] : ["google"];
+}
+
+export function hasConfiguredLLMProvider(): boolean {
+  return getProviderSequence().some((provider) => {
+    if (provider === "groq") return Boolean(process.env.GROQ_API_KEY);
+    return Boolean(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY);
+  });
+}
+
+function createProviderModel(
+  provider: LlmProvider,
+  purpose: "analyzer" | "speaker",
+  config: AppConfig,
+): ChatModelLike {
+  const temperature = purpose === "analyzer"
+    ? config.analyzerTemperature
+    : config.speakerTemperature;
+
+  if (provider === "groq") {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error("GROQ_API_KEY environment variable is required for Groq");
+    return new ChatOpenAI({
+      model: purpose === "analyzer"
+        ? (process.env.GROQ_ANALYZER_MODEL || process.env.GROQ_MODEL || config.groqAnalyzerModel)
+        : (process.env.GROQ_SPEAKER_MODEL || process.env.GROQ_MODEL || config.groqSpeakerModel),
+      temperature,
+      apiKey,
+      configuration: {
+        baseURL: process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1",
+      },
+    });
+  }
+
+  const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GOOGLE_API_KEY or GEMINI_API_KEY environment variable is required for Google");
+  return new ChatGoogleGenerativeAI({
+    model: purpose === "analyzer"
+      ? (process.env.GEMINI_ANALYZER_MODEL || process.env.GEMINI_MODEL || config.analyzerModel)
+      : (process.env.GEMINI_SPEAKER_MODEL || process.env.GEMINI_MODEL || config.speakerModel),
+    temperature,
+    apiKey,
+  });
+}
+
+function createFailoverModel(
+  purpose: "analyzer" | "speaker",
+  config: AppConfig,
+): ChatModelLike {
+  const providers = getProviderSequence();
+  const models = providers.map((provider) => ({
+    provider,
+    model: createProviderModel(provider, purpose, config),
+  }));
+
+  if (!models.length) {
+    throw new Error("No valid LLM providers configured");
+  }
+
+  return {
+    async invoke(input: BaseMessage[]) {
+      let lastError: unknown = null;
+      for (const { provider, model } of models) {
+        try {
+          return await model.invoke(input);
+        } catch (error) {
+          lastError = error;
+          console.warn(`LLM provider ${provider} failed for ${purpose}; trying next provider if configured:`, (error as Error).message);
+        }
+      }
+      throw lastError instanceof Error ? lastError : new Error("All configured LLM providers failed");
+    },
+  };
+}
 
 export function createChatModel(
   purpose: "analyzer" | "speaker",
   config: AppConfig
-): ChatGoogleGenerativeAI {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  if (!apiKey) {
-    throw new Error("GOOGLE_API_KEY environment variable is required");
-  }
-
-  const key = purpose;
+): ChatModelLike {
+  const key = `${purpose}:${getProviderSequence().join(">")}`;
   if (!_modelCache.has(key)) {
-    _modelCache.set(key, new ChatGoogleGenerativeAI({
-      model: purpose === "analyzer" ? config.analyzerModel : config.speakerModel,
-      temperature: purpose === "analyzer" ? config.analyzerTemperature : config.speakerTemperature,
-      apiKey,
-    }));
+    _modelCache.set(key, createFailoverModel(purpose, config));
   }
   return _modelCache.get(key)!;
 }

@@ -1,15 +1,14 @@
 import { createInterface } from "readline";
 import { v4 as uuidv4 } from "uuid";
-import { config } from "./config.js";
+import { config, hasConfiguredLLMProvider } from "./config.js";
 import { buildGraph } from "./graph.js";
 import type { AgentStateType } from "./state.js";
 
 // Validate environment
 function validateEnv(): void {
-  if (!process.env.GOOGLE_API_KEY) {
-    console.error("ERROR: GOOGLE_API_KEY environment variable is required.");
-    console.error("Get a free API key at: https://aistudio.google.com/apikey");
-    console.error('Then set it: export GOOGLE_API_KEY="your-key-here"');
+  if (!hasConfiguredLLMProvider()) {
+    console.error("ERROR: No configured LLM provider.");
+    console.error("Set GROQ_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY in .env.");
     process.exit(1);
   }
 }

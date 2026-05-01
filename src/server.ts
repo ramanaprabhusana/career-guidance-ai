@@ -7,7 +7,7 @@ import { readFileSync, existsSync, mkdirSync } from "fs";
 import { writeFile } from "fs/promises";
 import { v4 as uuidv4 } from "uuid";
 import { buildGraph } from "./graph.js";
-import { config } from "./config.js";
+import { config, getProviderSequence, hasConfiguredLLMProvider } from "./config.js";
 import { generatePDFReport } from "./report/pdf-generator.js";
 import { generateHTMLReport } from "./report/html-generator.js";
 import { buildEvidencePack, writeEvidencePackFile } from "./report/evidence-pack.js";
@@ -65,8 +65,8 @@ try {
   }
 } catch { /* ignore */ }
 
-if (!process.env.GOOGLE_API_KEY) {
-  console.error("ERROR: GOOGLE_API_KEY not set. Add it to .env");
+if (!hasConfiguredLLMProvider()) {
+  console.error("ERROR: No configured LLM provider. Add GROQ_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY to .env");
   process.exit(1);
 }
 
@@ -1262,13 +1262,15 @@ try {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  const tracingEnabled = process.env.LANGCHAIN_TRACING_V2 === "true" && !!process.env.LANGCHAIN_API_KEY;
-  const tracingProject = process.env.LANGCHAIN_PROJECT || "career-guidance-ai";
+  const tracingEnabled = (process.env.LANGSMITH_TRACING === "true" || process.env.LANGCHAIN_TRACING_V2 === "true")
+    && !!(process.env.LANGSMITH_API_KEY || process.env.LANGCHAIN_API_KEY);
+  const tracingProject = process.env.LANGSMITH_PROJECT || process.env.LANGCHAIN_PROJECT || "career-guidance-ai";
 
   console.log(`\n  Career Guidance Assistant`);
   console.log(`  ========================`);
   console.log(`  Open in browser: http://localhost:${PORT}`);
   console.log(`  API: http://localhost:${PORT}/api`);
+  console.log(`  LLM provider sequence: ${getProviderSequence().join(" -> ")}`);
   console.log(`  LangSmith: ${tracingEnabled ? `ENABLED (project: ${tracingProject})` : "disabled"}`);
   console.log(`  O*NET API: ${process.env.ONET_USERNAME ? "configured" : "local fallback"}`);
   console.log(`  BLS API: ${process.env.BLS_API_KEY ? "configured" : "not set"}`);

@@ -1,5 +1,5 @@
 import type { AgentStateType } from "../state.js";
-import { config, createChatModel } from "../config.js";
+import { config, createChatModel, hasConfiguredLLMProvider } from "../config.js";
 import { HumanMessage } from "@langchain/core/messages";
 import { loadPromptTemplate, populateTemplate } from "./prompt-loader.js";
 
@@ -8,7 +8,7 @@ const MAX_HISTORY_LINES = 14;
 
 /**
  * Rolling conversation summary for episodic memory and long threads.
- * Uses a single LLM call when GOOGLE_API_KEY is set and history is long enough;
+ * Uses a single LLM call when an LLM provider is configured and history is long enough;
  * otherwise returns a short deterministic digest (no API).
  *
  * Prompt body lives in `agent_config/prompts/summary_template.md` (Skill 7
@@ -25,7 +25,7 @@ export async function maybeSummarize(state: AgentStateType): Promise<Partial<Age
     .map((t) => `${t.role}: ${t.content.slice(0, 500)}`)
     .join("\n");
 
-  if (process.env.GOOGLE_API_KEY) {
+  if (hasConfiguredLLMProvider()) {
     try {
       const template = loadPromptTemplate("summary_template.md");
       const prompt = populateTemplate(template, {

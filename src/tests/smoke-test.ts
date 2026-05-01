@@ -1,5 +1,5 @@
 import { buildGraph } from "../graph.js";
-import { config } from "../config.js";
+import { config, getProviderSequence, hasConfiguredLLMProvider } from "../config.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -32,11 +32,11 @@ async function smokeTest() {
   console.log("✓ Config loaded successfully");
   console.log(`  - Phases: ${Object.keys(config.phaseRegistry.phases).join(", ")}`);
   console.log(`  - Default phase: ${config.phaseRegistry.default_phase}`);
-  console.log(`  - LLM: ${config.analyzerModel}`);
+  console.log(`  - LLM providers: ${getProviderSequence().join(" -> ")}`);
 
-  if (!process.env.GOOGLE_API_KEY) {
-    console.log("\n⚠️  GOOGLE_API_KEY not set — skipping LLM tests");
-    console.log("   Set it and re-run for full smoke test");
+  if (!hasConfiguredLLMProvider()) {
+    console.log("\n⚠️  No LLM provider key set — skipping LLM tests");
+    console.log("   Set GROQ_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY and re-run for full smoke test");
     process.exit(0);
   }
 

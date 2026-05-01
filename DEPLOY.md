@@ -11,16 +11,22 @@ This app is configured for **Docker** deployment. The public URL updates only af
 
 | Variable | Required | Notes |
 |----------|----------|--------|
-| `GOOGLE_API_KEY` | **Yes** | Gemini API key. Server exits without it. |
+| `LLM_PROVIDER_SEQUENCE` | Recommended | Example: `groq,google` to try Groq first and Gemini as fallback. |
+| `LLM_PROVIDER` | No | Optional single-provider override (`groq` or `google`) when sequence is unset. |
+| `GROQ_API_KEY` | Required if using Groq | Groq API key for OpenAI-compatible model routing. |
+| `GROQ_BASE_URL` | Required if using Groq | Use `https://api.groq.com/openai/v1`. |
+| `GROQ_MODEL` | Recommended if using Groq | Example: `llama-3.1-8b-instant`. |
+| `GOOGLE_API_KEY` / `GEMINI_API_KEY` | Required if using Gemini | Gemini API key. Needed for Google fallback or Google-only mode. |
 | `PORT` | Auto | Render injects `3000`; Dockerfile exposes 3000. |
 | `ONET_USERNAME` | Recommended | O*NET v2 **API key** (stored in this variable name for history). |
 | `ONET_PASSWORD` | No | Optional; live O*NET uses `ONET_USERNAME` only. |
-| `BLS_API_KEY` | No | Enables live wage data when set. |
-| `USAJOBS_API_KEY` | No | With `USAJOBS_EMAIL`, enables federal job signals. |
-| `USAJOBS_EMAIL` | No | Required with USAJOBS key. |
-| `LANGCHAIN_TRACING_V2` | No | Set `true` to send traces to LangSmith. |
-| `LANGCHAIN_API_KEY` | No | LangSmith API key. |
-| `LANGCHAIN_PROJECT` | No | Defaults to `career-guidance-ai`. |
+| `BLS_API_KEY` | Recommended | Enables live wage data when set. |
+| `USAJOBS_API_KEY` | No | Leave unset if USAJOBS is out of scope. |
+| `USAJOBS_EMAIL` | No | Required only with USAJOBS key. |
+| `LANGSMITH_TRACING` | No | Set `true` to send traces to LangSmith. |
+| `LANGSMITH_ENDPOINT` | No | Use `https://api.smith.langchain.com`. |
+| `LANGSMITH_API_KEY` | No | LangSmith API key. |
+| `LANGSMITH_PROJECT` | No | Defaults to `career-guidance-ai` if unset. |
 | `OLLAMA_BASE_URL` | No | On Render there is usually **no** Ollama; leave unset. RAG **skill lists** still work via O*NET live + `data/occupations.json`. |
 
 Copy values from your local `career-guidance-ai/.env` (never commit `.env`).
