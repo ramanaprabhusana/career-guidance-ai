@@ -19,6 +19,16 @@ All user-facing changes to the Career Guidance AI Assistant.
 
 ---
 
+## v2.1.0
+**Date:** 2026-05-01
+
+| When | Area / Part | What Changed | With What |
+|------|------------|-------------|-----------|
+| 19:05 ET | Chat latency | Made Gemini-only the MVP sample provider sequence and added provider timeouts | Replaced active Groq-first sample routing and unbounded provider invocation |
+| 19:05 ET | No-repeat behavior | Added hard known-facts constraints before phase speaker instructions | Replaced relying only on later cross-phase known-facts context |
+
+---
+
 ## v2.0.0
 **Date:** 2026-04-02
 

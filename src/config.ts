@@ -168,6 +168,25 @@ function createProviderModel(
   });
 }
 
+// Hard timeout per provider. Groq is a fallback — fail fast.
+// Google/Gemini gets more room because it's the primary MVP provider.
+const PROVIDER_TIMEOUT_MS: Record<LlmProvider, number> = {
+  groq: 12_000,
+  google: 25_000,
+};
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${label} timed out after ${ms}ms`)),
+        ms,
+      )
+    ),
+  ]);
+}
+
 function createFailoverModel(
   purpose: "analyzer" | "speaker",
   config: AppConfig,
@@ -187,7 +206,11 @@ function createFailoverModel(
       let lastError: unknown = null;
       for (const { provider, model } of models) {
         try {
-          return await model.invoke(input);
+          return await withTimeout(
+            model.invoke(input),
+            PROVIDER_TIMEOUT_MS[provider],
+            `${provider}/${purpose}`,
+          );
         } catch (error) {
           lastError = error;
           console.warn(`LLM provider ${provider} failed for ${purpose}; trying next provider if configured:`, (error as Error).message);

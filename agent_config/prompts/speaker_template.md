@@ -60,6 +60,11 @@ Phase name: {{active_phase_name}}
 
 ---
 
+ALREADY COLLECTED — HARD CONSTRAINT
+{{hard_known_facts}}
+
+---
+
 PHASE SPEAKER SKILL
 {{active_phase_speaker_md}}
 

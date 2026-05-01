@@ -11,7 +11,7 @@ This app is configured for **Docker** deployment. The public URL updates only af
 
 | Variable | Required | Notes |
 |----------|----------|--------|
-| `LLM_PROVIDER_SEQUENCE` | Recommended | Example: `groq,google` to try Groq first and Gemini as fallback. |
+| `LLM_PROVIDER_SEQUENCE` | Recommended | MVP default: `google`. Use `groq,google` only after Groq key/rate limits are tested. |
 | `LLM_PROVIDER` | No | Optional single-provider override (`groq` or `google`) when sequence is unset. |
 | `GROQ_API_KEY` | Required if using Groq | Groq API key for OpenAI-compatible model routing. |
 | `GROQ_BASE_URL` | Required if using Groq | Use `https://api.groq.com/openai/v1`. |
@@ -21,8 +21,10 @@ This app is configured for **Docker** deployment. The public URL updates only af
 | `ONET_USERNAME` | Recommended | O*NET v2 **API key** (stored in this variable name for history). |
 | `ONET_PASSWORD` | No | Optional; live O*NET uses `ONET_USERNAME` only. |
 | `BLS_API_KEY` | Recommended | Enables live wage data when set. |
-| `USAJOBS_API_KEY` | No | Leave unset if USAJOBS is out of scope. |
-| `USAJOBS_EMAIL` | No | Required only with USAJOBS key. |
+| `USAJOBS_API_KEY` | No | Leave unset if USAJOBS is out of scope. USAJOBS remains disabled unless `ENABLE_USAJOBS=true`. |
+| `USAJOBS_EMAIL` | No | Required only with USAJOBS key and `ENABLE_USAJOBS=true`. |
+| `ENABLE_USAJOBS` | No | Default off for MVP. Set `true` only after USAJOBS connector is tested. |
+| `ENABLE_WEB_SEARCH` | No | Default off for MVP. Set `true` only after web search citation/scope behavior is tested. |
 | `LANGSMITH_TRACING` | No | Set `true` to send traces to LangSmith. |
 | `LANGSMITH_ENDPOINT` | No | Use `https://api.smith.langchain.com`. |
 | `LANGSMITH_API_KEY` | No | LangSmith API key. |
@@ -47,6 +49,10 @@ Render will redeploy if auto-deploy is on. Otherwise use **Manual Deploy → Dep
 1. Open `https://<your-service>.onrender.com/api/health` → should return JSON with `"ok": true` and `version`.
 2. Open `/api/data-sources` → `onet.connected` should be **true** if `ONET_USERNAME` is set.
 3. Load the site, start a session, send a chat message, export a report.
+
+May 01 service refresh:
+- `/api/health`: `200`, cold-start wake-up observed at about `22.5s`.
+- `/api/data-sources`: `200` after warm-up in about `99ms`; O*NET, BLS, and local cache connected; USAJOBS disabled for MVP.
 
 ## 5. Files included in the Docker image
 

@@ -32,6 +32,23 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 
 ---
 
+## v2.1.0
+**Date:** 2026-05-01
+**Focus:** P0 latency and no-repeat prompt hardening
+
+- Changed sample provider routing to Gemini-only for MVP (`LLM_PROVIDER_SEQUENCE=google`).
+- Added provider invoke timeouts so optional Groq fallback cannot hang for OS-level TCP timeout duration.
+- Added a hard known-facts prompt section before phase speaker instructions.
+
+| When | Area / Part | What Changed | With What |
+|------|------------|-------------|-----------|
+| 19:05 ET | `.env.example` | Set active sample provider sequence to `google`; moved `groq,google` to an optional commented fallback | Replaced active `LLM_PROVIDER_SEQUENCE=groq,google` |
+| 19:05 ET | `src/config.ts` | Added provider-specific LLM call timeouts (`groq=12s`, `google=25s`) around model invocation | Replaced unbounded provider `model.invoke()` calls |
+| 19:05 ET | `agent_config/prompts/speaker_template.md` | Added `ALREADY COLLECTED - HARD CONSTRAINT` before phase speaker skill instructions | Replaced relying only on later cross-phase known-facts context |
+| 19:05 ET | `src/nodes/speaker-prompt-creator.ts` | Added deterministic `hard_known_facts` payload from structured state | Added hard no-repeat facts before phase instructions |
+
+---
+
 ## v2.0.0
 **Date:** 2026-04-02
 **Architecture diagram:** [docs/architecture/architecture-2.0.0.mmd](docs/architecture/architecture-2.0.0.mmd)

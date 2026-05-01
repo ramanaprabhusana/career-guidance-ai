@@ -407,8 +407,26 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
     getCrossPhaseContext(state) +
     additionalContext;
 
+  // Hard-constraint block placed BEFORE phase skill instructions so the LLM
+  // cannot re-ask fields that are already in state, even if the phase skill
+  // says "ask for X if missing." The missing list can lag; state does not.
+  const hardKnownFacts = (() => {
+    const facts: string[] = [];
+    if (state.jobTitle)        facts.push(`- job_title: "${state.jobTitle}" — DO NOT ASK AGAIN`);
+    if (state.industry)        facts.push(`- industry: "${state.industry}" — DO NOT ASK AGAIN`);
+    if (state.yearsExperience != null) facts.push(`- years_experience: ${state.yearsExperience} — DO NOT ASK AGAIN`);
+    if (state.educationLevel)  facts.push(`- education_level: "${state.educationLevel}" — DO NOT ASK AGAIN`);
+    if (state.sessionGoal)     facts.push(`- session_goal: "${state.sessionGoal}" — DO NOT ASK AGAIN`);
+    if (state.targetRole)      facts.push(`- target_role: "${state.targetRole}" — CONFIRMED, DO NOT ASK AGAIN`);
+    if (state.location)        facts.push(`- location: "${state.location}" — DO NOT ASK AGAIN`);
+    if (state.preferredTimeline) facts.push(`- preferred_timeline: "${state.preferredTimeline}" — DO NOT ASK AGAIN`);
+    if (!facts.length) return "No fields collected yet.";
+    return facts.join("\n") + "\nThe above fields are already captured in structured state. Asking for them again is a hard error.";
+  })();
+
   const prompt = populateTemplate(template, {
     active_phase_name: state.currentPhase,
+    hard_known_facts: hardKnownFacts,
     active_phase_speaker_md: speakerSkill,
     phase_collected_data: formatCollectedData(collectedData),
     phase_missing_required: missing_required,
