@@ -5,22 +5,15 @@ import type { AgentStateType, SkillAssessment } from "../state.js";
  * in report titles and badges. Prevents the Apr 12 drift where the PDF title
  * and the header badge disagreed on explore-track reports.
  *
- * - pursue track (`session_goal === "pursue_specific_role"`): always
- *   `state.targetRole`. Falls back to candidate direction only if targetRole
- *   is blank, which in a pursue-track session should not happen once Step 1
- *   guards are in place.
- * - explore track: prefer the top candidate direction; if none, fall back
- *   to targetRole (in case the user pivoted mid-session).
+ * May 01 correction: reports must display exactly one ACTIVE target role.
+ * Previously considered roles may appear only in a clearly labeled history /
+ * appendix section. Candidate directions are not substitutes for the active
+ * report role.
  */
 export function getDisplayRole(state: AgentStateType): string | null {
   const target = typeof state.targetRole === "string" && state.targetRole.trim()
     ? state.targetRole.trim()
     : null;
-  const isExplore = state.sessionGoal === "explore_options";
-  if (isExplore) {
-    const top = (state.candidateDirections ?? [])[0]?.direction_title;
-    return (top && top.trim()) || target;
-  }
   return target;
 }
 

@@ -21,6 +21,7 @@
  */
 
 import { stateUpdater } from "../nodes/state-updater.js";
+import { fillerGuard, isFillerOrAmbiguous } from "../nodes/filler-guard.js";
 import type { AgentStateType, SkillAssessment } from "../state.js";
 import { computeReadinessStats, getDisplayRole } from "../report/report-helpers.js";
 
@@ -61,6 +62,7 @@ function makeState(overrides: Partial<AgentStateType>): AgentStateType {
     candidateDirections: [],
     targetRole: null,
     skills: [],
+    skillsTargetRole: null,
     skillsAssessmentStatus: "not_started",
     candidateSkills: {},
     learningNeeds: [],
@@ -94,6 +96,7 @@ function makeState(overrides: Partial<AgentStateType>): AgentStateType {
     priorSessionSummary: "",
     priorEpisodicSummaries: [],
     resumeChoice: null,
+    pendingMemoryDeletionConfirmation: false,
     safetyStrikes: 0,
     resumeName: null,
     resumeYears: null,
@@ -246,8 +249,8 @@ async function main(): Promise<void> {
     assert(stats.assessedSkills === 4, "assessedSkills counted correctly");
   }
 
-  // --- Regression 5: getDisplayRole resolves consistently per track ---
-  console.log("[5] getDisplayRole picks track-appropriate label");
+  // --- Regression 5: getDisplayRole resolves to active target role only ---
+  console.log("[5] getDisplayRole returns exactly one active target role");
   {
     const pursue = makeState({
       sessionGoal: "pursue_specific_role",
@@ -261,10 +264,38 @@ async function main(): Promise<void> {
       targetRole: null,
       candidateDirections: [{ direction_title: "Data Analyst", rationale: "x" }],
     });
-    assert(getDisplayRole(explore) === "Data Analyst", "explore track returns top direction");
+    assert(getDisplayRole(explore) === null, "explore track without active target returns null");
 
     const empty = makeState({ sessionGoal: "pursue_specific_role", targetRole: "   " });
     assert(getDisplayRole(empty) === null, "blank targetRole returns null (no silent fallback)");
+  }
+
+  // --- Regression 6: filler guard blocks durable writes ---
+  console.log("[6] filler / ambiguous input guard blocks durable field writes");
+  {
+    const state = makeState({
+      currentPhase: "exploration_role_targeting",
+      targetRole: "Data Analyst",
+      userMessage: "hmm",
+      analyzerOutput: {
+        extracted_fields: {
+          target_role: "Product Manager",
+          skills: [{ skill_name: "SQL", user_rating: "advanced" }],
+          note: "non-durable note",
+        },
+        required_complete: true,
+        phase_suggestion: "planning",
+        confidence: 0.95,
+        notes: "",
+      },
+    });
+    const guarded = fillerGuard(state);
+    const fields = guarded.analyzerOutput?.extracted_fields ?? {};
+    assert(isFillerOrAmbiguous("whatever you think"), "ambiguous phrase is recognized as filler");
+    assert(!("target_role" in fields), "filler guard removes target_role durable write");
+    assert(!("skills" in fields), "filler guard removes skill-rating durable write");
+    assert(fields.note === "non-durable note", "filler guard preserves non-durable notes");
+    assert(guarded.newPhase === null, "filler guard blocks phase suggestion");
   }
 
   // --- Summary ---

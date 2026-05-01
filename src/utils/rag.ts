@@ -450,14 +450,17 @@ async function getLiveMarketData(targetRole: string): Promise<{
       growth_rate: "N/A",
     };
 
-    // C4: dispatch BLS wage + USAJOBS counts through the Skill 6 tool executor
+    // C4: dispatch BLS wage through the Skill 6 tool executor.
+    // May 01 MVP scope keeps USAJOBS out unless explicitly feature-flagged.
     // instead of calling the service helpers inline. The dispatcher handles
     // missing env vars and error classification uniformly.
     // P2: the two calls are independent after the O*NET SOC lookup, so run
     // them in parallel. Saves ~1–2 s on role-targeting turns.
     const [wageResult, jobsResult] = await Promise.all([
       runTool({ name: "get_wage_data", args: { socCode: onetResult.socCode } }),
-      runTool({ name: "get_job_counts", args: { keyword: targetRole } }),
+      process.env.ENABLE_USAJOBS === "true"
+        ? runTool({ name: "get_job_counts", args: { keyword: targetRole } })
+        : Promise.resolve({ ok: false, tool: "get_job_counts" as const, data: undefined }),
     ]);
     if (wageResult.ok && wageResult.data) {
       const wageData = wageResult.data as { medianWage: string | null; employment: string | null };

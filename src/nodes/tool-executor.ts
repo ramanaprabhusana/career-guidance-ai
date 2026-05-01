@@ -104,6 +104,9 @@ function logToolCall(
 }
 
 async function webSearchTool(args: Record<string, unknown>): Promise<ToolResult<WebSearchResult>> {
+  if (process.env.ENABLE_WEB_SEARCH !== "true") {
+    return { ok: false, tool: "web_search", errorCode: "RAG_RETRIEVAL_EMPTY", detail: "Web search is disabled for the MVP unless ENABLE_WEB_SEARCH=true" };
+  }
   const query = typeof args.query === "string" ? args.query : "";
   const result = await webSearch(query);
   if (!result.ok) {
@@ -151,6 +154,9 @@ async function getWageDataTool(args: Record<string, unknown>): Promise<ToolResul
 
 // C4: USAJOBS posting counts routed through the dispatcher.
 async function getJobCountsTool(args: Record<string, unknown>): Promise<ToolResult<{ keyword: string; count: number }>> {
+  if (process.env.ENABLE_USAJOBS !== "true") {
+    return { ok: false, tool: "get_job_counts", errorCode: "RAG_RETRIEVAL_EMPTY", detail: "USAJOBS is out of scope for the MVP" };
+  }
   const keyword = typeof args.keyword === "string" ? args.keyword : "";
   if (!keyword) {
     return { ok: false, tool: "get_job_counts", errorCode: "RAG_RETRIEVAL_EMPTY", detail: "empty keyword" };

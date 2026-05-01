@@ -4,8 +4,8 @@
  * Contract:
  * - Runs ONLY when `process.env.ENABLE_REACT_LOOP === "true"` AND the
  *   orchestrator has set `state.reactIntent` + `state.pendingReactTool`.
- * - Hard caps: abort if `reactStepCount >= maxReactSteps` (default 3) OR
- *   elapsed > 15s per turn.
+ * - Hard caps: abort if `reactStepCount >= maxReactSteps` OR elapsed > 45s
+ *   per turn. Step limits are intent/tool-specific; filler/basic intake is 0.
  * - Never writes state channels outside its own allowlist (reactStepCount,
  *   reactObservationLog, pendingReactTool, reactIntent). Final observation
  *   is consumed by the next turn's speaker prompt via a "Deep research
@@ -17,12 +17,11 @@
 import type { AgentStateType } from "../state.js";
 import { runTool, type ToolName } from "./tool-executor.js";
 
-const HARD_CAP_MS = 15_000;
+const HARD_CAP_MS = 45_000;
 const ALLOWED_REACT_TOOLS: ReadonlySet<ToolName> = new Set<ToolName>([
   "retrieve_skills_for_role",
   "web_search",
   "get_wage_data",
-  "get_job_counts",
   "find_courses",
 ]);
 
@@ -36,7 +35,7 @@ export async function reactExecutor(
   const pending = state.pendingReactTool;
   if (!intent || !pending) return {};
 
-  const maxSteps = state.maxReactSteps ?? 3;
+  const maxSteps = getReactStepLimit(state);
   const stepCount = state.reactStepCount ?? 0;
   if (stepCount >= maxSteps) {
     // Loop exhausted — clear the pending tool so the graph exits cleanly.
@@ -134,6 +133,24 @@ function summarizeResult(result: Awaited<ReturnType<typeof runTool>>): string {
 export function shouldStartReact(state: AgentStateType): "react" | "skip" {
   if (process.env.ENABLE_REACT_LOOP !== "true") return "skip";
   if (!state.reactIntent || !state.pendingReactTool) return "skip";
-  if ((state.reactStepCount ?? 0) >= (state.maxReactSteps ?? 3)) return "skip";
+  if ((state.reactStepCount ?? 0) >= getReactStepLimit(state)) return "skip";
   return "react";
+}
+
+function getReactStepLimit(state: AgentStateType): number {
+  if (!state.reactIntent || !state.pendingReactTool) return 0;
+  switch (state.pendingReactTool.name) {
+    case "retrieve_skills_for_role":
+      return Math.min(state.maxReactSteps ?? 2, 2);
+    case "get_wage_data":
+      return Math.min(state.maxReactSteps ?? 2, 2);
+    case "find_courses":
+      return Math.min(state.maxReactSteps ?? 5, 5);
+    case "web_search":
+      return process.env.ENABLE_WEB_SEARCH === "true"
+        ? Math.min(state.maxReactSteps ?? 5, 5)
+        : 0;
+    default:
+      return 0;
+  }
 }

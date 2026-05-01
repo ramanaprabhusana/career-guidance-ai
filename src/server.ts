@@ -10,6 +10,7 @@ import { buildGraph } from "./graph.js";
 import { config, getProviderSequence, hasConfiguredLLMProvider } from "./config.js";
 import { generatePDFReport } from "./report/pdf-generator.js";
 import { generateHTMLReport } from "./report/html-generator.js";
+import { getDisplayRole } from "./report/report-helpers.js";
 import { buildEvidencePack, writeEvidencePackFile } from "./report/evidence-pack.js";
 import { searchOccupations } from "./services/onet.js";
 import type {
@@ -129,6 +130,12 @@ function migrateSession(state: any): AgentStateType {
   if (state.candidateSkills === undefined) {
     state.candidateSkills = {};
   }
+  if (state.skillsTargetRole === undefined) {
+    state.skillsTargetRole =
+      state.targetRole && Array.isArray(state.skills) && state.skills.length > 0
+        ? state.targetRole
+        : null;
+  }
 
   if (state.location === undefined) state.location = null;
   if (state.preferredTimeline === undefined) state.preferredTimeline = null;
@@ -165,6 +172,7 @@ function migrateSession(state: any): AgentStateType {
   if (state.safetyStrikes === undefined) state.safetyStrikes = 0;
   if (state.offTopicStrikes === undefined) state.offTopicStrikes = 0;
   if (state.resumeChoice === undefined) state.resumeChoice = null;
+  if (state.pendingMemoryDeletionConfirmation === undefined) state.pendingMemoryDeletionConfirmation = false;
 
   // --- Change 4: defaults for structured role memory fields. All additive so
   // pre-Change-4 sessions load without crashing and get empty/null defaults.
@@ -239,6 +247,31 @@ function persistUserProfile(state: AgentStateType, sessionId: string): void {
   }
 }
 
+function hydrateFromLongTermProfile(state: AgentStateType): AgentStateType {
+  if (!profileDb || !state.userId) return state;
+  const prof = getProfilePayload(profileDb, state.userId);
+  if (!prof) return state;
+  return {
+    ...state,
+    // Memory precedence: active session state wins; profile only fills null/empty stable facts.
+    jobTitle: state.jobTitle ?? prof.job_title ?? null,
+    industry: state.industry ?? prof.industry ?? null,
+    educationLevel: state.educationLevel ?? (prof.education_level as AgentStateType["educationLevel"] | undefined) ?? null,
+    yearsExperience: state.yearsExperience ?? prof.years_experience ?? null,
+    location: state.location ?? prof.location ?? null,
+    preferredTimeline: state.preferredTimeline ?? prof.preferred_timeline ?? null,
+    targetRole: state.resumeChoice === "fresh" ? state.targetRole : (state.targetRole ?? prof.target_role ?? null),
+    priorPlan: state.priorPlan ?? prof.prior_plan ?? null,
+    exploredRoles: state.exploredRoles.length > 0
+      ? state.exploredRoles
+      : (prof.explored_roles ?? []).map((e) => ({
+          role_name: e.role_name,
+          status: (e.status as RoleHistoryEntry["status"]) ?? "history",
+          first_seen_at: e.first_seen_at,
+        })),
+  };
+}
+
 // Detect the returning user's choice between resuming prior context and
 // starting fresh. Runs ONLY on the first user turn of a returning-user
 // session (before the graph sees the message), in response to the hardcoded
@@ -251,6 +284,23 @@ function detectResumeIntent(msg: string): "resume" | "fresh" | null {
   if (freshMarkers.some((m) => t.includes(m))) return "fresh";
   if (resumeMarkers.some((m) => t.includes(m))) return "resume";
   return null;
+}
+
+function classifyRestartRequest(msg: string): "delete_all" | "start_over" | "fresh_ambiguous" | "new_path" | null {
+  const t = (msg ?? "").toLowerCase().trim();
+  if (!t) return null;
+  if (/\b(forget|delete|wipe|erase)\s+(everything|all|my data|memory|saved context)\b/.test(t)) return "delete_all";
+  if (/\b(start over|restart|reset|begin again)\b/.test(t)) return "start_over";
+  if (/\bfresh start\b/.test(t)) return "fresh_ambiguous";
+  if (/\b(new role|new path|different role|different path|new direction)\b/.test(t)) return "new_path";
+  return null;
+}
+
+function isAffirmativeConfirmation(msg: string): boolean {
+  const t = (msg ?? "").toLowerCase().trim();
+  return ["yes", "y", "yep", "yeah", "confirm", "confirmed", "proceed", "go ahead", "delete it", "forget everything"].some(
+    (m) => t === m || t.startsWith(`${m} `),
+  );
 }
 
 // Change 4 — applyRestartPivot: "New direction, keep my profile".
@@ -266,8 +316,9 @@ function applyRestartPivot(state: AgentStateType): AgentStateType {
         ...state.exploredRoles,
         {
           role_name: archivedTarget,
-          status: "deprioritized" as const,
+          status: "inactive" as const,
           first_seen_at: Date.now(),
+          notes: "Marked inactive after non-destructive restart; preserved as history.",
         },
       ]
     : state.exploredRoles;
@@ -296,6 +347,7 @@ function applyRestartPivot(state: AgentStateType): AgentStateType {
     roleSwitchAcknowledged: false,
     roleComparisonContext: null,
     skills: [],
+    skillsTargetRole: null,
     skillsAssessmentStatus: "not_started",
     candidateSkills: {},
     learningNeeds: [],
@@ -313,6 +365,7 @@ function applyRestartPivot(state: AgentStateType): AgentStateType {
     // If we already have orientation facts, skip straight to exploration.
     currentPhase: state.jobTitle ? "exploration_career" : "orientation",
     phaseTurnNumber: 0,
+    pendingMemoryDeletionConfirmation: false,
   };
 }
 
@@ -350,6 +403,7 @@ function applyFreshStart(state: AgentStateType): AgentStateType {
     roleSwitchAcknowledged: false,
     roleComparisonContext: null,
     skills: [],
+    skillsTargetRole: null,
     skillsAssessmentStatus: "not_started",
     candidateSkills: {},
     learningNeeds: [],
@@ -368,6 +422,7 @@ function applyFreshStart(state: AgentStateType): AgentStateType {
     priorPlan: null,
     currentPhase: "orientation",
     phaseTurnNumber: 0,
+    pendingMemoryDeletionConfirmation: false,
   };
 }
 
@@ -388,6 +443,34 @@ function buildSkillsMeta(state: AgentStateType) {
     skillsAssessed: skills.length > 0 && ratedCount > 0,
     assessmentStatus: (state as any).skillsAssessmentStatus ?? "not_started",
   };
+}
+
+function getReportReadinessIssues(state: AgentStateType): string[] {
+  const issues: string[] = [];
+  const activeRole = typeof state.targetRole === "string" && state.targetRole.trim()
+    ? state.targetRole.trim()
+    : null;
+  const displayRole = getDisplayRole(state);
+  const skills = state.skills ?? [];
+  const allRated = skills.length > 0 && skills.every((s) => s.user_rating !== null);
+  const skillsRole = state.skillsTargetRole?.trim() || null;
+
+  if (!activeRole) issues.push("A current active target role is needed before export.");
+  if (displayRole && activeRole && displayRole.toLowerCase() !== activeRole.toLowerCase()) {
+    issues.push("Report role must match the active target role.");
+  }
+  if (skillsRole && activeRole && skillsRole.toLowerCase() !== activeRole.toLowerCase()) {
+    issues.push("The active skill assessment belongs to a different role.");
+  }
+  if (!allRated) issues.push("Complete all required skill ratings before export.");
+  if (!state.recommendedPath && (state.planBlocks ?? []).length === 0) {
+    issues.push("A career plan must be generated before export.");
+  }
+  const blocks = state.planBlocks ?? [];
+  if (blocks.length > 0 && blocks.some((b) => !b.confirmed)) {
+    issues.push("Confirm all plan blocks before export.");
+  }
+  return issues;
 }
 
 function loadSession(id: string): AgentStateType | null {
@@ -597,7 +680,7 @@ app.post("/api/chat", async (req, res) => {
   if (state.isReturningUser && state.resumeChoice === null && state.turnNumber === 0) {
     const intent = detectResumeIntent(message);
     if (intent === "fresh") {
-      state = applyFreshStart(state);
+      state = applyRestartPivot(state);
       saveSession(sessionId, state);
     } else if (intent === "resume") {
       state = { ...state, resumeChoice: "resume" };
@@ -605,6 +688,85 @@ app.post("/api/chat", async (req, res) => {
     }
     // If intent === null, let the graph clarify naturally.
   }
+
+  if (state.pendingMemoryDeletionConfirmation) {
+    if (isAffirmativeConfirmation(message)) {
+      state = applyFreshStart(state);
+      saveSession(sessionId, state);
+      res.json({
+        message: "Confirmed. I restarted the guidance journey and reset the active role-specific context for this session. Let's begin again: what is your current or most recent role?",
+        phase: state.currentPhase,
+        phaseDisplay: config.phaseRegistry.phases[state.currentPhase]?.display_name ?? state.currentPhase,
+        isComplete: false,
+        turnNumber: state.turnNumber,
+        profile: {
+          jobTitle: state.jobTitle,
+          industry: state.industry,
+          yearsExperience: state.yearsExperience,
+          educationLevel: state.educationLevel,
+          targetRole: state.targetRole,
+        },
+        skillsMeta: buildSkillsMeta(state),
+        progressItems: state.progressItems ?? [],
+        suggestions: [],
+      });
+      return;
+    }
+    state = { ...state, pendingMemoryDeletionConfirmation: false };
+    saveSession(sessionId, state);
+  }
+
+  const restartRequest = classifyRestartRequest(message);
+  if (restartRequest === "delete_all") {
+    const updated = { ...state, pendingMemoryDeletionConfirmation: true };
+    saveSession(sessionId, updated);
+    res.json({
+      message: "I can restart the journey and reset the active role-specific context for this session, but this may remove active guidance progress. Please confirm if you want me to proceed.",
+      phase: state.currentPhase,
+      phaseDisplay: config.phaseRegistry.phases[state.currentPhase]?.display_name ?? state.currentPhase,
+      isComplete: false,
+      turnNumber: state.turnNumber,
+      profile: {
+        jobTitle: state.jobTitle,
+        industry: state.industry,
+        yearsExperience: state.yearsExperience,
+        educationLevel: state.educationLevel,
+        targetRole: state.targetRole,
+      },
+      skillsMeta: buildSkillsMeta(state),
+      progressItems: state.progressItems ?? [],
+      suggestions: ["Yes, restart and clear it", "No, keep my saved context"],
+    });
+    return;
+  }
+
+  if (restartRequest === "fresh_ambiguous") {
+    res.json({
+      message: "When you say fresh start, do you mean start a new guidance path while keeping your background and prior history, or forget the saved context and begin from scratch?",
+      phase: state.currentPhase,
+      phaseDisplay: config.phaseRegistry.phases[state.currentPhase]?.display_name ?? state.currentPhase,
+      isComplete: false,
+      turnNumber: state.turnNumber,
+      profile: {
+        jobTitle: state.jobTitle,
+        industry: state.industry,
+        yearsExperience: state.yearsExperience,
+        educationLevel: state.educationLevel,
+        targetRole: state.targetRole,
+      },
+      skillsMeta: buildSkillsMeta(state),
+      progressItems: state.progressItems ?? [],
+      suggestions: ["New guidance path, keep my background", "Forget saved context"],
+    });
+    return;
+  }
+
+  if (restartRequest === "start_over" || restartRequest === "new_path") {
+    state = applyRestartPivot(state);
+    saveSession(sessionId, state);
+  }
+
+  state = hydrateFromLongTermProfile(state);
 
   try {
     let newState = await graph.invoke({
@@ -697,6 +859,15 @@ app.post("/api/export", async (req, res) => {
     return;
   }
 
+  const readinessIssues = getReportReadinessIssues(state);
+  if (readinessIssues.length > 0) {
+    res.status(409).json({
+      error: "Report is not ready yet.",
+      readinessIssues,
+    });
+    return;
+  }
+
   // JSON evidence pack export
   if (format === "json") {
     try {
@@ -753,6 +924,11 @@ app.get("/api/report/:sessionId.pdf", async (req, res) => {
   const state = loadSession(sessionId);
   if (!state) {
     res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  const readinessIssues = getReportReadinessIssues(state);
+  if (readinessIssues.length > 0) {
+    res.status(409).json({ error: "Report is not ready yet.", readinessIssues });
     return;
   }
   try {
@@ -897,7 +1073,10 @@ app.get("/api/data-sources", (_req, res) => {
     // O*NET Web Services v2 uses X-API-Key from ONET_USERNAME only (see services/onet.ts)
     onet: { connected: !!process.env.ONET_USERNAME, label: "O*NET" },
     bls: { connected: !!process.env.BLS_API_KEY, label: "BLS" },
-    usajobs: { connected: !!(process.env.USAJOBS_API_KEY && process.env.USAJOBS_EMAIL), label: "USAJOBS" },
+    usajobs: {
+      connected: process.env.ENABLE_USAJOBS === "true" && !!(process.env.USAJOBS_API_KEY && process.env.USAJOBS_EMAIL),
+      label: "USAJOBS (disabled for MVP)",
+    },
     localData: { connected: true, label: "Local O*NET Cache" },
   });
 });
@@ -1067,6 +1246,8 @@ app.post("/api/session/:sessionId/role-switch", async (req, res) => {
           skill_development_agenda: state.skillDevelopmentAgenda ?? [],
           immediate_next_steps: state.immediateNextSteps ?? [],
           timeline: state.timeline ?? null,
+          plan_blocks: state.planBlocks ?? [],
+          report_generated: state.reportGenerated ?? false,
         }
       : state.priorPlan;
 
@@ -1078,7 +1259,8 @@ app.post("/api/session/:sessionId/role-switch", async (req, res) => {
     console.warn("retrieveSkillsForRole failed during role switch:", (e as Error).message);
   }
 
-  // Rehydrate from the prior role's current ratings.
+  // Rehydrate from exact normalized skill identity only. Similar labels are not
+  // blindly merged; the speaker can ask for confirmation on candidate overlaps.
   const priorRatings = state.skills.filter((s) => s.user_rating !== null);
   const priorLut = new Map(
     priorRatings.map((s) => [s.skill_name.toLowerCase().trim(), s.user_rating])
@@ -1100,8 +1282,9 @@ app.post("/api/session/:sessionId/role-switch", async (req, res) => {
         ...state.exploredRoles,
         {
           role_name: fromRole,
-          status: "deprioritized" as const,
+          status: "inactive" as const,
           first_seen_at: Date.now(),
+          notes: "Marked inactive after role switch; prior artifacts preserved as history.",
         },
       ]
     : state.exploredRoles;
@@ -1120,6 +1303,7 @@ app.post("/api/session/:sessionId/role-switch", async (req, res) => {
     previousTargetRole: fromRole,
     priorPlan: priorPlanSnapshot,
     skills: rehydratedSkills,
+    skillsTargetRole: rehydratedSkills.length > 0 ? to_role.trim() : null,
     skillsAssessmentStatus: rehydratedSkills.length > 0 && rehydratedCount === rehydratedSkills.length ? "complete" : rehydratedSkills.length > 0 ? "in_progress" : "not_started",
     learningNeedsComplete: false,
     userConfirmedEvaluation: false,
@@ -1274,7 +1458,7 @@ app.listen(PORT, () => {
   console.log(`  LangSmith: ${tracingEnabled ? `ENABLED (project: ${tracingProject})` : "disabled"}`);
   console.log(`  O*NET API: ${process.env.ONET_USERNAME ? "configured" : "local fallback"}`);
   console.log(`  BLS API: ${process.env.BLS_API_KEY ? "configured" : "not set"}`);
-  console.log(`  USAJOBS API: ${process.env.USAJOBS_API_KEY ? "configured" : "not set"}`);
+  console.log(`  USAJOBS API: ${process.env.ENABLE_USAJOBS === "true" && process.env.USAJOBS_API_KEY ? "enabled" : "disabled for MVP"}`);
   console.log(`  Press Ctrl+C to stop\n`);
 
 });

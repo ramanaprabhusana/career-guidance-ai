@@ -39,6 +39,30 @@ function getKnownFactsBlock(state: AgentStateType): string {
   ].join("\n");
 }
 
+function getNoRepeatGuardBlock(state: AgentStateType): string {
+  const lines: string[] = [
+    "NO-REPEAT / KNOWN-FACT CHECK",
+    "Before asking the next question, check active session state, recent raw turns, episodic memory, long-term profile memory, and already captured role/skill ratings.",
+    "Do NOT ask again for a target role, timeline, background fact, or skill rating that is already captured unless the user explicitly says it changed or it needs confirmation.",
+  ];
+
+  if (state.targetRole) {
+    lines.push(`- Active target role already confirmed: ${state.targetRole}`);
+  }
+  if (state.skills.length > 0) {
+    const rated = state.skills.filter((s) => s.user_rating !== null).map((s) => s.skill_name);
+    if (rated.length > 0) {
+      lines.push(`- Skill ratings already captured: ${rated.slice(0, 12).join(", ")}${rated.length > 12 ? "..." : ""}`);
+    }
+  }
+  if (state.priorEpisodicSummaries.length > 0) {
+    lines.push("- Episodic summaries are available for continuity, but active session facts take precedence.");
+  }
+  lines.push("If the user is unclear or using filler, ask one bounded clarifying question instead of repeating the previous question.");
+
+  return lines.join("\n");
+}
+
 function getPhaseCollectedData(state: AgentStateType): Record<string, unknown> {
   const phase = state.currentPhase;
 
@@ -208,6 +232,18 @@ function getCrossPhaseContext(state: AgentStateType): string {
     );
   }
 
+  if ((state.reactObservationLog ?? []).length > 0) {
+    const observations = state.reactObservationLog
+      .slice(-5)
+      .map((o) => `- ${o.tool}: ${o.ok ? o.summary : `unavailable (${o.summary})`}`);
+    lines.push("");
+    lines.push("DEEP RESEARCH OBSERVATIONS");
+    lines.push(...observations);
+    lines.push(
+      "INSTRUCTION: Use these observations as evidence in the answer. Do not expose chain-of-thought or internal tool steps; summarize the evidence, implication, limitation, and next step.",
+    );
+  }
+
   // Change 4 (BR-9 cont.): prior plan on file — delta planning callout.
   if (state.currentPhase === "planning" && state.priorPlan) {
     const pp = state.priorPlan;
@@ -366,6 +402,8 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
   const knownFacts = getKnownFactsBlock(state);
   const crossPhase =
     (knownFacts ? `${knownFacts}\n\n` : "") +
+    getNoRepeatGuardBlock(state) +
+    "\n\n" +
     getCrossPhaseContext(state) +
     additionalContext;
 

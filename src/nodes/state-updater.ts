@@ -236,6 +236,8 @@ function applyRoleSwitchPivot(
       skill_development_agenda: state.skillDevelopmentAgenda ?? [],
       immediate_next_steps: state.immediateNextSteps ?? [],
       timeline: state.timeline ?? null,
+      plan_blocks: state.planBlocks ?? [],
+      report_generated: state.reportGenerated ?? false,
     };
     updates.priorPlan = snapshot;
   }
@@ -243,8 +245,9 @@ function applyRoleSwitchPivot(
   // Deprioritize the prior role in history.
   const historyEntry: RoleHistoryEntry = {
     role_name: currentRole!,
-    status: "deprioritized",
+    status: "inactive",
     first_seen_at: Date.now(),
+    notes: "Marked inactive after role switch; prior artifacts preserved as history.",
   };
   updates.exploredRoles = [...state.exploredRoles, historyEntry];
 
@@ -261,6 +264,7 @@ function applyRoleSwitchPivot(
 
   // Clear path-specific state so the auto-fetch block refetches skills.
   updates.skills = [];
+  updates.skillsTargetRole = null;
   updates.skillsAssessmentStatus = "not_started";
   updates.learningNeeds = [];
   updates.learningNeedsComplete = false;
@@ -1056,6 +1060,7 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
       }
 
       updates.skills = freshSkills;
+      updates.skillsTargetRole = effectiveRole;
       console.log(`[StateUpdater] Pre-populated ${freshSkills.length} skills for "${effectiveRole}" via tool executor`);
     } else if (!toolResult.ok) {
       console.warn(`[StateUpdater] Tool ${toolResult.tool} failed: ${toolResult.errorCode ?? "unknown"} ${toolResult.detail ?? ""}`);
@@ -1075,6 +1080,8 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
       updates.skillsAssessmentStatus = "in_progress";
     }
   }
+
+  enforceStateInvariants(state, updates);
 
   // Planning phase is terminal
   if (state.currentPhase === "planning" && state.reportGenerated) {
@@ -1174,4 +1181,48 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
   }
 
   return updates;
+}
+
+function enforceStateInvariants(
+  state: AgentStateType,
+  updates: Partial<AgentStateType>,
+): void {
+  const activeRole = updates.targetRole ?? state.targetRole;
+  const activeSkills = updates.skills ?? state.skills ?? [];
+  const skillsRole = updates.skillsTargetRole ?? state.skillsTargetRole;
+
+  if (activeSkills.length > 0 && activeRole && skillsRole && activeRole.trim().toLowerCase() !== skillsRole.trim().toLowerCase()) {
+    updates.skills = [];
+    updates.skillsTargetRole = null;
+    updates.skillsAssessmentStatus = "not_started";
+    updates.learningNeeds = [];
+    updates.learningNeedsComplete = false;
+    updates.skillsEvaluationSummary = null;
+    updates.userConfirmedEvaluation = false;
+    updates.planBlocks = [];
+    updates.reportGenerated = false;
+    console.error(JSON.stringify({
+      level: "warn",
+      event: "state_invariant_repaired",
+      invariant: "active_target_role_matches_skill_assessment",
+      targetRole: activeRole,
+      skillsTargetRole: skillsRole,
+    }));
+  }
+
+  const phase = updates.currentPhase ?? state.currentPhase;
+  const finalSkills = updates.skills ?? state.skills ?? [];
+  if (phase === "planning") {
+    const allRated = finalSkills.length > 0 && finalSkills.every((s) => s.user_rating !== null);
+    if (!allRated) {
+      updates.reportGenerated = false;
+      if (!updates.currentPhase) updates.currentPhase = "exploration_role_targeting";
+      updates.transitionDecision = "continue";
+      console.error(JSON.stringify({
+        level: "warn",
+        event: "state_invariant_repaired",
+        invariant: "plan_requires_complete_skill_ratings",
+      }));
+    }
+  }
 }

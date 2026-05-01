@@ -16,7 +16,7 @@ export type UserPersona = "new_user" | "returning_continue" | "returning_restart
 
 export interface RoleHistoryEntry {
   role_name: string;
-  status: "explored" | "compared" | "targeted" | "deprioritized";
+  status: "explored" | "compared" | "targeted" | "deprioritized" | "inactive" | "history";
   first_seen_at: number;
   notes?: string;
 }
@@ -28,6 +28,8 @@ export interface PriorPlanSnapshot {
   skill_development_agenda: string[];
   immediate_next_steps: string[];
   timeline: string | null;
+  plan_blocks?: PlanBlock[];
+  report_generated?: boolean;
   pdf_path?: string;
 }
 
@@ -162,6 +164,10 @@ export const AgentState = Annotation.Root({
     reducer: (_, b) => b,
     default: () => [],
   }),
+  skillsTargetRole: Annotation<string | null>({
+    reducer: (_, b) => b,
+    default: () => null,
+  }),
   skillsAssessmentStatus: Annotation<SkillsAssessmentStatus>({
     reducer: (_, b) => b,
     default: () => "not_started",
@@ -236,6 +242,10 @@ export const AgentState = Annotation.Root({
   // welcome-back opener can recall multi-session context, not just the last summary.
   priorEpisodicSummaries: Annotation<string[]>({ reducer: (_, b) => b, default: () => [] }),
   resumeChoice: Annotation<"resume" | "fresh" | null>({ reducer: (_, b) => b, default: () => null }),
+  pendingMemoryDeletionConfirmation: Annotation<boolean>({
+    reducer: (_, b) => b,
+    default: () => false,
+  }),
 
   // Slice S-F: safety strike counter (Sr 12). Raises SAFETY_BLOCK at threshold.
   safetyStrikes: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
@@ -347,7 +357,7 @@ export const AgentState = Annotation.Root({
   }),
   maxReactSteps: Annotation<number>({
     reducer: (_, b) => b,
-    default: () => 3,
+    default: () => 5,
   }),
   reactObservationLog: Annotation<
     Array<{ step: number; tool: string; args: Record<string, unknown>; ok: boolean; summary: string }>

@@ -59,12 +59,12 @@ export function buildEvidencePack(state: AgentStateType): EvidencePackV1 {
   const assumptions = [
     "Skill requirements are derived from O*NET occupational data and may not reflect every employer.",
     "Self-assessed ratings are subjective; use the report as one input among many.",
-    "Wage and job counts depend on API availability and geographic coverage.",
+    "Wage data depends on API availability and geographic coverage.",
   ];
 
   const notes: string[] = [
     "Retrieval uses embedding similarity over a local occupation index (FAISS) when enabled.",
-    "BLS and USAJOBS enrichments are included when API keys are configured.",
+    "BLS enrichment is included when API keys are configured. USAJOBS is out of scope for the MVP.",
   ];
 
   return {
@@ -124,7 +124,7 @@ export function buildEvidencePack(state: AgentStateType): EvidencePackV1 {
       done: p.done,
     })),
     conversation_summary: state.conversationSummary ?? "",
-    data_sources: ["O*NET", "BLS OEWS", "USAJOBS"],
+    data_sources: ["O*NET", "BLS OEWS"],
     phase: state.currentPhase,
     report_generated: state.reportGenerated,
     phase_display: config.phaseRegistry.phases[state.currentPhase]?.display_name ?? state.currentPhase,

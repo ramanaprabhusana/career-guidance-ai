@@ -1,46 +1,47 @@
 import { StateGraph, END } from "@langchain/langgraph";
 import { AgentState, type AgentStateType } from "./state.js";
+import { analyzerPromptCreator } from "./nodes/analyzer-prompt-creator.js";
+import { analyzer } from "./nodes/analyzer.js";
+import { fillerGuard } from "./nodes/filler-guard.js";
 import { stateUpdater } from "./nodes/state-updater.js";
-import { parallelTurn } from "./nodes/parallel-turn.js";
+import { speakerPromptCreator } from "./nodes/speaker-prompt-creator.js";
+import { speaker } from "./nodes/speaker.js";
 import { summarizerNode, shouldSummarize } from "./nodes/summarizer-node.js";
 import { reactExecutor, shouldStartReact } from "./nodes/react-executor.js";
 
 export function buildGraph() {
-  // P9: analyzer + speaker LLMs now run concurrently inside the `parallelTurn`
-  // node (with inline phase-redirect handling), so the old 4-node sequential
-  // chain (analyzerPromptCreator → analyzer → speakerPromptCreator → speaker)
-  // collapses into a single combined node. `stateUpdater` still runs
-  // downstream to merge analyzer.extracted_fields into canonical state for
-  // the NEXT turn, and `summarizer` still gates on `shouldSummarize`.
-  //
-  // Change 5 P0 (Apr 14 2026): optional ReAct branch between `stateUpdater`
-  // and the summarizer. Only reached when `ENABLE_REACT_LOOP=true` AND the
-  // orchestrator set `reactIntent` + `pendingReactTool`. Otherwise the graph
-  // is byte-identical to the prior topology.
+  // May 01 MVP correction: default career-guidance turns must prioritize state
+  // freshness over parallel LLM latency. The speaker prompt is built only after
+  // analyzer output has been merged by stateUpdater, preventing same-turn
+  // forgetfulness and repeated questions for facts the user just supplied.
   const graph = new StateGraph(AgentState)
-    .addNode("parallelTurn", parallelTurn)
+    .addNode("analyzerPromptCreator", analyzerPromptCreator)
+    .addNode("analyzer", analyzer)
+    .addNode("fillerGuard", fillerGuard)
     .addNode("stateUpdater", stateUpdater)
     .addNode("reactExecutor", reactExecutor)
+    .addNode("speakerPromptCreator", speakerPromptCreator)
+    .addNode("speaker", speaker)
     .addNode("summarizer", summarizerNode)
 
-    .addEdge("__start__", "parallelTurn")
-    .addEdge("parallelTurn", "stateUpdater")
-    // Combined post-stateUpdater router: enter ReAct branch if flag + intent
-    // are set, otherwise fall through to the original summarize-or-END gate.
+    .addEdge("__start__", "analyzerPromptCreator")
+    .addEdge("analyzerPromptCreator", "analyzer")
+    .addEdge("analyzer", "fillerGuard")
+    .addEdge("fillerGuard", "stateUpdater")
     .addConditionalEdges(
       "stateUpdater",
-      (s: AgentStateType): "react" | "yes" | "no" => {
+      (s: AgentStateType): "react" | "speak" => {
         if (shouldStartReact(s) === "react") return "react";
-        return shouldSummarize(s);
+        return "speak";
       },
       {
         react: "reactExecutor",
-        yes: "summarizer",
-        no: END,
+        speak: "speakerPromptCreator",
       },
     )
-    // After ReAct executes, re-enter the summarize-or-END gate.
-    .addConditionalEdges("reactExecutor", shouldSummarize, {
+    .addEdge("reactExecutor", "speakerPromptCreator")
+    .addEdge("speakerPromptCreator", "speaker")
+    .addConditionalEdges("speaker", shouldSummarize, {
       yes: "summarizer",
       no: END,
     })
