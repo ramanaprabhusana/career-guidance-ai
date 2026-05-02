@@ -57,6 +57,8 @@ May 01 service refreshes:
 - 20:57 ET: `/api/data-sources` returned `200` after warm-up in about `98ms`; O*NET, BLS, and local cache connected; USAJOBS disabled for MVP.
 - 22:25 ET: `/api/health` returned `200`; cold-start wake-up observed at about `21.3s`.
 - 22:25 ET: `/api/data-sources` returned `200` after warm-up in about `77ms`; O*NET, BLS, and local cache connected; USAJOBS disabled for MVP.
+- 23:28 ET: `/api/health` returned `200`; cold-start wake-up observed at about `21.5s`.
+- 23:28 ET: `/api/data-sources` returned `200` after warm-up in about `116ms`; O*NET, BLS, and local cache connected; USAJOBS disabled for MVP.
 
 ## 5. Files included in the Docker image
 

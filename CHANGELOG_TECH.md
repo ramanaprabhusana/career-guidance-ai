@@ -43,6 +43,7 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 - Added role-scoped report completion tracking with `reportGeneratedForRole`.
 - Added confirmed-state prompt injection and merge locks for orientation fields and completed skill assessments.
 - Moved speaker locked-state facts to prompt primacy and tightened role-targeting pre-checks.
+- Added final MVP fixes for planning stall loops, completion-card dismissal persistence, and technology-skill retrieval for TPM/PM-style roles.
 
 | When | Area / Part | What Changed | With What |
 |------|------------|-------------|-----------|
@@ -64,6 +65,11 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 | 22:24 ET | `agent_config/prompts/speaker_template.md` | Moved `hard_known_facts` to top-of-prompt locked-state block | Replaced lower-priority mid-template placement |
 | 22:24 ET | `agent_config/skills/exploration_role_targeting/speaker.md` | Added binding confirmed-role pre-check against locked state before role-identification instructions | Prevents re-asking for an already confirmed target role |
 | 22:24 ET | `src/report/pdf-generator.ts` | Added technical/soft skill count context to readiness chips and overall readiness text | Replaced bare strength percentages without N/M context |
+| 23:27 ET | `agent_config/skills/planning/speaker.md` | Added forbidden stall phrases and mandatory immediate plan-block delivery when a next block is present | Prevents content-free planning promises from causing filler-loop stalls |
+| 23:27 ET | `src/nodes/state-updater.ts` | Reset `transitionDecision` to `continue` during planning role pivots | Prevents stale `complete` state from re-firing completion responses after Continue |
+| 23:27 ET | `public/js/app.js` | Added `_completionDismissedForRole` tracking around completion cards | Suppresses re-inserting a dismissed card for the same role while still allowing a new role's card |
+| 23:27 ET | `src/utils/rag.ts` | Merged O*NET technology skill categories into live skill retrieval for roles such as TPM/PM | Replaced cognitive-skills-only retrieval that could yield zero technical assessment items |
+| 23:27 ET | `change_by_claude_004May01.md` | Added RCA and verification notes for the final MVP Change 004 fixes | Documents the selected P0 fixes and deferred post-demo items |
 
 ---
 
