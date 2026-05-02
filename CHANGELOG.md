@@ -52,6 +52,25 @@ All user-facing changes to the Career Guidance AI Assistant.
 
 ---
 
+## v2.1.3 — Exploration Phase Stall Fix (Change 9)
+**Date:** 2026-05-02
+
+| Area | What Changed | Root Cause Fixed |
+|------|-------------|-----------------|
+| Exploration phase entry | Bot now delivers role confirmation + first skill question in a single opening message | Speaker emitted 2–3 content-free bridge turns ("We're ready to explore…", "Now let's begin…") before asking Skill 1 |
+| Confirm misclassification | "sure" / "got it" after a bridge turn no longer advances the phase | LLM classified acknowledgements after non-question turns as "confirm", bypassing the filler guard and allowing extra bridge turns |
+| Filler guard backstop | Bridge-acknowledgement tokens (`sure`, `got it`, `understood`, `alright`, `I see`, `makes sense`, `right`, `fair enough`, `sure thing`) now fire unconditionally | Previous filler-guard logic allowed LLM "confirm" intent to override the pattern match, making the stated backstop ineffective |
+
+**Files changed:**
+- `agent_config/skills/exploration_role_targeting/speaker.md` — FORBIDDEN BRIDGE PHRASES section + MANDATORY FIRST MESSAGE rule
+- `agent_config/prompts/analyzer_template.md` — CRITICAL caveat on confirm classification (only when prior turn was a yes/no question)
+- `src/nodes/filler-guard.ts` — two-tier pattern lists: `UNCONDITIONAL_FILLER_PATTERNS` (bypasses confirm override) + existing `FILLER_PATTERNS` (retains confirm override for context-sensitive tokens)
+- `change_by_claude_006May02.md` — deliberation, selected fixes, review-finding correction, and verification plan
+
+**Verification:** `tsc --noEmit` clean · `validate-config` 21/21 · `golden` 14/14
+
+---
+
 ## v2.1.2 — Post-Demo Transcript Fixes (Change 8)
 **Date:** 2026-05-02
 
