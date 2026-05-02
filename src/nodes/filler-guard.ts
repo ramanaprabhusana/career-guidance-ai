@@ -10,6 +10,26 @@ const FILLER_PATTERNS = [
   /^whatever\s+you\s+think$/,
   /^fine$/,
   /^continue$/,
+  // Change 8 (May 02 2026): positive single-word reactions carry no career-fact
+  // information and must not trigger state writes or report-generation messages.
+  // Bug AN-013: "nice" after a plan block caused the bot to emit "your report
+  // is being generated". These tokens are structurally identical to "ok" after
+  // a statement (not a question) and must be caught by the filler guard.
+  /^nice$/,
+  /^great$/,
+  /^cool$/,
+  /^wow$/,
+  /^thanks$/,
+  /^thank\s+you$/,
+  /^awesome$/,
+  /^excellent$/,
+  /^perfect$/,
+  /^interesting$/,
+  /^lovely$/,
+  /^noted$/,
+  /^good$/,
+  /^sounds good$/,
+  /^looks good$/,
 ];
 
 const DURABLE_FIELD_NAMES = new Set([

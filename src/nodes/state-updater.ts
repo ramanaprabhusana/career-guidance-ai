@@ -295,6 +295,12 @@ function applyRoleSwitchPivot(
   updates.immediateNextSteps = [];
   updates.planRationale = null;
   updates.planBlocks = [];
+  // Change 8 (May 02 2026): clear evidence attribution so the new role's
+  // report evidence log starts fresh. Bug OR-011: SE→DA→PM PDF showed
+  // "[O*NET] Data Analyst" in the PM plan evidence log because evidenceKept
+  // was not cleared on pivot. DA evidence lives in priorPlan (Appendix A).
+  updates.evidenceKept = [];
+  updates.evidenceDiscarded = [];
 
   // When the pivot happens during PLANNING, walk the phase back to
   // role_targeting so the auto-fetch + rehydration hook runs and the user
