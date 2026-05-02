@@ -30,6 +30,19 @@ const FILLER_PATTERNS = [
   /^good$/,
   /^sounds good$/,
   /^looks good$/,
+  // Change 9 (May 02 2026): acknowledgement tokens that commonly appear after
+  // non-question bridge turns must be caught as a deterministic backstop for
+  // the AN-005 LLM-side fix. Even if the LLM misclassifies "sure" as "confirm"
+  // after a content-free bridge, the pattern guard fires.
+  /^sure$/,
+  /^sure\s+thing$/,
+  /^understood$/,
+  /^got\s+it$/,
+  /^alright$/,
+  /^i\s+see$/,
+  /^makes?\s+sense$/,
+  /^right$/,
+  /^fair\s+enough$/,
 ];
 
 const DURABLE_FIELD_NAMES = new Set([

@@ -58,9 +58,15 @@ Classify the user's intent based on the last 4–5 conversation exchanges, not t
 - "confirm"    — user agrees with or accepts the most recent assistant question or proposal.
                  Examples: "yes", "ok", "yeah fine with me", "that works", "all good", "sounds good", "sure",
                  "yeah. Fine with me", "ok sure", "looks right", "that's correct", "proceed"
-                 IMPORTANT: "ok" or "yeah" after a direct yes/no question = "confirm", not "filler".
+                 CRITICAL (Change 9 — AN-005): ONLY classify as "confirm" when the most recent assistant
+                 message ended with a direct yes/no question or presented explicit choices requiring selection.
+                 If the prior assistant message was a statement, phase transition, or content-free bridge
+                 (e.g. "We're ready to move forward", "Now let's begin", "Great — I've pulled up your skills"),
+                 do NOT classify as "confirm" — use "filler" instead. A short agreement after a non-question
+                 carries no actionable intent and must not advance state.
 - "filler"     — bare acknowledgement with no meaningful content and no clear agreement to a specific question.
-                 Examples: "hmm", "ok" when no yes/no question was just posed, "interesting", "I see"
+                 Examples: "hmm", "ok" when no yes/no question was just posed, "interesting", "I see",
+                 "sure" / "got it" / "understood" after a transition or bridge statement (not a question)
 - "question"   — user is asking something. Example: "what about the timeline?"
 - "new_info"   — user is providing a new fact or answering a specific data question.
                  Examples: stating a job title, giving a skill rating, naming a role.
