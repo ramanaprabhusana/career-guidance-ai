@@ -73,6 +73,15 @@ export interface AnalyzerOutput {
   phase_suggestion: string | null;
   confidence: number;
   notes: string;
+  // Change 6 (May 01 2026): LLM-classified intent using conversation context.
+  // Used by fillerGuard and stateUpdater instead of hardcoded word matching.
+  // "confirm"  — user agrees/accepts the most recent question or proposal
+  // "filler"   — acknowledgement with no meaningful content, no clear agreement
+  // "question" — user is asking something
+  // "new_info" — user provides a new fact
+  // "correction" — user changes a prior answer
+  // null       — mixed or unclear
+  user_intent?: "confirm" | "filler" | "question" | "new_info" | "correction" | null;
 }
 
 export interface LearningResourceItem {
@@ -208,6 +217,12 @@ export const AgentState = Annotation.Root({
   }),
   planRationale: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
   reportGenerated: Annotation<boolean>({ reducer: (_, b) => b, default: () => false }),
+  // Change 6 (May 01 2026): ties the completion signal to a specific role.
+  // Set to targetRole when a PDF/HTML export succeeds; cleared on role switch.
+  // The planning-terminal guard checks this against the current targetRole so
+  // the "Career Plan is Ready" card cannot reappear after a role switch even
+  // if state.reportGenerated is still true from the prior session.
+  reportGeneratedForRole: Annotation<string | null>({ reducer: (_, b) => b, default: () => null }),
 
   learningResources: Annotation<LearningResourceItem[]>({ reducer: (_, b) => b, default: () => [] }),
   evidenceKept: Annotation<EvidenceDecisionItem[]>({ reducer: (_, b) => b, default: () => [] }),

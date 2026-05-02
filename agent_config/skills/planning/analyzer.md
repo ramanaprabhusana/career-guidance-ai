@@ -84,6 +84,15 @@ If the user's message in the planning phase is a pure acknowledgment ("ok", "oka
 - **OMIT `target_role` entirely** from `extracted_fields`. Do NOT emit `target_role: null` or `""` — omitting the key is what preserves the previously-confirmed role. Emitting null/blank would silently clear the user's plan target (Apr 12 2026 regression).
 - It is fine to emit `user_confirmed_evaluation: true` or confirm the current plan block, but NEVER re-emit `target_role` on a thin turn.
 
+### Change 6 — user_intent on thin replies (May 01 2026, BINDING)
+For every planning-phase turn, you MUST emit `user_intent` in the JSON output.
+- If the assistant's previous message ended with a yes/no or confirmation question and the user replied with
+  any agreement ("ok", "yes", "yeah. Fine with me", "all good", "sure", "that works", etc.) → emit `"user_intent": "confirm"`.
+- If the user is asking a question ("what about the timeline?") → emit `"user_intent": "question"`.
+- If the user named a new role or fact → emit `"user_intent": "new_info"`.
+- If the message is a bare filler with no question context ("hmm", standalone "ok" when no question was asked) → emit `"user_intent": "filler"`.
+This field drives plan block advancement in the orchestrator. A wrong classification will cause the plan to loop or skip.
+
 ## Edge Cases
 - If user requests modifications to the plan: note specific change requests in "notes"
 - If user asks to export/download: note in "notes" for speaker to offer export

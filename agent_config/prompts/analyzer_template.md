@@ -52,11 +52,32 @@ Recent turns: {{recent_turns}}
 
 ---
 
+USER INTENT CLASSIFICATION (required — use recent_turns for context)
+Classify the user's intent based on the last 4–5 conversation exchanges, not the message in isolation.
+
+- "confirm"    — user agrees with or accepts the most recent assistant question or proposal.
+                 Examples: "yes", "ok", "yeah fine with me", "that works", "all good", "sounds good", "sure",
+                 "yeah. Fine with me", "ok sure", "looks right", "that's correct", "proceed"
+                 IMPORTANT: "ok" or "yeah" after a direct yes/no question = "confirm", not "filler".
+- "filler"     — bare acknowledgement with no meaningful content and no clear agreement to a specific question.
+                 Examples: "hmm", "ok" when no yes/no question was just posed, "interesting", "I see"
+- "question"   — user is asking something. Example: "what about the timeline?"
+- "new_info"   — user is providing a new fact or answering a specific data question.
+                 Examples: stating a job title, giving a skill rating, naming a role.
+- "correction" — user is changing a previously given answer.
+- null         — mixed or unclear intent.
+
+Use `recent_turns` to determine which question the assistant just asked. If a yes/no or confirmation question
+was posed and the user responds with any agreement signal (even short), classify as "confirm".
+
+---
+
 OUTPUT FORMAT
 {
   "extracted_fields": {},
   "required_complete": false,
   "phase_suggestion": null,
   "confidence": 0.0,
-  "notes": ""
+  "notes": "",
+  "user_intent": null
 }

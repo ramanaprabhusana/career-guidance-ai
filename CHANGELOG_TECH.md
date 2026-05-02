@@ -34,11 +34,13 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 
 ## v2.1.0
 **Date:** 2026-05-01
-**Focus:** P0 latency and no-repeat prompt hardening
+**Focus:** P0 latency, no-repeat prompt hardening, and planning completion correctness
 
 - Changed sample provider routing to Gemini-only for MVP (`LLM_PROVIDER_SEQUENCE=google`).
 - Added provider invoke timeouts so optional Groq fallback cannot hang for OS-level TCP timeout duration.
 - Added a hard known-facts prompt section before phase speaker instructions.
+- Added analyzer-level `user_intent` classification so confirmation replies in planning are not treated as filler.
+- Added role-scoped report completion tracking with `reportGeneratedForRole`.
 
 | When | Area / Part | What Changed | With What |
 |------|------------|-------------|-----------|
@@ -46,6 +48,13 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 | 19:05 ET | `src/config.ts` | Added provider-specific LLM call timeouts (`groq=12s`, `google=25s`) around model invocation | Replaced unbounded provider `model.invoke()` calls |
 | 19:05 ET | `agent_config/prompts/speaker_template.md` | Added `ALREADY COLLECTED - HARD CONSTRAINT` before phase speaker skill instructions | Replaced relying only on later cross-phase known-facts context |
 | 19:05 ET | `src/nodes/speaker-prompt-creator.ts` | Added deterministic `hard_known_facts` payload from structured state | Added hard no-repeat facts before phase instructions |
+| 20:56 ET | `agent_config/prompts/analyzer_template.md` | Added required `user_intent` output classification using recent-turn context | Replaced message-text-only interpretation for short confirmations |
+| 20:56 ET | `agent_config/skills/planning/analyzer.md` | Added binding planning analyzer guidance for `confirm`, `filler`, `question`, `new_info`, and `correction` intents | Replaced thin-reply guidance without explicit intent output |
+| 20:56 ET | `src/state.ts` | Added optional `AnalyzerOutput.user_intent` and `reportGeneratedForRole` state channel | Replaced unscoped report completion signal for terminal planning checks |
+| 20:56 ET | `src/nodes/filler-guard.ts` | Made filler guard prefer analyzer `user_intent` over regex when available | Replaced regex-only handling for short replies like `ok` or `yeah` |
+| 20:56 ET | `src/nodes/state-updater.ts` | Used `user_intent=confirm` for plan/evaluation confirmations and role-scoped report completion checks | Replaced bare word-list confirmation and unscoped `reportGenerated` terminal guard |
+| 20:56 ET | `src/server.ts` | Persisted `reportGeneratedForRole` when JSON/PDF/HTML export succeeds | Added role identity to report-completion state |
+| 20:56 ET | `scripts/validate-config.ts` | Added runtime-only allowlist entries for `report_generated_for_role` and `user_intent` | Prevents config validation from flagging runtime-only fields |
 
 ---
 

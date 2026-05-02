@@ -292,6 +292,9 @@ const skillsDir = join(ROOT, "agent_config", "skills");
       // never written to state_schema.json.
       "needs_role_confirmation", "react_intent", "react_step_count",
       "max_react_steps", "react_observation_log", "pending_react_tool",
+      // Change 6 (May 01 2026): role-scoped completion flag + LLM intent field.
+      // Both are runtime-only; never written to state_schema.json.
+      "report_generated_for_role", "user_intent",
     ]);
     const schemaFieldSet = new Set<string>();
     for (const phase of Object.keys(stateSchema.phases)) {

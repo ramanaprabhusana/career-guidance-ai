@@ -354,7 +354,11 @@
           removeSuggestions();
         }
 
-        if (data.isComplete) {
+        // Change 6 (May 01 2026): only show card once per role session.
+        // Backend already gates isComplete via reportGeneratedForRole; this is
+        // a defensive frontend check so a second card is never inserted even
+        // if the backend sends an unexpected isComplete:true during role switch.
+        if (data.isComplete && !document.querySelector('.completion-card')) {
           showCompletionCard(data.profile);
           // Upgrade export button
           const exportBtn = document.getElementById('exportBtnTop');

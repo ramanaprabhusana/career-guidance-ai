@@ -26,6 +26,8 @@ All user-facing changes to the Career Guidance AI Assistant.
 |------|------------|-------------|-----------|
 | 19:05 ET | Chat latency | Made Gemini-only the MVP sample provider sequence and added provider timeouts | Replaced active Groq-first sample routing and unbounded provider invocation |
 | 19:05 ET | No-repeat behavior | Added hard known-facts constraints before phase speaker instructions | Replaced relying only on later cross-phase known-facts context |
+| 20:56 ET | Planning confirmations | Added analyzer `user_intent` classification and used it for filler/confirmation handling | Replaced regex-only handling of short replies |
+| 20:56 ET | Report completion | Added role-scoped `reportGeneratedForRole` and frontend duplicate-card guard | Replaced unscoped completion card trigger after report export |
 
 ---
 

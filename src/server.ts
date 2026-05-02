@@ -871,7 +871,7 @@ app.post("/api/export", async (req, res) => {
   // JSON evidence pack export
   if (format === "json") {
     try {
-      const withReport = { ...state, reportGenerated: true };
+      const withReport = { ...state, reportGenerated: true, reportGeneratedForRole: state.targetRole };
       saveSession(sessionId, withReport);
       const evidencePack = buildEvidencePack(withReport);
       writeEvidencePackFile(ROOT, withReport);
@@ -890,9 +890,9 @@ app.post("/api/export", async (req, res) => {
   try {
     const pdfPath = await generatePDFReport(state);
     const htmlPath = generateHTMLReport(state);
-    writeEvidencePackFile(ROOT, { ...state, reportGenerated: true });
+    writeEvidencePackFile(ROOT, { ...state, reportGenerated: true, reportGeneratedForRole: state.targetRole });
 
-    saveSession(sessionId, { ...state, reportGenerated: true });
+    saveSession(sessionId, { ...state, reportGenerated: true, reportGeneratedForRole: state.targetRole });
 
     res.json({
       pdf: `/exports/career-plan-${sessionId}.pdf`,

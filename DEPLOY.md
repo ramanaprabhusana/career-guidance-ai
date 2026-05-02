@@ -50,9 +50,11 @@ Render will redeploy if auto-deploy is on. Otherwise use **Manual Deploy → Dep
 2. Open `/api/data-sources` → `onet.connected` should be **true** if `ONET_USERNAME` is set.
 3. Load the site, start a session, send a chat message, export a report.
 
-May 01 service refresh:
-- `/api/health`: `200`, cold-start wake-up observed at about `22.5s`.
-- `/api/data-sources`: `200` after warm-up in about `99ms`; O*NET, BLS, and local cache connected; USAJOBS disabled for MVP.
+May 01 service refreshes:
+- 19:07 ET: `/api/health` returned `200`; cold-start wake-up observed at about `22.5s`.
+- 19:07 ET: `/api/data-sources` returned `200` after warm-up in about `99ms`; O*NET, BLS, and local cache connected; USAJOBS disabled for MVP.
+- 20:57 ET: `/api/health` returned `200`; cold-start wake-up observed at about `21.5s`.
+- 20:57 ET: `/api/data-sources` returned `200` after warm-up in about `98ms`; O*NET, BLS, and local cache connected; USAJOBS disabled for MVP.
 
 ## 5. Files included in the Docker image
 

@@ -287,6 +287,7 @@ function applyRoleSwitchPivot(
     updates.newPhase = null;
     updates.progressItems = [];
     updates.reportGenerated = false;
+    updates.reportGeneratedForRole = null; // Change 6: invalidate role-scoped completion
   }
 }
 
@@ -355,12 +356,17 @@ function mergeRoleTargetingFields(
     fields.priorities !== undefined ||
     fields.focus_first !== undefined ||
     fields.top_priority !== undefined;
+  // Change 6 (May 01 2026): prefer LLM user_intent over hardcoded word-list.
+  const userIsConfirming =
+    state.analyzerOutput?.user_intent === "confirm" ||
+    (state.analyzerOutput?.user_intent == null && isConfirmation(state.userMessage));
+
   if (
     updates.learningNeedsComplete !== true &&
     !state.learningNeedsComplete &&
     learningNeedsCurrent.length > 0 &&
     (priorityFieldExtracted || state.learningNeeds.length > 0) &&
-    isConfirmation(state.userMessage)
+    userIsConfirming
   ) {
     updates.learningNeedsComplete = true;
   }
@@ -370,7 +376,7 @@ function mergeRoleTargetingFields(
     updates.userConfirmedEvaluation !== true &&
     !state.userConfirmedEvaluation &&
     state.skillsEvaluationSummary &&
-    isConfirmation(state.userMessage)
+    userIsConfirming
   ) {
     updates.userConfirmedEvaluation = true;
   }
@@ -1083,8 +1089,17 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
 
   enforceStateInvariants(state, updates);
 
-  // Planning phase is terminal
-  if (state.currentPhase === "planning" && state.reportGenerated) {
+  // Planning phase is terminal — Change 6 (May 01 2026): guard with
+  // reportGeneratedForRole so the completion signal only fires for the role
+  // the report was actually generated for. If the pivot already cleared
+  // updates.reportGeneratedForRole (role switch detected this same turn),
+  // the role check fails and the pop-up is suppressed.
+  if (
+    state.currentPhase === "planning" &&
+    state.reportGenerated &&
+    state.reportGeneratedForRole &&
+    state.reportGeneratedForRole === (updates.targetRole ?? state.targetRole)
+  ) {
     updates.transitionDecision = "complete";
   }
 
@@ -1142,10 +1157,16 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
   // responsible for surfacing only one unconfirmed block at a time.
   // Change 5 P0 (Apr 14 2026): uses `advanceNextPlanBlock` helper so the
   // same code path is reachable from mergePlanningFields tests.
+  // Change 6 (May 01 2026): use LLM-classified intent for plan block
+  // advancement. Falls back to regex only when analyzerOutput is absent.
+  const planBlockUserConfirming =
+    state.analyzerOutput?.user_intent === "confirm" ||
+    (state.analyzerOutput?.user_intent == null && isConfirmation(state.userMessage));
+
   const existingBlocks = updates.planBlocks ?? state.planBlocks ?? [];
   if (state.currentPhase === "planning" && existingBlocks.length > 0) {
     const firstPending = existingBlocks.findIndex((b) => !b.confirmed);
-    if (firstPending >= 0 && isConfirmation(state.userMessage)) {
+    if (firstPending >= 0 && planBlockUserConfirming) {
       const advanced = advanceNextPlanBlock(existingBlocks);
       if (advanced) {
         updates.planBlocks = advanced;

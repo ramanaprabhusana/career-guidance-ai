@@ -35,7 +35,16 @@ export function isFillerOrAmbiguous(message: string | null | undefined): boolean
 }
 
 export function fillerGuard(state: AgentStateType): Partial<AgentStateType> {
-  if (!isFillerOrAmbiguous(state.userMessage) || !state.analyzerOutput) {
+  // Change 6 (May 01 2026): prefer LLM-classified intent over regex patterns.
+  // The LLM has conversation context; regex cannot tell "ok" after a yes/no
+  // question (= confirm) from "ok" as an empty filler between turns (= filler).
+  // Both signals must agree — if the LLM says "confirm", let it through even
+  // if the text looks like a filler word.
+  const intentIsFiller = state.analyzerOutput?.user_intent === "filler";
+  const textIsFiller = isFillerOrAmbiguous(state.userMessage);
+  const isFiller = intentIsFiller || (textIsFiller && state.analyzerOutput?.user_intent !== "confirm");
+
+  if (!isFiller || !state.analyzerOutput) {
     return {};
   }
 
