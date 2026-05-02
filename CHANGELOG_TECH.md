@@ -34,13 +34,15 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 
 ## v2.1.0
 **Date:** 2026-05-01
-**Focus:** P0 latency, no-repeat prompt hardening, and planning completion correctness
+**Focus:** P0 latency, no-repeat prompt hardening, planning completion correctness, and confirmed-state locks
 
 - Changed sample provider routing to Gemini-only for MVP (`LLM_PROVIDER_SEQUENCE=google`).
 - Added provider invoke timeouts so optional Groq fallback cannot hang for OS-level TCP timeout duration.
 - Added a hard known-facts prompt section before phase speaker instructions.
 - Added analyzer-level `user_intent` classification so confirmation replies in planning are not treated as filler.
 - Added role-scoped report completion tracking with `reportGeneratedForRole`.
+- Added confirmed-state prompt injection and merge locks for orientation fields and completed skill assessments.
+- Moved speaker locked-state facts to prompt primacy and tightened role-targeting pre-checks.
 
 | When | Area / Part | What Changed | With What |
 |------|------------|-------------|-----------|
@@ -55,6 +57,13 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 | 20:56 ET | `src/nodes/state-updater.ts` | Used `user_intent=confirm` for plan/evaluation confirmations and role-scoped report completion checks | Replaced bare word-list confirmation and unscoped `reportGenerated` terminal guard |
 | 20:56 ET | `src/server.ts` | Persisted `reportGeneratedForRole` when JSON/PDF/HTML export succeeds | Added role identity to report-completion state |
 | 20:56 ET | `scripts/validate-config.ts` | Added runtime-only allowlist entries for `report_generated_for_role` and `user_intent` | Prevents config validation from flagging runtime-only fields |
+| 22:24 ET | `src/nodes/analyzer-prompt-creator.ts` | Added `confirmed_fields` injection from structured state into analyzer prompts | Added analyzer visibility into fields that should not be re-extracted |
+| 22:24 ET | `agent_config/prompts/analyzer_template.md` | Added `CONFIRMED STATE - DO NOT RE-EXTRACT` instructions before output schema | Replaced analyzer relying only on recent-turn context for locked fields |
+| 22:24 ET | `src/nodes/state-updater.ts` | Locked orientation fields after orientation and locked completed skill ratings unless user intent is correction | Replaced unconditional late writes from analyzer extractions |
+| 22:24 ET | `src/nodes/state-updater.ts` | Cleared `needsRoleConfirmation` immediately when a pivot writes a new non-blank role | Prevents one-turn stale confirmation flag after role switch |
+| 22:24 ET | `agent_config/prompts/speaker_template.md` | Moved `hard_known_facts` to top-of-prompt locked-state block | Replaced lower-priority mid-template placement |
+| 22:24 ET | `agent_config/skills/exploration_role_targeting/speaker.md` | Added binding confirmed-role pre-check against locked state before role-identification instructions | Prevents re-asking for an already confirmed target role |
+| 22:24 ET | `src/report/pdf-generator.ts` | Added technical/soft skill count context to readiness chips and overall readiness text | Replaced bare strength percentages without N/M context |
 
 ---
 

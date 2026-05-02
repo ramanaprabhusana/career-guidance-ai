@@ -72,6 +72,18 @@ was posed and the user responds with any agreement signal (even short), classify
 
 ---
 
+CONFIRMED STATE — DO NOT RE-EXTRACT
+
+The following fields are already captured and confirmed in the session.
+Do NOT include them in `extracted_fields` unless `user_intent` is "correction"
+(i.e., the user is explicitly changing a previously given answer).
+Extracting a confirmed field when the user is not correcting it causes confirmed
+state to be silently overwritten — this is the leading cause of repeated questions.
+
+{{confirmed_fields}}
+
+---
+
 OUTPUT FORMAT
 {
   "extracted_fields": {},

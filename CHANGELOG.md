@@ -28,6 +28,8 @@ All user-facing changes to the Career Guidance AI Assistant.
 | 19:05 ET | No-repeat behavior | Added hard known-facts constraints before phase speaker instructions | Replaced relying only on later cross-phase known-facts context |
 | 20:56 ET | Planning confirmations | Added analyzer `user_intent` classification and used it for filler/confirmation handling | Replaced regex-only handling of short replies |
 | 20:56 ET | Report completion | Added role-scoped `reportGeneratedForRole` and frontend duplicate-card guard | Replaced unscoped completion card trigger after report export |
+| 22:24 ET | Confirmed-state stability | Added analyzer confirmed-fields injection plus state-updater locks for orientation fields and completed skill ratings | Replaced unconditional merge of later analyzer extractions |
+| 22:24 ET | Role pivots and reports | Cleared stale role-confirmation flags after pivots and added N/M skill counts to PDF strength labels | Replaced stale one-turn confirmation behavior and bare percentage-only report display |
 
 ---
 

@@ -60,11 +60,23 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
     renderHeaderBadges(doc, badges);
 
     // Header readiness chips (only when skills assessed): Assessed • Tech • Soft
+    // Change 7 (May 01 2026): show "N/M skills" count alongside % so that
+    // "0%" is clearly "0 of N at required level" rather than "no tech skills".
     if (skills.length > 0) {
+      const techStrong = techSkills.filter(s => s.gap_category === "strong").length;
+      const softStrong = softSkills.filter(s => s.gap_category === "strong").length;
       renderHeaderStatChips(doc, [
         { pct: headerStats.assessmentPct, label: "Assessed", color: "#c94c4c" },
-        { pct: techStrengthPct, label: "Tech Strength", color: "#2874a6" },
-        { pct: softStrengthPct, label: "Soft Strength", color: "#7d3c98" },
+        {
+          pct: techStrengthPct,
+          label: techSkills.length > 0 ? `Tech (${techStrong}/${techSkills.length})` : "Tech",
+          color: "#2874a6",
+        },
+        {
+          pct: softStrengthPct,
+          label: softSkills.length > 0 ? `Soft (${softStrong}/${softSkills.length})` : "Soft",
+          color: "#7d3c98",
+        },
       ]);
     }
 
@@ -126,11 +138,13 @@ export async function generatePDFReport(state: AgentStateType): Promise<string> 
       // Change 5 P0 (Apr 14 2026): split assessment-completion vs current-strength.
       // Users expect to see 100% after rating every skill even if they're still learning.
       const stats = computeReadinessStats(skills);
-      const techStrength = techSkills.length > 0 ? Math.round((techSkills.filter(s => s.gap_category === "strong").length / techSkills.length) * 100) : 0;
-      const softStrength = softSkills.length > 0 ? Math.round((softSkills.filter(s => s.gap_category === "strong").length / softSkills.length) * 100) : 0;
+      const techStrong2 = techSkills.filter(s => s.gap_category === "strong").length;
+      const softStrong2 = softSkills.filter(s => s.gap_category === "strong").length;
+      const techStrength = techSkills.length > 0 ? Math.round((techStrong2 / techSkills.length) * 100) : 0;
+      const softStrength = softSkills.length > 0 ? Math.round((softStrong2 / softSkills.length) * 100) : 0;
       doc.fontSize(10).font("Helvetica").fillColor("#c94c4c").text(`Assessment completion: ${stats.assessmentPct}% (${stats.assessedSkills}/${stats.totalSkills} skills rated)`);
-      doc.fillColor("#2874a6").text(`Technical skills — current strength: ${techStrength}%`);
-      doc.fillColor("#7d3c98").text(`Soft skills — current strength: ${softStrength}%`);
+      doc.fillColor("#2874a6").text(`Technical skills — at required level: ${techStrong2}/${techSkills.length} skills (${techStrength}%)`);
+      doc.fillColor("#7d3c98").text(`Soft skills — at required level: ${softStrong2}/${softSkills.length} skills (${softStrength}%)`);
       doc.fillColor("#666666").fontSize(9).font("Helvetica-Oblique")
         .text("Strength reflects skills you already rate as advanced/expert. Gaps are expected and are exactly what your development plan addresses.", { lineGap: 2 });
       doc.fillColor("#000000");

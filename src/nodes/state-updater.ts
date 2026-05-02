@@ -89,12 +89,23 @@ function mergeOrientationFields(
   fields: Record<string, unknown>
 ): Partial<AgentStateType> {
   const updates: Partial<AgentStateType> = {};
-  if (fields.job_title !== undefined) updates.jobTitle = fields.job_title as string;
-  if (fields.industry !== undefined) updates.industry = fields.industry as string;
-  if (fields.years_experience !== undefined) updates.yearsExperience = fields.years_experience as number;
-  if (fields.education_level !== undefined) updates.educationLevel = fields.education_level as AgentStateType["educationLevel"];
-  if (fields.session_goal !== undefined) updates.sessionGoal = fields.session_goal as AgentStateType["sessionGoal"];
-  if (fields.location !== undefined) updates.location = fields.location as string;
+
+  // Change 7 (May 01 2026): orientation fields are locked once the user leaves
+  // the orientation phase. The analyzer can still extract them (e.g. if the user
+  // volunteers a job title while discussing skills), but we must not let a
+  // late extraction silently overwrite a value the user already confirmed and
+  // that may have advanced the conversation. Exception: target_role is managed
+  // separately by applyTargetRoleWrite and is never orientation-locked.
+  const orientationLocked =
+    state.currentPhase !== "orientation" &&
+    state.analyzerOutput?.user_intent !== "correction";
+
+  if (fields.job_title !== undefined && !orientationLocked) updates.jobTitle = fields.job_title as string;
+  if (fields.industry !== undefined && !orientationLocked) updates.industry = fields.industry as string;
+  if (fields.years_experience !== undefined && !orientationLocked) updates.yearsExperience = fields.years_experience as number;
+  if (fields.education_level !== undefined && !orientationLocked) updates.educationLevel = fields.education_level as AgentStateType["educationLevel"];
+  if (fields.session_goal !== undefined && !orientationLocked) updates.sessionGoal = fields.session_goal as AgentStateType["sessionGoal"];
+  if (fields.location !== undefined && !orientationLocked) updates.location = fields.location as string;
   if (fields.preferred_timeline !== undefined) updates.preferredTimeline = fields.preferred_timeline as string;
   // Also capture target_role if mentioned during orientation.
   // Change 5 P0: guarded write — null/blank target_role never clears a prior role.
@@ -219,6 +230,14 @@ function applyRoleSwitchPivot(
     fromPlanning ? "planning_pivot" : "role_targeting_pivot"
   );
 
+  // Change 7 (May 01 2026): explicitly clear needsRoleConfirmation whenever
+  // a non-blank role is confirmed via pivot. Without this, the flag can persist
+  // for one extra turn and the speaker re-asks "what role?" even though the
+  // role was just written above.
+  if (incomingRole) {
+    updates.needsRoleConfirmation = false;
+  }
+
   if (!isPivot) return;
 
   updates.previousTargetRole = currentRole ?? null;
@@ -308,8 +327,19 @@ function mergeRoleTargetingFields(
     }
   }
 
+  // Change 7 (May 01 2026): lock skill ratings once the evaluation is fully
+  // confirmed. If the user confirmed their ratings AND 100% of skills are
+  // rated, further analyzer extractions for individual skill ratings must be
+  // ignored (unless the user is explicitly correcting a rating).
+  // This prevents the analyzer from re-writing confirmed ratings when the
+  // user says "ok" or similar in later turns.
+  const skillsLocked =
+    state.userConfirmedEvaluation &&
+    state.skillsAssessmentStatus === "complete" &&
+    state.analyzerOutput?.user_intent !== "correction";
+
   // Merge skill ratings
-  if (fields.skills) {
+  if (fields.skills && !skillsLocked) {
     const incomingSkills = fields.skills as Record<string, unknown>[];
     const updatedSkills = [...(updates.skills ?? state.skills)];
 
@@ -330,13 +360,13 @@ function mergeRoleTargetingFields(
   }
 
   // Change 3: post-assessment fields
-  if (fields.learning_needs !== undefined && Array.isArray(fields.learning_needs)) {
+  if (fields.learning_needs !== undefined && Array.isArray(fields.learning_needs) && !skillsLocked) {
     updates.learningNeeds = fields.learning_needs as string[];
   }
   if (fields.learning_needs_complete === true) {
     updates.learningNeedsComplete = true;
   }
-  if (fields.skills_evaluation_summary !== undefined) {
+  if (fields.skills_evaluation_summary !== undefined && !skillsLocked) {
     updates.skillsEvaluationSummary = fields.skills_evaluation_summary as string;
   }
   if (fields.user_confirmed_evaluation === true) {
