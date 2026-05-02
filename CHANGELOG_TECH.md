@@ -44,6 +44,7 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 - Added confirmed-state prompt injection and merge locks for orientation fields and completed skill assessments.
 - Moved speaker locked-state facts to prompt primacy and tightened role-targeting pre-checks.
 - Added final MVP fixes for planning stall loops, completion-card dismissal persistence, and technology-skill retrieval for TPM/PM-style roles.
+- Added post-demo Change 8 fixes for positive-reaction filler handling, role-scoped evidence reset, and sequential post-assessment slot collection.
 
 | When | Area / Part | What Changed | With What |
 |------|------------|-------------|-----------|
@@ -70,6 +71,10 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 | 23:27 ET | `public/js/app.js` | Added `_completionDismissedForRole` tracking around completion cards | Suppresses re-inserting a dismissed card for the same role while still allowing a new role's card |
 | 23:27 ET | `src/utils/rag.ts` | Merged O*NET technology skill categories into live skill retrieval for roles such as TPM/PM | Replaced cognitive-skills-only retrieval that could yield zero technical assessment items |
 | 23:27 ET | `change_by_claude_004May01.md` | Added RCA and verification notes for the final MVP Change 004 fixes | Documents the selected P0 fixes and deferred post-demo items |
+| 12:50 ET | `src/nodes/filler-guard.ts` | Added positive-reaction filler patterns such as `nice`, `great`, `cool`, `thanks`, `perfect`, and `looks good` | Prevents non-fact reactions from durable writes or report-generation messages |
+| 12:50 ET | `src/nodes/state-updater.ts` | Cleared active `evidenceKept` and `evidenceDiscarded` arrays during role pivots | Prevents prior-role evidence from appearing in the new role's active report evidence log |
+| 12:50 ET | `agent_config/skills/exploration_role_targeting/speaker.md` | Split post-assessment Step 3 into sequential priorities-only and timeline-only turns | Replaces combined two-slot question that caused E7 repeated full-block asks |
+| 12:50 ET | `change_by_claude_005May01.md` | Added deliberation notes, P0 rules, deferred rules, and verification plan for Change 8 | Documents AN-013, OR-011, and SP-009 implementation rationale |
 
 ---
 

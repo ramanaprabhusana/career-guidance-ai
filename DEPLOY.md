@@ -60,6 +60,10 @@ May 01 service refreshes:
 - 23:28 ET: `/api/health` returned `200`; cold-start wake-up observed at about `21.5s`.
 - 23:28 ET: `/api/data-sources` returned `200` after warm-up in about `116ms`; O*NET, BLS, and local cache connected; USAJOBS disabled for MVP.
 
+May 02 service refresh:
+- 12:49 ET: `/api/health` returned `200` in about `286ms`.
+- 12:49 ET: `/api/data-sources` returned `200` in about `98ms`; O*NET, BLS, and local cache connected; USAJOBS disabled for MVP.
+
 ## 5. Files included in the Docker image
 
 - `data/*.json` (occupations, chunks, embeddings, curated-resources) is **copied** into the image unless excluded. Do not add broad `data/*` rules to `.gitignore` for files the app needs in production.

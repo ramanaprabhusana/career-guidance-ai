@@ -52,6 +52,25 @@ All user-facing changes to the Career Guidance AI Assistant.
 
 ---
 
+## v2.1.2 — Post-Demo Transcript Fixes (Change 8)
+**Date:** 2026-05-02
+
+| Area | What Changed | Root Cause Fixed |
+|------|-------------|-----------------|
+| Positive short reactions | Extended filler handling for reactions like `nice`, `great`, `cool`, `thanks`, `perfect`, and `looks good` | Single-word positive reactions carried no career facts but could bypass the filler guard and trigger downstream report/status messages |
+| Role-switch evidence attribution | Cleared active `evidenceKept` and `evidenceDiscarded` during role pivots | Prior-role O*NET evidence could appear in the new role's active report evidence log instead of only in history/appendix |
+| E7 post-assessment double-ask | Split post-assessment priorities and timeline into two separate speaker turns | Asking priorities and timeline in one message caused partial answers and repeated full-block re-asks |
+
+**Files changed:**
+- `src/nodes/filler-guard.ts` — positive-reaction filler patterns
+- `src/nodes/state-updater.ts` — clear active evidence arrays on role pivot
+- `agent_config/skills/exploration_role_targeting/speaker.md` — sequential Step 3a priorities and Step 3b timeline
+- `change_by_claude_005May01.md` — deliberation, selected fixes, and verification plan
+
+**Verification:** `tsc --noEmit` clean · `validate-config` 21/21 · `golden` pass · `build` clean
+
+---
+
 ## v2.0.0
 **Date:** 2026-04-02
 
