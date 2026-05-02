@@ -1,5 +1,7 @@
 import type { AgentStateType, AnalyzerOutput } from "../state.js";
 
+// Tokens that are context-sensitive: "ok" after a yes/no question is a valid
+// confirm, so the LLM intent is allowed to override the pattern match.
 const FILLER_PATTERNS = [
   /^ok(?:ay)?$/,
   /^hmm+$/,
@@ -12,9 +14,6 @@ const FILLER_PATTERNS = [
   /^continue$/,
   // Change 8 (May 02 2026): positive single-word reactions carry no career-fact
   // information and must not trigger state writes or report-generation messages.
-  // Bug AN-013: "nice" after a plan block caused the bot to emit "your report
-  // is being generated". These tokens are structurally identical to "ok" after
-  // a statement (not a question) and must be caught by the filler guard.
   /^nice$/,
   /^great$/,
   /^cool$/,
@@ -30,10 +29,14 @@ const FILLER_PATTERNS = [
   /^good$/,
   /^sounds good$/,
   /^looks good$/,
-  // Change 9 (May 02 2026): acknowledgement tokens that commonly appear after
-  // non-question bridge turns must be caught as a deterministic backstop for
-  // the AN-005 LLM-side fix. Even if the LLM misclassifies "sure" as "confirm"
-  // after a content-free bridge, the pattern guard fires.
+];
+
+// Change 9 (May 02 2026): bridge-acknowledgement tokens that fire unconditionally
+// regardless of LLM user_intent. These are the deterministic backstop for the
+// AN-005 gap: the LLM may still classify "sure" after a bridge turn as "confirm",
+// but these patterns override that decision. A pattern-list check is more reliable
+// than an LLM instruction for tokens that are structurally never a meaningful confirm.
+const UNCONDITIONAL_FILLER_PATTERNS = [
   /^sure$/,
   /^sure\s+thing$/,
   /^understood$/,
@@ -64,18 +67,27 @@ const DURABLE_FIELD_NAMES = new Set([
 export function isFillerOrAmbiguous(message: string | null | undefined): boolean {
   const normalized = (message ?? "").trim().toLowerCase();
   if (!normalized) return false;
-  return FILLER_PATTERNS.some((pattern) => pattern.test(normalized));
+  return (
+    FILLER_PATTERNS.some((pattern) => pattern.test(normalized)) ||
+    UNCONDITIONAL_FILLER_PATTERNS.some((pattern) => pattern.test(normalized))
+  );
 }
 
 export function fillerGuard(state: AgentStateType): Partial<AgentStateType> {
-  // Change 6 (May 01 2026): prefer LLM-classified intent over regex patterns.
-  // The LLM has conversation context; regex cannot tell "ok" after a yes/no
-  // question (= confirm) from "ok" as an empty filler between turns (= filler).
-  // Both signals must agree — if the LLM says "confirm", let it through even
-  // if the text looks like a filler word.
+  const normalized = (state.userMessage ?? "").trim().toLowerCase();
   const intentIsFiller = state.analyzerOutput?.user_intent === "filler";
-  const textIsFiller = isFillerOrAmbiguous(state.userMessage);
-  const isFiller = intentIsFiller || (textIsFiller && state.analyzerOutput?.user_intent !== "confirm");
+
+  // Change 9 (May 02 2026): two-tier check. Unconditional patterns (bridge
+  // acknowledgements like "sure", "got it") fire regardless of LLM intent —
+  // they are the deterministic backstop for the AN-005 confirm-classification
+  // gap. Context-sensitive patterns ("ok", "fine") still respect the LLM
+  // "confirm" override so a real yes/no answer is not incorrectly blocked.
+  const isUnconditionalFiller = UNCONDITIONAL_FILLER_PATTERNS.some((p) => p.test(normalized));
+  const isContextualFiller =
+    FILLER_PATTERNS.some((p) => p.test(normalized)) &&
+    state.analyzerOutput?.user_intent !== "confirm";
+
+  const isFiller = intentIsFiller || isUnconditionalFiller || isContextualFiller;
 
   if (!isFiller || !state.analyzerOutput) {
     return {};
