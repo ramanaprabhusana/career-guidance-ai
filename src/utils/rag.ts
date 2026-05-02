@@ -32,7 +32,7 @@ function limitSkillsPerCategory(skills: SkillAssessment[], maxPerCategory: numbe
 
   return [...technical.slice(0, maxPerCategory), ...soft.slice(0, maxPerCategory)];
 }
-import { getSkillsForRole as liveOnetSkills } from "../services/onet.js";
+import { getSkillsForRole as liveOnetSkills, getOccupationTechSkills } from "../services/onet.js";
 // C4: BLS wage data + USAJOBS counts are now routed through the Skill 6 tool
 // dispatcher so error classification and recovery stay consistent. The service
 // helpers are imported by `tool-executor.ts` directly; `enrichRoleContext`
@@ -341,7 +341,7 @@ export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAs
       const liveResult = await liveOnetSkills(targetRole);
       if (liveResult && liveResult.skills.length > 0) {
         console.log(`[RAG] Live O*NET hit: ${liveResult.title} (${liveResult.socCode})`);
-        const allSkills = liveResult.skills.map((skill) => ({
+        const allSkills: SkillAssessment[] = liveResult.skills.map((skill) => ({
           skill_name: skill.name,
           onet_source: `${liveResult.socCode} - ${liveResult.title} (O*NET Live)`,
           required_proficiency: skill.score && parseFloat(skill.score.value) >= 4 ? "Advanced"
@@ -350,6 +350,46 @@ export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAs
           gap_category: null,
           skill_type: categorizeSkillType(skill.name),
         }));
+
+        // Change 7 (May 01 2026): merge technology skills from the separate
+        // O*NET /technology_skills endpoint. The /skills endpoint returns
+        // cognitive skills (Critical Thinking, Active Listening, …) which are
+        // mostly classified as soft. For management/product roles this leaves
+        // techSkills[] empty and the report shows 0% tech skills.
+        // We pull the top technology categories and add up to 4 as "technical"
+        // skill assessment items so the report reflects real tool expectations.
+        try {
+          const techCategories = await getOccupationTechSkills(liveResult.socCode);
+          const techItems: SkillAssessment[] = [];
+          for (const cat of techCategories) {
+            if (techItems.length >= 4) break;
+            // Use the category title as the skill name (e.g. "Project management software",
+            // "Data base user interface and query software"). This is already in title-case
+            // and meaningful to the user.
+            const skillName = cat.title;
+            // Skip if a skill with this name is already in allSkills (dedup by lowercase).
+            const alreadyPresent = allSkills.some(
+              (s) => s.skill_name.toLowerCase() === skillName.toLowerCase()
+            );
+            if (alreadyPresent) continue;
+            const techItem: SkillAssessment = {
+              skill_name: skillName,
+              onet_source: `${liveResult.socCode} - ${liveResult.title} (O*NET Technology Skills)`,
+              required_proficiency: "Intermediate",
+              user_rating: null,
+              gap_category: null,
+              skill_type: "technical",
+            };
+            techItems.push(techItem);
+          }
+          if (techItems.length > 0) {
+            console.log(`[RAG] Merged ${techItems.length} technology skill(s) for "${liveResult.title}": ${techItems.map(t => t.skill_name).join(", ")}`);
+            allSkills.push(...techItems);
+          }
+        } catch (techErr) {
+          console.warn("[RAG] Technology skills fetch failed (non-fatal):", (techErr as Error).message);
+        }
+
         result = limitSkillsPerCategory(allSkills);
       }
     } catch (e) {

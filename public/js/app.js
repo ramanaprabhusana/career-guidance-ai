@@ -5,6 +5,10 @@
     let currentPhase = 'orientation';
     let turnNumber = 0;
     let firstMessageSent = false;
+    // Change 7 (May 01 2026): track which role the user already dismissed a
+    // completion card for. Prevents the card re-firing after a role switch
+    // when the backend transitionDecision has not yet been reset (one-turn lag).
+    let _completionDismissedForRole = null;
 
     const phaseMap = { orientation: 0, exploration_career: 1, exploration_role_targeting: 2, planning: 3 };
     const phaseDisplayNames = { orientation: 'Profile', exploration_career: 'Explore', exploration_role_targeting: 'Skills', planning: 'Action Plan' };
@@ -354,11 +358,15 @@
           removeSuggestions();
         }
 
-        // Change 6 (May 01 2026): only show card once per role session.
-        // Backend already gates isComplete via reportGeneratedForRole; this is
-        // a defensive frontend check so a second card is never inserted even
-        // if the backend sends an unexpected isComplete:true during role switch.
-        if (data.isComplete && !document.querySelector('.completion-card')) {
+        // Change 7 (May 01 2026): three-layer guard against card re-fire.
+        // Layer 1 (backend, Change 6): reportGeneratedForRole role-equality check.
+        // Layer 2 (DOM, Change 6): don't insert a second card if one is visible.
+        // Layer 3 (frontend, Change 7): track which role the card was dismissed
+        // for. If backend sends isComplete:true for the same role the user already
+        // dismissed, suppress the card entirely. Cleared on role switch detection.
+        const cardRole = data.profile?.targetRole || null;
+        const alreadyDismissed = cardRole && cardRole === _completionDismissedForRole;
+        if (data.isComplete && !document.querySelector('.completion-card') && !alreadyDismissed) {
           showCompletionCard(data.profile);
           // Upgrade export button
           const exportBtn = document.getElementById('exportBtnTop');
@@ -544,6 +552,11 @@
     }
 
     function updatePhase(phase, skillsMeta) {
+      // Change 7: clear the completion-dismissed flag when the user enters
+      // role targeting (role switch detected) so the new role's card can appear.
+      if (phase === 'exploration_role_targeting' && currentPhase === 'planning') {
+        _completionDismissedForRole = null;
+      }
       currentPhase = phase;
       if (skillsMeta) lastSkillsMeta = skillsMeta;
       const idx = phaseMap[phase] ?? 0;
@@ -643,6 +656,7 @@
       const area = document.getElementById('chatArea');
       const card = document.createElement('div');
       card.className = 'completion-card';
+      if (profile?.targetRole) card.dataset.role = profile.targetRole;
       const summary = profile?.targetRole
         ? (profile.jobTitle || 'Professional') + ' exploring ' + profile.targetRole
         : 'Exploring career directions';
@@ -652,7 +666,7 @@
         <div class="summary">${summary}</div>
         <div class="card-btns">
           <button class="btn btn-success" onclick="exportReport()">Download Report (PDF)</button>
-          <button class="btn btn-outline" onclick="this.closest('.completion-card').remove()">Continue Conversation</button>
+          <button class="btn btn-outline" onclick="_completionDismissedForRole=(arguments[0].target.closest('.completion-card').dataset.role||null);this.closest('.completion-card').remove()">Continue Conversation</button>
         </div>
         <div class="privacy-note">Your report contains personal career information. Save it to a secure location.</div>
       `;

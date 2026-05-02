@@ -31,6 +31,25 @@ All user-facing changes to the Career Guidance AI Assistant.
 | 22:24 ET | Confirmed-state stability | Added analyzer confirmed-fields injection plus state-updater locks for orientation fields and completed skill ratings | Replaced unconditional merge of later analyzer extractions |
 | 22:24 ET | Role pivots and reports | Cleared stale role-confirmation flags after pivots and added N/M skill counts to PDF strength labels | Replaced stale one-turn confirmation behavior and bare percentage-only report display |
 
+## v2.1.1 — MVP Demo Fixes (Change 7)
+**Date:** 2026-05-01
+
+| Area | What Changed | Root Cause Fixed |
+|------|-------------|-----------------|
+| Pop-up after Continue | Added explicit `transitionDecision = "continue"` reset in `applyRoleSwitchPivot` fromPlanning block | Old `"complete"` value persisted in LangGraph state for one turn after role switch, causing `isComplete: true` on the next response |
+| Pop-up after Continue | Added `_completionDismissedForRole` frontend variable; card only shows when role is new AND not dismissed | DOM `.completion-card` querySelector guard alone insufficient when card is removed then re-added across turns |
+| Planning speaker stall loop | Added FORBIDDEN PHRASES hard ban + mandatory block-delivery rule to `agent_config/skills/planning/speaker.md` | Speaker emitting "Let's move forward" caused analyzer to see no pending yes/no → "ok" classified as filler → block never advanced |
+| 0 tech skills (TPM/PM roles) | Added O*NET `/technology_skills` endpoint fetch inside `retrieveSkillsForRole` live path; up to 4 tech categories merged before `limitSkillsPerCategory` | `/skills` endpoint returns only cognitive skills (soft) for management roles; `limitSkillsPerCategory` left techSkills[] empty |
+
+**Files changed:**
+- `src/nodes/state-updater.ts` — `applyRoleSwitchPivot`: add `updates.transitionDecision = "continue"`
+- `public/js/app.js` — `_completionDismissedForRole` guard + `updatePhase` clear on role switch
+- `agent_config/skills/planning/speaker.md` — FORBIDDEN PHRASES section + mandatory block delivery
+- `src/utils/rag.ts` — technology skills merge block in `retrieveSkillsForRole` live path; `allSkills` typed as `SkillAssessment[]`
+- `src/services/onet.ts` — `getOccupationTechSkills` already present (no change needed)
+
+**Verification:** `tsc --noEmit` clean · `validate-config` 21/21 · `golden` 14/14
+
 ---
 
 ## v2.0.0

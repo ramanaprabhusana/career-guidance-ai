@@ -307,6 +307,11 @@ function applyRoleSwitchPivot(
     updates.progressItems = [];
     updates.reportGenerated = false;
     updates.reportGeneratedForRole = null; // Change 6: invalidate role-scoped completion
+    // Change 7 (May 01 2026): explicitly reset transitionDecision so the
+    // completion signal from the prior role's plan does not bleed into the
+    // next API response. Without this, state.transitionDecision = "complete"
+    // persists for one turn after the pivot → isComplete: true → card re-fires.
+    updates.transitionDecision = "continue";
   }
 }
 
