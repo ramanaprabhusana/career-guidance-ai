@@ -19,6 +19,21 @@ import { AgentError, logAgentError } from "../utils/errors.js";
 import { isOffTopic, MAX_OFF_TOPIC_STRIKES } from "../utils/topic-guard.js";
 import { isOffensive, MAX_SAFETY_STRIKES } from "../utils/safety-guard.js";
 
+// ARCH-001 / TST-002: structured responsibility markers.
+// Tag | Responsibility
+// [ORCHESTRATOR_DECISION] | Orchestrator: deciding what to do next (phase, tool, report)
+// [PHASE_DECISION]         | Orchestrator: stay-in-phase or advance with explicit reason
+// [STATE_WRITE]            | State Updater: persisting an approved field value
+// [RETRIEVAL_GATE]         | Orchestrator: allowing or blocking RAG / tool dispatch
+// [REPORT_GATE]            | Orchestrator: evaluating report readiness
+function logOrch(tag: string, payload: Record<string, unknown>): void {
+  try {
+    console.error(JSON.stringify({ tag, ...payload }));
+  } catch {
+    /* never throw from logging */
+  }
+}
+
 function deriveGapCategory(userRating: UserRating | null, requiredProficiency: string): GapCategory | null {
   if (!userRating) return null;
 
@@ -67,19 +82,12 @@ function applyTargetRoleWrite(
     updates.targetRole = incoming;
     return incoming;
   }
-  try {
-    console.error(
-      JSON.stringify({
-        level: "info",
-        event: "target_role_write",
-        from: current,
-        to: incoming,
-        reason,
-      })
-    );
-  } catch {
-    /* never throw from logging */
-  }
+  logOrch("[STATE_WRITE]", {
+    event: "target_role_write",
+    from: current,
+    to: incoming,
+    reason,
+  });
   updates.targetRole = incoming;
   return incoming;
 }
@@ -96,9 +104,10 @@ function mergeOrientationFields(
   // late extraction silently overwrite a value the user already confirmed and
   // that may have advanced the conversation. Exception: target_role is managed
   // separately by applyTargetRoleWrite and is never orientation-locked.
+  // OR-002B (2026-05-03): prefer isCorrection() which reads turn_function first.
   const orientationLocked =
     state.currentPhase !== "orientation" &&
-    state.analyzerOutput?.user_intent !== "correction";
+    !isCorrection(state.analyzerOutput);
 
   if (fields.job_title !== undefined && !orientationLocked) updates.jobTitle = fields.job_title as string;
   if (fields.industry !== undefined && !orientationLocked) updates.industry = fields.industry as string;
@@ -342,12 +351,11 @@ function mergeRoleTargetingFields(
   // confirmed. If the user confirmed their ratings AND 100% of skills are
   // rated, further analyzer extractions for individual skill ratings must be
   // ignored (unless the user is explicitly correcting a rating).
-  // This prevents the analyzer from re-writing confirmed ratings when the
-  // user says "ok" or similar in later turns.
+  // OR-002B (2026-05-03): prefer isCorrection() which reads turn_function first.
   const skillsLocked =
     state.userConfirmedEvaluation &&
     state.skillsAssessmentStatus === "complete" &&
-    state.analyzerOutput?.user_intent !== "correction";
+    !isCorrection(state.analyzerOutput);
 
   // Merge skill ratings
   if (fields.skills && !skillsLocked) {
@@ -397,10 +405,9 @@ function mergeRoleTargetingFields(
     fields.priorities !== undefined ||
     fields.focus_first !== undefined ||
     fields.top_priority !== undefined;
-  // Change 6 (May 01 2026): prefer LLM user_intent over hardcoded word-list.
-  const userIsConfirming =
-    state.analyzerOutput?.user_intent === "confirm" ||
-    (state.analyzerOutput?.user_intent == null && isConfirmation(state.userMessage));
+  // OR-002 / CONF-001 (2026-05-03): resolveUserConfirming prefers turn_function,
+  // falls back to user_intent (Change 6), then isConfirmation() (CONF-001 backstop).
+  const userIsConfirming = resolveUserConfirming(state.analyzerOutput, state.userMessage);
 
   if (
     updates.learningNeedsComplete !== true &&
@@ -555,6 +562,50 @@ function mergePlanningFields(
   if (fields.shift_intent === true) updates.shiftIntent = true;
 
   return updates;
+}
+
+// OR-001 / OR-002 / CONF-001 (2026-05-03): Orchestrator confirmation resolution.
+// Priority:
+//   1. turn_function == "confirm" AND referenced_prior_prompt == true  (AN-001 contextual gate)
+//   2. user_intent == "confirm"  (Change 6 legacy field)
+//   3. isConfirmation(userMessage)  (CONF-001: kept ONLY as narrow fallback for learningNeedsComplete gate)
+// Callers outside learningNeedsComplete/planBlock should use resolveUserConfirming.
+function resolveUserConfirming(
+  analyzerOutput: AgentStateType["analyzerOutput"] | null | undefined,
+  userMessage: string | null | undefined,
+): boolean {
+  if (!analyzerOutput) return isConfirmation(userMessage);
+  const ao = analyzerOutput as unknown as Record<string, unknown>;
+  // Prefer AN-001 turn_function when present
+  if (ao.turn_function !== undefined && ao.turn_function !== null) {
+    return ao.turn_function === "confirm" && ao.referenced_prior_prompt === true;
+  }
+  // Fall back to Change 6 user_intent
+  if (analyzerOutput.user_intent !== undefined && analyzerOutput.user_intent !== null) {
+    return analyzerOutput.user_intent === "confirm";
+  }
+  // CONF-001 backstop — only for legacy turns without new fields
+  return isConfirmation(userMessage);
+}
+
+// OR-002 (2026-05-03): correction signal prefers turn_function over user_intent.
+function isCorrection(analyzerOutput: AgentStateType["analyzerOutput"] | null | undefined): boolean {
+  if (!analyzerOutput) return false;
+  const ao = analyzerOutput as unknown as Record<string, unknown>;
+  if (ao.turn_function !== undefined && ao.turn_function !== null) {
+    return ao.turn_function === "correct";
+  }
+  return analyzerOutput.user_intent === "correction";
+}
+
+// OR-002 (2026-05-03): role-switch detection prefers turn_function over heuristics.
+function isRoleSwitchSignal(analyzerOutput: AgentStateType["analyzerOutput"] | null | undefined): boolean {
+  if (!analyzerOutput) return false;
+  const ao = analyzerOutput as unknown as Record<string, unknown>;
+  if (ao.turn_function !== undefined && ao.turn_function !== null) {
+    return ao.turn_function === "switch_role";
+  }
+  return false;
 }
 
 function isConfirmation(message: string | null | undefined): boolean {
@@ -760,7 +811,10 @@ function determineTransition(
   const phase = state.currentPhase;
   const registry = config.phaseRegistry.phases[phase];
 
+  logOrch("[ORCHESTRATOR_DECISION]", { event: "evaluate_transition", phase, required_complete: analyzerOutput?.required_complete ?? false });
+
   if (!registry || registry.allowed_targets.length === 0) {
+    logOrch("[PHASE_DECISION]", { decision: "continue", phase, reason: "no_allowed_targets_in_registry" });
     return { nextPhase: null, transitionDecision: "continue" };
   }
 
@@ -769,10 +823,12 @@ function determineTransition(
     if (phase === "orientation" && checkOrientationComplete(state, fieldUpdates)) {
       const goal = fieldUpdates.sessionGoal ?? state.sessionGoal;
       const target = goal === "explore_options" ? "exploration_career" : "exploration_role_targeting";
+      logOrch("[PHASE_DECISION]", { decision: "transition", from: phase, to: target, reason: "orientation_complete", session_goal: goal });
       return { nextPhase: target, transitionDecision: "transition" };
     }
 
     if (phase === "exploration_career") {
+      logOrch("[PHASE_DECISION]", { decision: "transition", from: phase, to: "exploration_role_targeting", reason: "exploration_career_required_complete" });
       return { nextPhase: "exploration_role_targeting", transitionDecision: "transition" };
     }
 
@@ -790,16 +846,20 @@ function determineTransition(
       const switchCtx = fieldUpdates.roleSwitchContext ?? state.roleSwitchContext;
       const switchAcked = fieldUpdates.roleSwitchAcknowledged ?? state.roleSwitchAcknowledged;
       if (switchCtx && !switchAcked) {
+        logOrch("[PHASE_DECISION]", { decision: "continue", phase, reason: "role_switch_rehydration_recap_pending" });
         return { nextPhase: null, transitionDecision: "continue" };
       }
       if (allAssessed && learningDone && evalConfirmed) {
+        logOrch("[PHASE_DECISION]", { decision: "transition", from: phase, to: "planning", reason: "skills_100pct_learning_done_eval_confirmed", assessed, total: skills.length });
         return { nextPhase: "planning", transitionDecision: "transition" };
       }
+      logOrch("[PHASE_DECISION]", { decision: "continue", phase, reason: "prerequisites_incomplete", assessed, total: skills.length, learningDone, evalConfirmed });
     }
   }
 
   // Mid-session track transition: exploration_career → exploration_role_targeting
   if (phase === "exploration_career" && analyzerOutput?.phase_suggestion === "exploration_role_targeting") {
+    logOrch("[PHASE_DECISION]", { decision: "transition", from: phase, to: "exploration_role_targeting", reason: "mid_session_track_switch_via_phase_suggestion" });
     return { nextPhase: "exploration_role_targeting", transitionDecision: "transition" };
   }
 
@@ -813,13 +873,16 @@ function determineTransition(
       const learningDone = state.learningNeedsComplete;
       const evalConfirmed = state.userConfirmedEvaluation;
       if (!allAssessed || !learningDone || !evalConfirmed) {
+        logOrch("[PHASE_DECISION]", { decision: "continue", phase, reason: "max_turns_but_prerequisites_incomplete", rated: ratedCount, total: skills.length, learningDone, evalConfirmed });
         return { nextPhase: null, transitionDecision: "continue" };
       }
     }
     const target = registry.allowed_targets[0];
+    logOrch("[PHASE_DECISION]", { decision: target ? "transition" : "continue", from: phase, to: target ?? null, reason: "max_turns_reached" });
     return { nextPhase: target ?? null, transitionDecision: target ? "transition" : "continue" };
   }
 
+  logOrch("[PHASE_DECISION]", { decision: "continue", phase, reason: "no_transition_condition_met" });
   return { nextPhase: null, transitionDecision: "continue" };
 }
 
@@ -877,11 +940,28 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
     const fields = state.analyzerOutput.extracted_fields;
     const phase = state.currentPhase;
 
+    const ao = state.analyzerOutput as unknown as Record<string, unknown>;
+    const isConfirmingCue = resolveUserConfirming(state.analyzerOutput, state.userMessage);
+    const isCorrectionCue = isCorrection(state.analyzerOutput);
+    const isSwitchCue = isRoleSwitchSignal(state.analyzerOutput);
+    logOrch("[ORCHESTRATOR_DECISION]", {
+      event: "dispatch_field_merge",
+      phase,
+      turn_function: ao.turn_function ?? null,
+      user_intent: state.analyzerOutput?.user_intent ?? null,
+      requires_gate: ao.requires_orchestrator_gate ?? null,
+      is_confirming: isConfirmingCue,
+      is_correction: isCorrectionCue,
+      is_role_switch: isSwitchCue,
+      field_count: Object.keys(fields ?? {}).length,
+    });
+
     if (phase === "orientation") fieldUpdates = mergeOrientationFields(state, fields);
     else if (phase === "exploration_career") fieldUpdates = mergeExplorationFields(state, fields);
     else if (phase === "exploration_role_targeting") fieldUpdates = mergeRoleTargetingFields(state, fields);
     else if (phase === "planning") fieldUpdates = mergePlanningFields(state, fields);
 
+    logOrch("[STATE_WRITE]", { event: "field_merge_complete", phase, fields_written: Object.keys(fieldUpdates) });
     Object.assign(updates, fieldUpdates);
   }
 
@@ -1049,6 +1129,7 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
     effectiveSkills.length === 0
   ) {
     updates.needsRoleConfirmation = true;
+    logOrch("[RETRIEVAL_GATE]", { decision: "blocked", reason: "no_confirmed_role", phase: effectivePhase });
   } else if (effectiveRole) {
     // Clear the flag once the user has provided a role.
     updates.needsRoleConfirmation = false;
@@ -1059,6 +1140,7 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
     effectiveRole &&
     effectiveSkills.length === 0
   ) {
+    logOrch("[RETRIEVAL_GATE]", { decision: "allowed", reason: "confirmed_role_skills_empty", role: effectiveRole, phase: effectivePhase });
     // G4: dispatch via the explicit tool executor instead of inline RAG.
     // The orchestrator (this node) decides *whether* to call the tool;
     // `runTool` owns *how* it executes and surfaces Skill 8 error codes.
@@ -1135,12 +1217,20 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
   // the report was actually generated for. If the pivot already cleared
   // updates.reportGeneratedForRole (role switch detected this same turn),
   // the role check fails and the pop-up is suppressed.
-  if (
+  const activeReportRole = updates.targetRole ?? state.targetRole;
+  const reportComplete =
     state.currentPhase === "planning" &&
     state.reportGenerated &&
     state.reportGeneratedForRole &&
-    state.reportGeneratedForRole === (updates.targetRole ?? state.targetRole)
-  ) {
+    state.reportGeneratedForRole === activeReportRole;
+  logOrch("[REPORT_GATE]", {
+    decision: reportComplete ? "complete" : "not_complete",
+    phase: state.currentPhase,
+    reportGenerated: state.reportGenerated ?? false,
+    reportGeneratedForRole: state.reportGeneratedForRole ?? null,
+    activeReportRole: activeReportRole ?? null,
+  });
+  if (reportComplete) {
     updates.transitionDecision = "complete";
   }
 
@@ -1198,11 +1288,11 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
   // responsible for surfacing only one unconfirmed block at a time.
   // Change 5 P0 (Apr 14 2026): uses `advanceNextPlanBlock` helper so the
   // same code path is reachable from mergePlanningFields tests.
-  // Change 6 (May 01 2026): use LLM-classified intent for plan block
-  // advancement. Falls back to regex only when analyzerOutput is absent.
-  const planBlockUserConfirming =
-    state.analyzerOutput?.user_intent === "confirm" ||
-    (state.analyzerOutput?.user_intent == null && isConfirmation(state.userMessage));
+  // OR-002 / CONF-001 (2026-05-03): resolveUserConfirming prefers turn_function
+  // (requires referenced_prior_prompt=true for confirm), falls back to user_intent,
+  // then isConfirmation() backstop. Prevents bare "ok" after a bridge statement
+  // from advancing the plan block (AN-005 / Change 9 regression guard).
+  const planBlockUserConfirming = resolveUserConfirming(state.analyzerOutput, state.userMessage);
 
   const existingBlocks = updates.planBlocks ?? state.planBlocks ?? [];
   if (state.currentPhase === "planning" && existingBlocks.length > 0) {
@@ -1263,13 +1353,13 @@ function enforceStateInvariants(
     updates.userConfirmedEvaluation = false;
     updates.planBlocks = [];
     updates.reportGenerated = false;
-    console.error(JSON.stringify({
-      level: "warn",
+    logOrch("[STATE_WRITE]", {
       event: "state_invariant_repaired",
       invariant: "active_target_role_matches_skill_assessment",
       targetRole: activeRole,
       skillsTargetRole: skillsRole,
-    }));
+      action: "cleared_stale_skill_state",
+    });
   }
 
   const phase = updates.currentPhase ?? state.currentPhase;
@@ -1280,11 +1370,11 @@ function enforceStateInvariants(
       updates.reportGenerated = false;
       if (!updates.currentPhase) updates.currentPhase = "exploration_role_targeting";
       updates.transitionDecision = "continue";
-      console.error(JSON.stringify({
-        level: "warn",
+      logOrch("[STATE_WRITE]", {
         event: "state_invariant_repaired",
         invariant: "plan_requires_complete_skill_ratings",
-      }));
+        action: "blocked_report_and_reverted_phase",
+      });
     }
   }
 }

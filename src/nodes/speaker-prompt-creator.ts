@@ -274,6 +274,57 @@ function getCrossPhaseContext(state: AgentStateType): string {
   return lines.length > 0 ? lines.join("\n") : "(no cross-phase context)";
 }
 
+// OR-003 / SP-002 (2026-05-03): detect conversation loop and inject bounded-options
+// guidance so the speaker offers choices instead of repeating the same question.
+// Triggered when the Analyzer classifies the turn as "invalid" or "uncertain"
+// (AN-001C/AN-001D), or when phaseTurnNumber has advanced significantly with
+// no progress on the key missing field.
+function getLoopPreventionBlock(state: AgentStateType): string {
+  const ao = state.analyzerOutput as unknown as Record<string, unknown> | null;
+  const turnFn = ao?.turn_function as string | null | undefined;
+
+  const isInvalidOrUncertain =
+    turnFn === "invalid" || turnFn === "uncertain";
+  const phase = state.currentPhase;
+
+  // Detect stall: in role targeting, high turn count but skills not started
+  const maxTurns = (phase === "exploration_role_targeting" ? 20 : 10);
+  const highTurnCount = state.phaseTurnNumber >= Math.floor(maxTurns * 0.6);
+  const skillsStalled =
+    phase === "exploration_role_targeting" &&
+    state.skills.length > 0 &&
+    state.skills.filter((s) => s.user_rating !== null).length === 0 &&
+    highTurnCount;
+
+  const orientationStalled =
+    phase === "orientation" &&
+    highTurnCount &&
+    (state.jobTitle === null || state.sessionGoal === null);
+
+  if (!isInvalidOrUncertain && !skillsStalled && !orientationStalled) return "";
+
+  const lines: string[] = [
+    "",
+    "LOOP PREVENTION (OR-003 / SP-002): The user's response did not satisfy the required field, or the conversation has stalled.",
+    "INSTRUCTION: Do NOT repeat the same question verbatim.",
+  ];
+
+  if (phase === "orientation" && state.sessionGoal === null) {
+    lines.push("Offer exactly two bounded options: (A) Explore career directions, (B) Assess readiness for a specific role. Ask the user to pick one.");
+  } else if (phase === "exploration_role_targeting" && !state.targetRole) {
+    lines.push("The user has not named a target role. Offer 2–3 concrete example roles based on their background (job title, industry, interests) as suggestions, and ask which resonates or if they have something else in mind.");
+  } else if (phase === "exploration_role_targeting" && state.skills.length > 0) {
+    const unrated = state.skills.filter((s) => s.user_rating === null);
+    if (unrated.length > 0) {
+      lines.push(`Ask the user to rate just ONE skill this turn: "${unrated[0].skill_name}". Present the four options: beginner / intermediate / advanced / expert.`);
+    }
+  } else {
+    lines.push("Summarize what you already know, then offer 2–4 bounded choices for the most important missing piece of information. Do NOT ask an open-ended question.");
+  }
+
+  return lines.join("\n");
+}
+
 function getTurnTypeInstructions(turnType: string): string {
   const instructions: Record<string, string> = {
     first_turn: "This is the very first turn. Deliver the opening message for this phase.",
@@ -379,8 +430,10 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
     ? state.analyzerOutput.notes
     : "(none)";
 
+  // OR-003 / SP-002: loop detection block (injected first so urgency context below can add to it)
+  let additionalContext = getLoopPreventionBlock(state);
+
   // Add urgency context when approaching max turns with incomplete skills
-  let additionalContext = "";
   if (state.currentPhase === "exploration_role_targeting") {
     const maxTurns = config.phaseRegistry.phases["exploration_role_targeting"]?.max_turns ?? 20;
     if (state.phaseTurnNumber >= maxTurns - 2) {

@@ -93,6 +93,26 @@ For every planning-phase turn, you MUST emit `user_intent` in the JSON output.
 - If the message is a bare filler with no question context ("hmm", standalone "ok" when no question was asked) → emit `"user_intent": "filler"`.
 This field drives plan block advancement in the orchestrator. A wrong classification will cause the plan to loop or skip.
 
+## Turn Function Classification (AN-001 — required for this phase)
+
+Use `turn_function` for planning-phase cue disambiguation:
+
+| User message | Prior assistant turn | turn_function | referenced_prior_prompt |
+|---|---|---|---|
+| "ok" / "yes" | Plan block presented + "Does this look right?" | "confirm" | true |
+| "ok" | Block narrated but no question at end | "acknowledge" | false |
+| "can we generate the report?" | Any | "request_report" | false |
+| "what's the expected salary?" | Any | "request_evidence" | false |
+| "actually, let's look at PM instead" | Any | "switch_role" | false |
+| "can you change the timeline to 6 months?" | Any | "correct" | false |
+
+Key rule for this phase: if the prior assistant message did NOT end with a direct question
+or choice prompt, treat "ok" / "sure" as "acknowledge" with `referenced_prior_prompt: false`.
+This prevents plan block advancement from a content-free bridge turn.
+
+Emit `reason` explaining why the classification was chosen based on the prior assistant message and
+active plan block state. Required for TST-002-CUE trace audit.
+
 ## Edge Cases
 - If user requests modifications to the plan: note specific change requests in "notes"
 - If user asks to export/download: note in "notes" for speaker to offer export

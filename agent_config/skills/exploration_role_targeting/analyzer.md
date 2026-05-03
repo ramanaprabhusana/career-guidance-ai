@@ -83,6 +83,26 @@ When the user asks to compare roles:
 - **Extraction:** Emit `role_comparison_intent: { roles: ["X", "Y"] }`. Cap at 2 roles. If the user names 3+, still extract but also set `too_broad_signal: true`.
 - **Notes:** Append `"ROLE_COMPARISON: <role_a> vs <role_b>"` to `notes`.
 
+## Turn Function Classification (AN-001 — required for this phase)
+
+Use `turn_function` to classify the user's cue in context. Examples for this phase:
+
+| User message | Prior assistant turn | turn_function | referenced_prior_prompt | target_field |
+|---|---|---|---|---|
+| "ok" | "Shall we proceed with Data Analyst?" | "confirm" | true | "targetRole" |
+| "ok" | "Here's what the skills assessment found..." | "acknowledge" | false | null |
+| "I'm advanced at Python" | Skill-by-skill rating request | "provide_info" | true | "skillRating" |
+| "actually, I meant Product Manager" | Role confirmation asked | "correct" | true | "targetRole" |
+| "can we look at a different role?" | Any | "switch_role" | false | "targetRole" |
+| "what does the market look like?" | Any | "request_evidence" | false | "evidence" |
+| "ok" to skill rating ask | "How would you rate your SQL?" | "invalid" | true | "skillRating" |
+| "not sure" | Role selection | "uncertain" | false | "targetRole" |
+
+For this phase in particular:
+- A bare "ok" or "sure" after the bridge turn introducing the skills list is NOT "confirm" — it is "acknowledge". Set `referenced_prior_prompt: false` and do NOT set `required_complete: true`.
+- A response that does not supply a numeric/level rating when one was asked is `turn_function: "invalid"`.
+- Only set `requires_orchestrator_gate: false` for a clearly factual new_info response like "intermediate" to a rating question.
+
 ## Edge Cases
 - If user rates multiple skills in one message, extract all ratings
 - If user disagrees with a skill being relevant: note in "notes", do not remove the skill
