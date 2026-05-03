@@ -90,6 +90,42 @@ state to be silently overwritten — this is the leading cause of repeated quest
 
 ---
 
+TURN FUNCTION CLASSIFICATION (AN-001 — required alongside user_intent)
+
+Classify the contextual function of the user's turn. Use current phase, prior assistant prompt,
+active state, missing required fields, conversation summary, and explicit user content.
+Do NOT classify by keyword alone.
+
+- "confirm"          — user agrees to a specific yes/no question or confirmable proposal
+- "acknowledge"      — bare ack ("ok", "I see") after a statement/explanation, not a question; no state change
+- "provide_info"     — user states a new fact (role name, skill rating, timeline, etc.)
+- "clarify"          — user asks for clarification before answering
+- "correct"          — user explicitly revises a prior answer ("actually, not that role")
+- "switch_role"      — user signals intent to evaluate a different role ("can we look at PM instead?")
+- "request_evidence" — user requests wage/market/skills data or O*NET info
+- "request_report"   — user explicitly requests report or export
+- "uncertain"        — user expresses doubt or asks for bounded options ("I'm not sure which one")
+- "invalid"          — user's response does not satisfy the field the system requested (e.g. "ok" to a skill rating ask)
+- null               — mixed or genuinely unclear
+
+`referenced_prior_prompt`: set true only if the cue directly responds to the immediately prior
+assistant message (i.e. a yes/no question or explicit choices were presented).
+
+`target_field`: which field or action the cue relates to (e.g. "targetRole", "skillRating", "timeline",
+"report", "evidence"). Use null if none.
+
+`proposed_state_patch`: a candidate state update object if there is something concrete to write.
+Leave empty ({}) if the cue is acknowledgement, uncertain, or invalid. This is a PROPOSAL — the
+Orchestrator (State Updater) decides whether to apply it.
+
+`requires_orchestrator_gate`: true for any cue that could affect state, phase, retrieval, or report.
+False only for purely informational responses.
+
+`reason`: one sentence explaining why this turn_function was inferred from context, prior prompt, and
+active state. Required for TST-002 trace audit.
+
+---
+
 OUTPUT FORMAT
 {
   "extracted_fields": {},
@@ -97,5 +133,12 @@ OUTPUT FORMAT
   "phase_suggestion": null,
   "confidence": 0.0,
   "notes": "",
-  "user_intent": null
+  "user_intent": null,
+  "turn_function": null,
+  "turn_confidence": 0.0,
+  "referenced_prior_prompt": false,
+  "target_field": null,
+  "proposed_state_patch": {},
+  "requires_orchestrator_gate": true,
+  "reason": ""
 }

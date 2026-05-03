@@ -67,6 +67,21 @@ export interface SkillAssessment {
   skill_type: SkillType;
 }
 
+// AN-001 (DEMO_REQUIREMENTS_MATRIX_May02): fine-grained contextual turn functions.
+// More precise than user_intent; covers role-switch and evidence/report requests.
+export type TurnFunction =
+  | "confirm"          // user agrees with a specific confirmable assistant prompt
+  | "acknowledge"      // bare ack with no actionable intent (e.g. "ok" after explanation)
+  | "provide_info"     // user states a new fact
+  | "clarify"          // user asks for clarification
+  | "correct"          // user revises a prior answer
+  | "switch_role"      // user signals intent to evaluate a different role
+  | "request_evidence" // user asks for wage/market/skills data
+  | "request_report"   // user asks for report/export
+  | "uncertain"        // user expresses doubt, needs help deciding
+  | "invalid"          // user's response does not satisfy the required field
+  | null;
+
 export interface AnalyzerOutput {
   extracted_fields: Record<string, unknown>;
   required_complete: boolean;
@@ -82,6 +97,17 @@ export interface AnalyzerOutput {
   // "correction" — user changes a prior answer
   // null       — mixed or unclear
   user_intent?: "confirm" | "filler" | "question" | "new_info" | "correction" | null;
+
+  // AN-001 / CONF-003 (2026-05-03, additive extension, demo stabilization).
+  // All fields optional — backward compat: existing logic uses user_intent when these are absent.
+  // Orchestrator gates prefer turn_function when present (Phase 3 wiring).
+  turn_function?: TurnFunction;
+  turn_confidence?: number;           // 0.0–1.0 confidence in turn_function classification
+  referenced_prior_prompt?: boolean;  // true if cue directly responds to prior assistant question
+  target_field?: string | null;       // which field or action the cue relates to
+  proposed_state_patch?: Record<string, unknown>; // candidate state update — NOT an actual write
+  requires_orchestrator_gate?: boolean; // true if Orchestrator must validate before action
+  reason?: string;                    // brief explanation for traceability (TST-002)
 }
 
 export interface LearningResourceItem {

@@ -82,6 +82,29 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 
 ---
 
+## v2.2.0 — Demo Stabilization (Change 9 implementation, Phase 8–9)
+**Date:** 2026-05-03
+**Branch:** `claude/determined-dubinsky-dc48dd`
+**Focus:** DEMO_REQUIREMENTS_MATRIX_May02 — contextual cue interpretation, structured trace audit, loop prevention, test coverage (TST-001, TST-002)
+
+| When | Area / Part | What Changed | Requirement IDs | With What |
+|------|------------|-------------|-----------------|-----------|
+| 2026-05-03 | `logs/` | Created `logs/` subfolder with `Audit_log.md`, `ERROR_TRACKING_LOG.md`, `Conflict_log.md` — seeded with correct table headers, 3 conflict entries, and 3 error entries | AUD-001, CONFLICT-001, LOG-001 | New files |
+| 2026-05-03 | `src/state.ts` | Added `TurnFunction` discriminated union type (10 values + null); extended `AnalyzerOutput` with 7 optional AN-001 fields: `turn_function`, `turn_confidence`, `referenced_prior_prompt`, `target_field`, `proposed_state_patch`, `requires_orchestrator_gate`, `reason` | AN-001, AN-002, CONF-003 | Additive — existing fields (`extracted_fields`, `required_complete`, `phase_suggestion`, `confidence`, `notes`) unchanged |
+| 2026-05-03 | `src/nodes/state-updater.ts` | Added `logOrch(tag, payload)` helper emitting structured JSON to stderr for all 5 trace markers: `[ORCHESTRATOR_DECISION]`, `[PHASE_DECISION]`, `[STATE_WRITE]`, `[RETRIEVAL_GATE]`, `[REPORT_GATE]` | ARCH-001, ST-001A, CONF-002 | No runtime logic change — observability only |
+| 2026-05-03 | `src/nodes/state-updater.ts` | Added `resolveUserConfirming(analyzerOutput, userMessage)` with 3-tier priority: `turn_function=confirm + referenced_prior_prompt=true` → `user_intent=confirm` → `isConfirmation()` backstop | AN-001, OR-001, CONF-001 | Replaced scattered inline `isConfirmation()` calls and `user_intent` checks in merge functions |
+| 2026-05-03 | `src/nodes/state-updater.ts` | Added `isCorrection(analyzerOutput)` and `isRoleSwitchSignal(analyzerOutput)` helpers reading `turn_function` first, `user_intent` as fallback | AN-001, ST-001, OR-002 | Replaced `user_intent !== "correction"` literal string comparisons |
+| 2026-05-03 | `src/nodes/state-updater.ts` | Wired `turn_function` into `determineTransition()` — every return branch now emits `[PHASE_DECISION]` with reason; `mergeOrientationFields`, `mergeRoleTargetingFields`, and `stateUpdater` main use the new gate helpers | OR-001, OR-002, ST-001, ST-001A, CONF-001 | Replaces direct `isConfirmation()` and `user_intent` checks at gate points |
+| 2026-05-03 | `src/nodes/speaker-prompt-creator.ts` | Added `getLoopPreventionBlock(state)` that detects `turn_function=invalid/uncertain` or skill/orientation stall and injects bounded-option choices into speaker context | OR-003, SP-002, PH-001, PH-002 | New function — wired as first element of `additionalContext` in `speakerPromptCreator` |
+| 2026-05-03 | `agent_config/prompts/analyzer_template.md` | Added TURN FUNCTION CLASSIFICATION section with instructions for all 10 `turn_function` values, `referenced_prior_prompt`, `target_field`, `proposed_state_patch`, `requires_orchestrator_gate`, `reason`; extended OUTPUT FORMAT JSON | AN-001, AN-002, CONF-003 | Additive — existing schema fields preserved |
+| 2026-05-03 | `agent_config/skills/exploration_role_targeting/analyzer.md` | Added turn_function classification table with role-targeting-specific cue examples and key rule: bare "ok" after bridge = acknowledge, not confirm | AN-001, SK-002 | Additive section |
+| 2026-05-03 | `agent_config/skills/planning/analyzer.md` | Added turn_function classification section with planning-phase examples; required `reason` field output for TST-002-CUE trace audit | AN-001, CONF-002 | Additive section |
+| 2026-05-03 | `src/tests/golden-path.test.ts` | Extended with 40 new assertions: 8 TST-001 groups (CUE-01/02/03/04, ROLE-SWITCH/RESET, SK-DELTA, RAG-BLOCK/PERF-NOTOOL, PHASE-STAY/MOVE, RPT-READY/NOTREADY/ROLE2/UI, CONFIRM 3-tier, MEM-RETURN) + TST-002 trace audit group (10 assertions verifying all 5 log markers) | TST-001, TST-002, AUD-001 | Grew from 14 assertions (Change 5) to 54 total |
+| 2026-05-03 | `logs/Audit_log.md` | Added Phase 9 requirement rows for all P0 groups; updated merge readiness checklist | AUD-001, LOG-001 | Updated |
+| 2026-05-03 | `CHANGELOG_TECH.md`, `CHANGELOG_FEATURES.md` | Added v2.2.0 requirement-linked changelog rows per matrix §11.1 and §11.2 | LOG-001 | This entry |
+
+---
+
 ## v2.0.0
 **Date:** 2026-04-02
 **Architecture diagram:** [docs/architecture/architecture-2.0.0.mmd](docs/architecture/architecture-2.0.0.mmd)
