@@ -1,0 +1,12 @@
+# Target architecture vs current architecture
+
+| Objective | Target (skills/spec intent) | Current status (`origin/main` @ `0a8e37a`, 2026-04-17) | Alignment | Evidence |
+|---|---|---|---|---|
+| Runtime topology | Analyzer/Speaker orchestration with deterministic state merge and controlled routing | `parallelTurn` + `stateUpdater` + conditional `summarizer`; deterministic merge retained, with parallelized turn execution | Strong | `src/graph.ts`, `src/nodes/parallel-turn.ts`, `src/nodes/state-updater.ts` |
+| Config-first control plane | `agent_config` drives phase behavior, prompts, and rules | `phase_registry`, prompt templates, phase skills, and orchestrator rules actively used | Strong | `agent_config/phase_registry.json`, `agent_config/prompts/`, `agent_config/skills/`, `agent_config/orchestrator_rules.md` |
+| Memory model | Turn history + rolling summary + persistent profile hooks | Session/state persistence + summary node + profile DB and returning-user resume/fresh-start support | Strong | `src/state.ts`, `src/nodes/summarizer-node.ts`, `src/server.ts`, `src/db/profile-db.ts` |
+| Tool-mediated research | Orchestrator-approved external retrieval/actions | Explicit tool dispatch (`retrieve_skills_for_role`, `web_search`, `find_courses`), plus RAG rerank improvements | Strong | `src/nodes/tool-executor.ts`, `src/utils/rag.ts`, commit `1e5e5b5` |
+| Export/report fidelity | Evidence-backed PDF/HTML output with consistent UX | Report parity and gap-table rendering fixed in latest commits | Strong | `src/report/pdf-generator.ts`, `src/report/html-generator.ts`, commits `f5b86b9`, `0a8e37a` |
+| ReAct-style iterative loop | Multi-step thought/action/observe loop in one turn (optional advanced pattern) | Scoped ReAct executor added but not yet full default multi-iteration control path | Partial | `src/nodes/react-executor.ts`, commit `1e5e5b5` |
+| Quality and delivery gates | Config validation + tests + CI for regression safety | CI and config checks exist; targeted golden-path tests added, still not exhaustive end-to-end matrix | Partial | `scripts/validate-config.ts`, `.github/workflows/ci.yml`, `src/tests/golden-path.test.ts` |
+| Remaining architectural gap | Full production-grade recovery matrix and broader evaluation harness | Error catalog + typed errors present; recovery UX/coverage still evolving | Partial | `agent_config/error_catalog.md`, `src/utils/errors.ts` |
