@@ -4,6 +4,25 @@ import { config } from "../config.js";
 import type { SkillAssessment, SkillType } from "../state.js";
 import { AgentError } from "./errors.js";
 
+// --- SOS P0 fix (May 04 2026): role alias map for demo-safe retrieval ---
+// Maps user-facing role names (lowercase) → nearest retrievable O*NET title.
+// Used ONLY inside retrieveSkillsForRole for the O*NET fetch and local fuzzy match.
+// Does NOT affect state.targetRole, cache keys, or report labels.
+// Evidence: "Social Media Strategist" scores 0.0 word overlap vs all 10 cached occupations
+// → returns empty skills when O*NET live API is unavailable (RAG-001 / SK-001).
+export const ROLE_RETRIEVAL_ALIASES: Record<string, string> = {
+  "social media strategist": "Marketing Managers",
+  "social media manager": "Marketing Managers",
+  "social media specialist": "Public Relations Specialists",
+  "content strategist": "Marketing Managers",
+  "brand strategist": "Marketing Managers",
+  "digital marketing manager": "Marketing Managers",
+  "digital marketing specialist": "Marketing Managers",
+  "content creator": "Writers and Authors",
+  "copywriter": "Writers and Authors",
+  "ux writer": "Technical Writers",
+};
+
 // --- Soft skill classification (O*NET taxonomy) ---
 const SOFT_SKILLS = new Set([
   "critical thinking", "active learning", "complex problem solving",
@@ -334,11 +353,25 @@ export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAs
     return cached.map((s) => ({ ...s }));
   }
 
+  // SOS P0 fix (May 04 2026): resolve alias for roles not covered by the local
+  // cache. The aliased role is used ONLY for O*NET fetch + local fuzzy match.
+  // The original targetRole is kept for the cache key and all log fields so the
+  // user-facing role is never surfaced as "Marketing Managers" etc. (RAG-001 / SK-001).
+  const normalizedRole = targetRole.trim().toLowerCase();
+  const aliasedRole = ROLE_RETRIEVAL_ALIASES[normalizedRole] ?? targetRole;
+  if (aliasedRole !== targetRole) {
+    console.log(JSON.stringify({
+      event: "RAG_ALIAS_RESOLVED",
+      displayRole: targetRole,
+      retrievalRole: aliasedRole,
+    }));
+  }
+
   let result: SkillAssessment[] = [];
   // Try live O*NET API first (v2: API key in ONET_USERNAME; see services/onet.ts)
   if (process.env.ONET_USERNAME) {
     try {
-      const liveResult = await liveOnetSkills(targetRole);
+      const liveResult = await liveOnetSkills(aliasedRole);
       if (liveResult && liveResult.skills.length > 0) {
         console.log(`[RAG] Live O*NET hit: ${liveResult.title} (${liveResult.socCode})`);
         const allSkills: SkillAssessment[] = liveResult.skills.map((skill) => ({
@@ -398,8 +431,10 @@ export async function retrieveSkillsForRole(targetRole: string): Promise<SkillAs
   }
 
   // Fall back to local cached data if live returned nothing.
+  // Use aliasedRole so roles not in the local cache (e.g. "Social Media Strategist")
+  // resolve through their nearest O*NET equivalent (e.g. "Marketing Managers").
   if (result.length === 0) {
-    result = retrieveSkillsFromLocal(targetRole);
+    result = retrieveSkillsFromLocal(aliasedRole);
   }
 
   // Evict oldest entry when over cap (Map preserves insertion order).
