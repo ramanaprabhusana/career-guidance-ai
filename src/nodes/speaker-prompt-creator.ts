@@ -493,10 +493,41 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
     recent_turns: getRecentTurns(state.conversationHistory),
   });
 
+  // Change 10 (SP-003 / OR-003, 2026-05-03): the generic TASK instruction at the
+  // end of speaker_template.md ("smoothly conclude") overrides the MANDATORY
+  // block-by-block delivery instruction in planning/speaker.md because LLMs
+  // weight end-of-prompt text more heavily. Fix: append the next unconfirmed plan
+  // block AFTER populateTemplate so this override is always the last text the LLM
+  // reads, guaranteeing the block content is presented before anything else.
+  let finalPrompt = prompt;
+  if (state.currentPhase === "planning") {
+    const nextPlanBlock = (state.planBlocks ?? []).find((b) => !b.confirmed) ?? null;
+    if (nextPlanBlock) {
+      finalPrompt += [
+        "",
+        "## MANDATORY OVERRIDE — PLAN BLOCK DELIVERY",
+        "IGNORE the generic TASK section above for this turn. Your response MUST start with the plan block content below.",
+        "Do NOT write any sentence before the block content. Do NOT say 'here is your plan', 'I am preparing', or any similar promise.",
+        "",
+        `**${nextPlanBlock.label}**`,
+        nextPlanBlock.content,
+        "",
+        "End your message with exactly this question: 'Does this look right, or would you like to adjust anything?'",
+      ].join("\n");
+    } else if (Array.isArray(state.planBlocks) && state.planBlocks.length > 0) {
+      finalPrompt += [
+        "",
+        "## MANDATORY OVERRIDE — ALL PLAN BLOCKS CONFIRMED",
+        "All plan sections have been confirmed. Your response MUST offer to generate the PDF career plan report.",
+        "Say something like: 'Your full plan is ready. Would you like me to generate a PDF report you can download?'",
+      ].join("\n");
+    }
+  }
+
   // Change 4 (BR-9 §4E): after the speaker prompt includes the role-switch
   // recap instruction, mark the switch as acknowledged so the next turn's
   // `determineTransition` guard releases the planning-phase hold.
-  const updates: Partial<AgentStateType> = { speakerPrompt: prompt };
+  const updates: Partial<AgentStateType> = { speakerPrompt: finalPrompt };
   if (state.roleSwitchContext && !state.roleSwitchAcknowledged) {
     updates.roleSwitchAcknowledged = true;
   }
