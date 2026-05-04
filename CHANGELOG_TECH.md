@@ -105,6 +105,19 @@ All technical, architectural, and infrastructure changes to the Career Guidance 
 
 ---
 
+## v2.2.1 — UAT Bug Fix (Change 10 — Planning Stall, ERR-005)
+**Date:** 2026-05-03
+**Branch:** `claude/determined-dubinsky-dc48dd`
+**Focus:** Fix planning speaker stall — MANDATORY block delivery override appended at end of assembled prompt
+
+| When | Area / Part | What Changed | Requirement IDs | With What |
+|------|------------|-------------|-----------------|-----------|
+| 2026-05-03 | `src/nodes/speaker-prompt-creator.ts` | After `populateTemplate`, append MANDATORY OVERRIDE block at the very end of the prompt when `currentPhase === "planning"` and a next unconfirmed plan block exists; this ensures the LLM sees the block content LAST (highest weight) and cannot default to generic "preparing" promises | SP-003, OR-003 | Fixes ERR-005: planning speaker generating forbidden phrases for 4+ turns despite MANDATORY instruction mid-prompt |
+| 2026-05-03 | `agent_config/skills/planning/speaker.md` | Moved Block-by-Block Delivery section to the TOP of the file (before "Role" section) so it is the first instruction in PHASE SPEAKER SKILL; removed the duplicate mid-file copy | SP-003 | Previously at §9 (end of skill file); now §1 (top priority) |
+| 2026-05-03 | `logs/ERROR_TRACKING_LOG.md` | Added ERR-005 row (planning stall, P1, Rectified) | AUD-001 | UAT-OBS-002 |
+
+---
+
 ## v2.0.0
 **Date:** 2026-04-02
 **Architecture diagram:** [docs/architecture/architecture-2.0.0.mmd](docs/architecture/architecture-2.0.0.mmd)

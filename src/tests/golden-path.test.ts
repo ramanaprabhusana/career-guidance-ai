@@ -24,6 +24,7 @@ import { stateUpdater } from "../nodes/state-updater.js";
 import { fillerGuard, isFillerOrAmbiguous } from "../nodes/filler-guard.js";
 import type { AgentStateType, SkillAssessment } from "../state.js";
 import { computeReadinessStats, getDisplayRole } from "../report/report-helpers.js";
+import { ROLE_RETRIEVAL_ALIASES } from "../utils/rag.js";
 
 let failures = 0;
 function assert(cond: unknown, label: string): void {
@@ -916,6 +917,69 @@ async function main(): Promise<void> {
     assert(
       hasOrchDecision && hasPhaseDecision && hasStateWrite && hasRetrievalGate && hasReportGate,
       "TST-002-COMPLETE: all 5 trace markers present — node responsibilities distinguishable (ARCH-001, CONF-002)",
+    );
+  }
+
+  // =========================================================================
+  // TST-SOS: SOS-mode demo path regressions (May 04 2026)
+  // Requirements: RAG-001, SK-001
+  // Evidence: "Social Media Strategist" scores 0.0 word overlap vs all 10
+  //   cached occupations → empty skills when O*NET live API is unavailable.
+  //   Fix: ROLE_RETRIEVAL_ALIASES map in src/utils/rag.ts (SOS P0, May 04 2026).
+  // =========================================================================
+  console.log("[15] TST-SOS: RAG alias map — Social Media Strategist demo path (RAG-001, SK-001)");
+  {
+    // TST-SOS-001: alias map contains the demo role
+    // req: RAG-001, SK-001
+    const sosAlias = ROLE_RETRIEVAL_ALIASES["social media strategist"];
+    assert(
+      sosAlias === "Marketing Managers",
+      `TST-SOS-001: 'social media strategist' alias → 'Marketing Managers' (RAG-001, SK-001, got ${JSON.stringify(sosAlias)})`,
+    );
+
+    // TST-SOS-002: alias keys are lowercase (normalization is case-sensitive)
+    // Verifies that retrieveSkillsForRole's normalizedRole = role.trim().toLowerCase()
+    // correctly matches the map keys without case ambiguity.
+    // req: RAG-001
+    assert(
+      !("Social Media Strategist" in ROLE_RETRIEVAL_ALIASES),
+      "TST-SOS-002: alias map uses lowercase keys (not title-case) — normalization is applied at call site (RAG-001)",
+    );
+    assert(
+      "social media strategist" in ROLE_RETRIEVAL_ALIASES,
+      "TST-SOS-002: normalized lowercase key present in alias map (RAG-001)",
+    );
+
+    // TST-SOS-003: alias map does NOT cover the mapped target (avoids infinite alias chain)
+    // req: RAG-001
+    assert(
+      !("marketing managers" in ROLE_RETRIEVAL_ALIASES),
+      "TST-SOS-003: alias target 'Marketing Managers' is not itself aliased (no infinite chain) (RAG-001)",
+    );
+
+    // TST-SOS-004: state.targetRole must NOT be rewritten by alias resolution
+    // Alias resolution is internal to rag.ts; stateUpdater must preserve the
+    // user-facing role throughout the pipeline.
+    // req: RAG-001, SK-001, ST-001
+    const sosState = makeState({
+      currentPhase: "exploration_role_targeting",
+      targetRole: "Social Media Strategist",
+      userMessage: "Yes, Social Media Strategist is the role I want.",
+      analyzerOutput: {
+        extracted_fields: { target_role: "Social Media Strategist" },
+        required_complete: false,
+        phase_suggestion: null,
+        confidence: 0.95,
+        notes: "",
+        turn_function: "confirm",
+        referenced_prior_prompt: true,
+      },
+    });
+    const sosUp = await stateUpdater(sosState);
+    const sosRole = sosUp.targetRole ?? sosState.targetRole;
+    assert(
+      sosRole === "Social Media Strategist",
+      `TST-SOS-004: state.targetRole remains 'Social Media Strategist' (not aliased to 'Marketing Managers') — (RAG-001, SK-001, ST-001, got ${JSON.stringify(sosRole)})`,
     );
   }
 
