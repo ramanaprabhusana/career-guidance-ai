@@ -436,6 +436,23 @@ function mergeRoleTargetingFields(
     updates.userConfirmedEvaluation = true;
   }
 
+  // CONF-003 (2026-05-04): secondary learningNeedsComplete fallback — fires when all
+  // skills are rated AND the eval summary was shown AND user is confirming, even if the
+  // analyzer never extracted a learning_needs array. Prevents the planning gate from
+  // stalling when the analyzer omits learning_needs on post-summary "yes" turns.
+  const allSkillsAssessed =
+    state.skills.length > 0 &&
+    state.skills.every((s) => s.user_rating != null);
+  if (
+    updates.learningNeedsComplete !== true &&
+    !state.learningNeedsComplete &&
+    allSkillsAssessed &&
+    state.skillsEvaluationSummary &&
+    userIsConfirming
+  ) {
+    updates.learningNeedsComplete = true;
+  }
+
   return updates;
 }
 
