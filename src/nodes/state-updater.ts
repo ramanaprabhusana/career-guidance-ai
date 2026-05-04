@@ -407,7 +407,14 @@ function mergeRoleTargetingFields(
     fields.top_priority !== undefined;
   // OR-002 / CONF-001 (2026-05-03): resolveUserConfirming prefers turn_function,
   // falls back to user_intent (Change 6), then isConfirmation() (CONF-001 backstop).
-  const userIsConfirming = resolveUserConfirming(state.analyzerOutput, state.userMessage);
+  // CONF-001b (2026-05-04): these two gates specifically need the isConfirmation()
+  // backstop even when turn_function is present but not "confirm" — Gemini often
+  // classifies post-summary "yes" utterances as turn_function:"acknowledge" which
+  // bypasses resolveUserConfirming. Using || isConfirmation() restores the
+  // narrow backstop that CONF-001 intended for these two fields only.
+  const userIsConfirming =
+    resolveUserConfirming(state.analyzerOutput, state.userMessage) ||
+    isConfirmation(state.userMessage);
 
   if (
     updates.learningNeedsComplete !== true &&
@@ -1109,8 +1116,19 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
 
   // Auto-fetch skills when in role targeting and targetRole is set but skills are empty
   const effectivePhase = updates.currentPhase ?? state.currentPhase;
+  // CONF-002 (2026-05-04): when transitioning into exploration_role_targeting from
+  // exploration_career, the confirmation turn ("Yes, that is the role I want to explore")
+  // may not re-extract target_role (thin-reply rule), leaving state.targetRole null even
+  // though the role was named in a prior turn. Fall back to the first candidateDirection
+  // title if it's the only one present, as a narrowly-scoped recovery path.
+  const firstCandidateRole =
+    effectivePhase === "exploration_role_targeting" &&
+    !updates.targetRole && !fieldUpdates.targetRole && !state.targetRole &&
+    (updates.candidateDirections ?? state.candidateDirections ?? []).length === 1
+      ? ((updates.candidateDirections ?? state.candidateDirections)[0]?.direction_title ?? null)
+      : null;
   const effectiveRoleRaw =
-    updates.targetRole ?? fieldUpdates.targetRole ?? state.targetRole;
+    updates.targetRole ?? fieldUpdates.targetRole ?? state.targetRole ?? firstCandidateRole;
   // Change 5 P0 (Apr 14 2026): trim + require truthy before dispatching RAG.
   // A blank / whitespace role must NEVER trigger a silent cached-occupation
   // substitution (Apr 12 "Data Entry Keyer" regression).
