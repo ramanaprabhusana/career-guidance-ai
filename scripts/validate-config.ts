@@ -290,7 +290,8 @@ const skillsDir = join(ROOT, "agent_config", "skills");
       // Change 5 P0 (Apr 14 2026): role-confirmation guard + scoped ReAct
       // loop channels. All runtime-only; never emitted by the analyzer and
       // never written to state_schema.json.
-      "needs_role_confirmation", "react_intent", "react_step_count",
+      "needs_role_confirmation", "block_just_presented",
+      "react_intent", "react_step_count",
       "max_react_steps", "react_observation_log", "pending_react_tool",
       // Change 6 (May 01 2026): role-scoped completion flag + LLM intent field.
       // Both are runtime-only; never written to state_schema.json.
