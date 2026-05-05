@@ -382,6 +382,16 @@ export const AgentState = Annotation.Root({
     default: () => false,
   }),
 
+  // CONF-004 (2026-05-04): set true by speaker-prompt-creator when the
+  // MANDATORY OVERRIDE block content is appended (i.e. a plan block was
+  // just presented to the user). The state-updater reads this on the NEXT
+  // turn to allow isConfirmation() to advance the block even when Gemini
+  // misclassifies "yes" as turn_function:"acknowledge".
+  blockJustPresented: Annotation<boolean>({
+    reducer: (_, b) => b,
+    default: () => false,
+  }),
+
   // --- Change 5 P0 (Apr 14 2026): scoped ReAct loop channels ---
   // Gated by `ENABLE_REACT_LOOP=true` env AND a named intent. The default
   // chat path is single-pass (analyzer → state-updater → speaker); these

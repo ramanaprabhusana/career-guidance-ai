@@ -531,5 +531,12 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
   if (state.roleSwitchContext && !state.roleSwitchAcknowledged) {
     updates.roleSwitchAcknowledged = true;
   }
+  // CONF-004 (2026-05-04): signal to state-updater that a plan block was
+  // just presented via MANDATORY OVERRIDE. The next turn's isConfirmation()
+  // backstop is only allowed to advance the block when this flag is true,
+  // preventing bare "ok" after bridge statements from advancing prematurely.
+  updates.blockJustPresented =
+    state.currentPhase === "planning" &&
+    (state.planBlocks ?? []).some((b) => !b.confirmed);
   return updates;
 }

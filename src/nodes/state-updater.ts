@@ -1332,7 +1332,13 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
   const existingBlocks = updates.planBlocks ?? state.planBlocks ?? [];
   if (state.currentPhase === "planning" && existingBlocks.length > 0) {
     const firstPending = existingBlocks.findIndex((b) => !b.confirmed);
-    if (firstPending >= 0 && planBlockUserConfirming) {
+    // CONF-004 (2026-05-04): add isConfirmation() backstop ONLY when
+    // speaker-prompt-creator flagged that a block was just presented
+    // (blockJustPresented=true). This prevents bare "ok" after a bridge
+    // statement from advancing prematurely (AN-005 regression guard) while
+    // still catching "yes"/"ok" after MANDATORY OVERRIDE block delivery when
+    // Gemini misclassifies them as turn_function:"acknowledge".
+    if (firstPending >= 0 && (planBlockUserConfirming || (isConfirmation(state.userMessage) && state.blockJustPresented))) {
       const advanced = advanceNextPlanBlock(existingBlocks);
       if (advanced) {
         updates.planBlocks = advanced;
