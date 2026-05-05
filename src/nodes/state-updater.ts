@@ -847,6 +847,16 @@ function determineTransition(
   }
 
   // Check analyzer suggestion
+  // CONF-005: orientation gate — fire on required_complete OR when all 5 fields are
+  // already present in merged state (handles multi-turn fresh-graduate persona where
+  // the LLM never sees all 5 fields in a single message and never sets required_complete).
+  if (phase === "orientation" && checkOrientationComplete(state, fieldUpdates)) {
+    const goal = fieldUpdates.sessionGoal ?? state.sessionGoal;
+    const target = goal === "explore_options" ? "exploration_career" : "exploration_role_targeting";
+    logOrch("[PHASE_DECISION]", { decision: "transition", from: phase, to: target, reason: "orientation_complete_state_check", session_goal: goal });
+    return { nextPhase: target, transitionDecision: "transition" };
+  }
+
   if (analyzerOutput?.required_complete) {
     if (phase === "orientation" && checkOrientationComplete(state, fieldUpdates)) {
       const goal = fieldUpdates.sessionGoal ?? state.sessionGoal;
