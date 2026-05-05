@@ -150,16 +150,14 @@ function getCrossPhaseContext(state: AgentStateType): string {
       );
     }
     if (Array.isArray(state.planBlocks) && state.planBlocks.length > 0) {
-      const nextBlock = state.planBlocks.find((b) => !b.confirmed) ?? null;
+      const unconfirmedBlocks = state.planBlocks.filter((b) => !b.confirmed);
       const totalConfirmed = state.planBlocks.filter((b) => b.confirmed).length;
       lines.push(`Plan block progress: ${totalConfirmed}/${state.planBlocks.length} confirmed`);
-      if (nextBlock) {
-        lines.push(
-          `Next plan block to present: [${nextBlock.id}] ${nextBlock.label} — ${nextBlock.content}`
-        );
-        lines.push(
-          "Present ONLY this block this turn. End by asking the user to confirm or adjust it before moving on."
-        );
+      if (unconfirmedBlocks.length > 0) {
+        lines.push("Present ALL of the following plan sections in one message, then ask the user to confirm or adjust:");
+        for (const block of unconfirmedBlocks) {
+          lines.push(`  [${block.id}] ${block.label} — ${block.content}`);
+        }
       } else {
         lines.push(
           "All plan blocks confirmed — offer the export / PDF report as the final step."
@@ -501,18 +499,17 @@ export function speakerPromptCreator(state: AgentStateType): Partial<AgentStateT
   // reads, guaranteeing the block content is presented before anything else.
   let finalPrompt = prompt;
   if (state.currentPhase === "planning") {
-    const nextPlanBlock = (state.planBlocks ?? []).find((b) => !b.confirmed) ?? null;
-    if (nextPlanBlock) {
+    const unconfirmedBlocks = (state.planBlocks ?? []).filter((b) => !b.confirmed);
+    if (unconfirmedBlocks.length > 0) {
+      const blockLines = unconfirmedBlocks.flatMap((b) => [`**${b.label}**`, b.content, ""]);
       finalPrompt += [
         "",
-        "## MANDATORY OVERRIDE — PLAN BLOCK DELIVERY",
-        "IGNORE the generic TASK section above for this turn. Your response MUST start with the plan block content below.",
-        "Do NOT write any sentence before the block content. Do NOT say 'here is your plan', 'I am preparing', or any similar promise.",
+        "## MANDATORY OVERRIDE — FULL PLAN DELIVERY",
+        "IGNORE the generic TASK section above for this turn. Present ALL plan sections below in one well-structured response.",
+        "Do NOT write any sentence before the plan content. Do NOT say 'here is your plan', 'I am preparing', or any similar promise.",
         "",
-        `**${nextPlanBlock.label}**`,
-        nextPlanBlock.content,
-        "",
-        "End your message with exactly this question: 'Does this look right, or would you like to adjust anything?'",
+        ...blockLines,
+        "End your message with exactly this question: 'Does this plan look right to you, or would you like to adjust anything?'",
       ].join("\n");
     } else if (Array.isArray(state.planBlocks) && state.planBlocks.length > 0) {
       finalPrompt += [

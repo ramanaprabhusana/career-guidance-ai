@@ -801,6 +801,7 @@ function seedPlanBlocks(
  * Change 5 P0 (Apr 14 2026): advance the next unconfirmed plan block when
  * the user confirms ("ok", "yes", "sounds good"). This is what prevents the
  * "preparing your plan" loop — each confirmed message flips one block.
+ * Kept for test compatibility; production flow uses confirmAllPlanBlocks.
  */
 function advanceNextPlanBlock(
   blocks: import("../state.js").PlanBlock[] | undefined,
@@ -810,6 +811,19 @@ function advanceNextPlanBlock(
   if (idx < 0) return null;
   const next = blocks.map((b, i) => (i === idx ? { ...b, confirmed: true } : b));
   return next;
+}
+
+/**
+ * PLAN-SINGLE-CONFIRM (2026-05-04): confirm ALL plan blocks in one shot.
+ * Speaker now presents the full plan in one message; a single user confirmation
+ * unlocks the export instead of requiring one turn per block.
+ */
+function confirmAllPlanBlocks(
+  blocks: import("../state.js").PlanBlock[] | undefined,
+): import("../state.js").PlanBlock[] | null {
+  if (!Array.isArray(blocks) || blocks.length === 0) return null;
+  if (blocks.every((b) => b.confirmed)) return null;
+  return blocks.map((b) => ({ ...b, confirmed: true }));
 }
 
 function checkOrientationComplete(state: AgentStateType, updates: Partial<AgentStateType>): boolean {
@@ -1328,12 +1342,21 @@ export async function stateUpdater(state: AgentStateType): Promise<Partial<Agent
   // then isConfirmation() backstop. Prevents bare "ok" after a bridge statement
   // from advancing the plan block (AN-005 / Change 9 regression guard).
   const planBlockUserConfirming = resolveUserConfirming(state.analyzerOutput, state.userMessage);
+  // PLAN-GATE-FIX (2026-05-04): when the analyzer classifies a reply as
+  // non-"confirm" (e.g. "acknowledge") but the user message is still
+  // affirmative AND references the prior prompt, treat it as a confirmation.
+  // This prevents the infinite loop where "yes"/"sure" never advances a block.
+  // Guard: referenced_prior_prompt must be true so a bare "ok" to a bridge
+  // statement (referenced_prior_prompt=false) still does NOT advance.
+  const aoRef = (state.analyzerOutput ?? {}) as Record<string, unknown>;
+  const referencedPrior = aoRef.referenced_prior_prompt === true;
+  const planBlockConfirmFallback = referencedPrior && isConfirmation(state.userMessage);
 
   const existingBlocks = updates.planBlocks ?? state.planBlocks ?? [];
   if (state.currentPhase === "planning" && existingBlocks.length > 0) {
     const firstPending = existingBlocks.findIndex((b) => !b.confirmed);
-    if (firstPending >= 0 && planBlockUserConfirming) {
-      const advanced = advanceNextPlanBlock(existingBlocks);
+    if (firstPending >= 0 && (planBlockUserConfirming || planBlockConfirmFallback)) {
+      const advanced = confirmAllPlanBlocks(existingBlocks);
       if (advanced) {
         updates.planBlocks = advanced;
         // Only let reportGenerated flip once EVERY block is confirmed.
